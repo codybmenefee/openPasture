@@ -1,5 +1,6 @@
 import type { Feature, Polygon, Position } from 'geojson'
 import type { Section, Paddock, SectionAlternative } from './types'
+import { calculateAreaHectares } from './geometry/geometryUtils'
 
 /**
  * Section Generator
@@ -67,8 +68,8 @@ export function generateSection(params: SectionParams): Section {
   const height = bounds.maxLat - bounds.minLat
   
   // Calculate section size as fraction of paddock
-  const targetArea = targetAreaHectares ?? paddock.area / totalDays
-  const areaFraction = targetArea / paddock.area
+  const desiredArea = targetAreaHectares ?? paddock.area / totalDays
+  const areaFraction = desiredArea / paddock.area
   
   // Determine strip direction - alternate between horizontal and diagonal strips
   const isHorizontal = dayIndex % 2 === 0
@@ -162,14 +163,15 @@ export function generateSection(params: SectionParams): Section {
   }
   
   // Generate reasoning for this section placement
-  const reasoning = generateSectionReasoning(dayIndex, totalDays, targetArea, paddock)
+  const actualArea = calculateAreaHectares(sectionGeometry)
+  const reasoning = generateSectionReasoning(dayIndex, totalDays, actualArea, paddock)
   
   return {
     id: `section-${paddock.id}-day${dayIndex + 1}`,
     paddockId: paddock.id,
     date: '', // Will be set by caller
     geometry: sectionGeometry,
-    targetArea,
+    targetArea: actualArea,
     reasoning,
   }
 }
@@ -263,8 +265,8 @@ export function generateSectionAlternatives(
     const random = seededRandom(altSeed)
     
     // Calculate area similar to main section
-    const targetArea = paddock.area / totalDays
-    const areaFraction = targetArea / paddock.area
+    const desiredArea = paddock.area / totalDays
+    const areaFraction = desiredArea / paddock.area
     
     // Alternative placement strategies
     let sectionCoords: Position[]
@@ -294,7 +296,7 @@ export function generateSectionAlternatives(
       confidenceDeduction = 12 + Math.floor(random() * 8)
     } else {
       // Alternative 2: Smaller, more concentrated section
-      const smallerArea = targetArea * 0.85
+      const smallerArea = desiredArea * 0.85
       const smallerFraction = smallerArea / paddock.area
       const stripHeight = height * Math.sqrt(smallerFraction / 2)
       const stripWidth = width * 0.5
@@ -329,6 +331,7 @@ export function generateSectionAlternatives(
         coordinates: [sectionCoords],
       },
     }
+    const actualArea = calculateAreaHectares(geometry)
     
     // Confidence is relative to the primary recommendation
     // Primary is always highest, alternatives are lower
@@ -338,7 +341,7 @@ export function generateSectionAlternatives(
     alternatives.push({
       id: `alt-${paddock.id}-day${dayIndex + 1}-opt${i + 1}`,
       geometry,
-      targetArea: i === 1 ? targetArea * 0.85 : targetArea,
+      targetArea: actualArea,
       confidence,
       reasoning,
     })

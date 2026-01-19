@@ -1,6 +1,6 @@
 import type { GrazingEvent, PaddockStay } from '@/lib/types'
 import { getPaddockById } from './paddocks'
-import { generatePaddockStaySections, calculatePaddockDays } from '@/lib/sectionGenerator'
+import { generatePaddockStaySections } from '@/lib/sectionGenerator'
 
 // Generate section geometries for historical grazing events
 function generateEventWithSections(
@@ -140,18 +140,19 @@ export function getPaddockStaysForPaddock(paddockId: string): PaddockStay[] {
 export function getCurrentPaddockStay(): PaddockStay | undefined {
   // Return the most recent stay (which might still be ongoing)
   const currentPaddock = getPaddockById('p4')! // East Ridge
-  const totalDays = calculatePaddockDays(currentPaddock.area)
   
   const today = new Date()
   const entryDate = new Date(today)
   entryDate.setDate(entryDate.getDate() - 1) // Started yesterday
+
+  const sections = generatePaddockStaySections(currentPaddock, 2, entryDate) // 2 days so far
   
   return {
     id: 'stay-current',
     paddockId: 'p4',
     paddockName: 'East Ridge',
     entryDate: entryDate.toISOString().split('T')[0],
-    sections: generatePaddockStaySections(currentPaddock, 2, entryDate), // 2 days so far
-    totalArea: currentPaddock.area * (2 / totalDays),
+    sections,
+    totalArea: sections.reduce((sum, section) => sum + section.targetArea, 0),
   }
 }

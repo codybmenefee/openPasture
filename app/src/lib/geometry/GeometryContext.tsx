@@ -8,6 +8,7 @@ import type {
   PendingChange,
 } from './types'
 import { paddocks as mockPaddocks } from '@/data/mock/paddocks'
+import { calculateAreaHectares } from './geometryUtils'
 
 const GeometryContext = createContext<GeometryContextValue | null>(null)
 const STORAGE_KEY = 'pan.geometry.v1'
@@ -37,22 +38,18 @@ function createDefaultSectionMetadata(): Omit<Section, 'id' | 'paddockId' | 'geo
   }
 }
 
-function calculatePolygonArea(geometry: Feature<Polygon>): number {
-  // Simple polygon area calculation (in hectares, approximate)
-  // For production, use Turf.js area calculation
-  const coords = geometry.geometry.coordinates[0]
-  if (coords.length < 3) return 0
+function normalizePaddocks(list: Paddock[]): Paddock[] {
+  return list.map((paddock) => ({
+    ...paddock,
+    area: calculateAreaHectares(paddock.geometry),
+  }))
+}
 
-  let area = 0
-  for (let i = 0; i < coords.length - 1; i++) {
-    area += coords[i][0] * coords[i + 1][1]
-    area -= coords[i + 1][0] * coords[i][1]
-  }
-  area = Math.abs(area) / 2
-
-  // Convert from degrees to approximate hectares (very rough at mid-latitudes)
-  const hectares = area * 111320 * 111320 * Math.cos((coords[0][1] * Math.PI) / 180) / 10000
-  return Math.round(hectares * 10) / 10
+function normalizeSections(list: Section[]): Section[] {
+  return list.map((section) => ({
+    ...section,
+    targetArea: calculateAreaHectares(section.geometry),
+  }))
 }
 
 function loadStoredGeometry(): { paddocks: Paddock[]; sections: Section[] } | null {
@@ -101,12 +98,14 @@ export function GeometryProvider({
   onGeometryChange,
 }: GeometryProviderProps) {
   const storedGeometry = loadStoredGeometry()
-  const [paddocks, setPaddocks] = useState<Paddock[]>(
-    storedGeometry?.paddocks ?? initialPaddocks ?? mockPaddocks
-  )
-  const [sections, setSections] = useState<Section[]>(
-    storedGeometry?.sections ?? initialSections
-  )
+  const [paddocks, setPaddocks] = useState<Paddock[]>(() => {
+    const source = storedGeometry?.paddocks ?? initialPaddocks ?? mockPaddocks
+    return normalizePaddocks(source)
+  })
+  const [sections, setSections] = useState<Section[]>(() => {
+    const source = storedGeometry?.sections ?? initialSections
+    return normalizeSections(source)
+  })
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
 
   useEffect(() => {
@@ -134,7 +133,7 @@ export function GeometryProvider({
   const addPaddock = useCallback(
     (geometry: Feature<Polygon>, metadata?: Partial<Omit<Paddock, 'id' | 'geometry'>>): string => {
       const id = `p-${generateId()}`
-      const area = calculatePolygonArea(geometry)
+      const area = calculateAreaHectares(geometry)
       const newPaddock: Paddock = {
         ...createDefaultPaddockMetadata(),
         ...metadata,
@@ -159,7 +158,7 @@ export function GeometryProvider({
 
   const updatePaddock = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
-      const area = calculatePolygonArea(geometry)
+      const area = calculateAreaHectares(geometry)
       setPaddocks((prev) =>
         prev.map((p) => (p.id === id ? { ...p, geometry, area } : p))
       )
@@ -206,7 +205,7 @@ export function GeometryProvider({
       metadata?: Partial<Omit<Section, 'id' | 'paddockId' | 'geometry'>>
     ): string => {
       const id = `s-${generateId()}`
-      const targetArea = calculatePolygonArea(geometry)
+      const targetArea = calculateAreaHectares(geometry)
       const newSection: Section = {
         ...createDefaultSectionMetadata(),
         ...metadata,
@@ -233,7 +232,7 @@ export function GeometryProvider({
 
   const updateSection = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
-      const targetArea = calculatePolygonArea(geometry)
+      const targetArea = calculateAreaHectares(geometry)
       setSections((prev) =>
         prev.map((s) => (s.id === id ? { ...s, geometry, targetArea } : s))
       )
@@ -290,8 +289,8 @@ export function GeometryProvider({
 
   const resetToInitial = useCallback(() => {
     clearStoredGeometry()
-    setPaddocks(initialPaddocks ?? mockPaddocks)
-    setSections(initialSections)
+    setPaddocks(normalizePaddocks(initialPaddocks ?? mockPaddocks))
+    setSections(normalizeSections(initialSections))
     setPendingChanges([])
   }, [initialPaddocks, initialSections])
 

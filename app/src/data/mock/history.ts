@@ -20,7 +20,7 @@ function createHistoryEntry(
   userFeedback?: string
 ): HistoryEntry {
   const paddock = getPaddockById(paddockId)
-  const sectionArea = paddock ? paddock.area / (totalDaysInPaddock || 4) : 3.5
+  let sectionArea = paddock ? paddock.area / (totalDaysInPaddock || 4) : 3.5
   
   // Generate section geometry if this is a section rotation
   let sectionGeometry
@@ -34,6 +34,7 @@ function createHistoryEntry(
     })
     sectionGeometry = section.geometry
     sectionId = section.id
+    sectionArea = section.targetArea
   }
   
   return {

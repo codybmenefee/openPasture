@@ -90,7 +90,20 @@ These are future integration points, not current scope.
 
 ## Getting Started
 
-*Documentation forthcoming as implementation progresses.*
+The web app lives in `app/`. Prerequisites: Node.js 18+ and npm.
+
+```bash
+cd app
+npm install
+npm run dev
+```
+
+Common scripts:
+
+- `npm run dev` - start the Vite dev server
+- `npm run build` - type-check and build for production
+- `npm run lint` - run ESLint
+- `npm run preview` - preview the production build
 
 ## Tech Stack
 
@@ -106,14 +119,14 @@ These are future integration points, not current scope.
 /
 ├── agents.md              # AI agent reference
 ├── README.md              # This file
+├── app/                   # Web application (Vite + React)
+│   ├── public/
+│   ├── src/
+│   └── ...
 ├── docs/
 │   ├── architecture.md    # Technical architecture details
-│   └── domain.md          # Remote sensing domain knowledge
-├── src/
-│   ├── ingestion/         # Satellite data fetching
-│   ├── processing/        # Index computation
-│   ├── intelligence/      # Plan generation
-│   └── app/               # Web application
+│   ├── domain.md          # Remote sensing domain knowledge
+│   └── phasing.md         # Development phases
 └── ...
 ```
 
@@ -123,9 +136,17 @@ These are future integration points, not current scope.
 - [Technical Architecture](docs/architecture.md) - System design and data flow
 - [Domain Knowledge](docs/domain.md) - Remote sensing and vegetation science primer
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and contribution guidelines.
+
+## Security
+
+If you discover a vulnerability, see [SECURITY.md](SECURITY.md).
+
 ## License
 
-*TBD*
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 ---
 

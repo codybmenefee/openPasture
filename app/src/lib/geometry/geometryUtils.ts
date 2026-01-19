@@ -4,6 +4,17 @@ import intersect from '@turf/intersect'
 import { featureCollection, polygon } from '@turf/helpers'
 
 const DEFAULT_TOLERANCE = 1e-8
+const HECTARES_PER_SQUARE_METER = 1 / 10000
+const AREA_DECIMALS = 1
+
+export function calculateAreaHectares(feature: Feature<Polygon | MultiPolygon>, decimals = AREA_DECIMALS): number {
+  if (!feature) return 0
+  const squareMeters = area(feature)
+  if (!Number.isFinite(squareMeters)) return 0
+  const hectares = squareMeters * HECTARES_PER_SQUARE_METER
+  const factor = Math.pow(10, decimals)
+  return Math.round(hectares * factor) / factor
+}
 
 export interface TranslationDelta {
   deltaLng: number
