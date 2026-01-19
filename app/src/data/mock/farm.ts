@@ -3,10 +3,10 @@ import type { Farm, DataStatus } from '@/lib/types'
 export const farm: Farm = {
   id: 'farm-1',
   name: 'Hillcrest Station',
-  location: 'Canterbury, NZ',
+  location: '943 Riverview Ln, Columbia, TN 38401',
   totalArea: 142,
   paddockCount: 8,
-  coordinates: [172.6362, -43.5321], // Canterbury, NZ
+  coordinates: [-87.0403892, 35.6389946], // Columbia, TN
 }
 
 export const dataStatus: DataStatus = {

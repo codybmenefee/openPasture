@@ -7,7 +7,7 @@ import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DrawingToolbar } from '@/components/map/DrawingToolbar'
-import { useGeometry } from '@/lib/geometry'
+import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import { farm } from '@/data/mock/farm'
 import type { Feature, Polygon } from 'geojson'
 import type { DrawMode } from '@/lib/hooks'
@@ -102,6 +102,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
+  const dragStateRef = useRef<{ featureId: string; startPoint: maplibregl.Point; dragging: boolean } | null>(null)
   
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [currentMode, setCurrentMode] = useState<DrawMode>('simple_select')
@@ -109,7 +110,16 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawnPaddockCount, setDrawnPaddockCount] = useState(0)
   
-  const { addPaddock, paddocks, resetToInitial } = useGeometry()
+  const {
+    addPaddock,
+    updatePaddock,
+    getPaddockById,
+    getSectionsByPaddockId,
+    updateSection,
+    deleteSection,
+    paddocks,
+    resetToInitial,
+  } = useGeometry()
 
   // Initialize map
   useEffect(() => {
@@ -181,6 +191,40 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
         setIsDrawing(false)
       })
 
+      const handleUpdate = (e: { features: Feature<Polygon>[]; action?: string }) => {
+        e.features.forEach((feature) => {
+          if (!feature.id || feature.geometry.type !== 'Polygon') return
+          const id = String(feature.id)
+          const previousPaddock = getPaddockById(id)
+          const nextGeometry = feature as Feature<Polygon>
+
+          updatePaddock(id, nextGeometry)
+
+          if (previousPaddock) {
+            const previousGeometry = previousPaddock.geometry
+            const translation = getTranslationDelta(previousGeometry, nextGeometry)
+            const shouldTranslate = e.action === 'move' || (e.action !== 'change_coordinates' && translation)
+
+            const sections = getSectionsByPaddockId(id)
+            if (shouldTranslate && translation) {
+              sections.forEach((section) => {
+                const moved = translatePolygon(section.geometry, translation.deltaLng, translation.deltaLat)
+                updateSection(section.id, moved)
+              })
+            } else {
+              sections.forEach((section) => {
+                const clipped = clipPolygonToPolygon(section.geometry, nextGeometry)
+                if (clipped) {
+                  updateSection(section.id, clipped)
+                } else {
+                  deleteSection(section.id)
+                }
+              })
+            }
+          }
+        })
+      }
+
       map.on('draw.modechange', (e: { mode: DrawMode }) => {
         setCurrentMode(e.mode)
         setIsDrawing(e.mode === 'draw_polygon')
@@ -191,6 +235,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
       })
 
       setIsMapLoaded(true)
+      map.on('draw.update', handleUpdate)
     })
 
     return () => {
@@ -199,7 +244,107 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
         mapRef.current = null
       }
     }
-  }, [addPaddock, drawnPaddockCount])
+  }, [
+    addPaddock,
+    updatePaddock,
+    getPaddockById,
+    getSectionsByPaddockId,
+    updateSection,
+    deleteSection,
+    drawnPaddockCount,
+  ])
+
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return
+
+    const activeMode = drawRef.current?.getMode?.() ?? currentMode
+    const shouldEnableDrag = activeMode === 'simple_select' && selectedFeatureIds.length === 0
+
+    if (shouldEnableDrag) {
+      if (!mapRef.current.dragPan.isEnabled()) {
+        mapRef.current.dragPan.enable()
+      }
+    } else if (mapRef.current.dragPan.isEnabled()) {
+      mapRef.current.dragPan.disable()
+    }
+  }, [isMapLoaded, currentMode, selectedFeatureIds.length])
+
+  useEffect(() => {
+    if (!mapRef.current || !drawRef.current || !isMapLoaded) return
+
+    const map = mapRef.current
+    const draw = drawRef.current
+    const filterExistingLayers = (layerIds: string[]) =>
+      layerIds.filter((layerId) => map.getLayer(layerId))
+
+    const vertexLayerIds = filterExistingLayers([
+      'gl-draw-polygon-and-line-vertex-active',
+      'gl-draw-polygon-midpoint',
+    ])
+
+    const getFeatureIdAtPoint = (point: maplibregl.Point) => {
+      const ids = draw.getFeatureIdsAt({ x: point.x, y: point.y })
+      return ids.length > 0 ? String(ids[0]) : null
+    }
+
+    const isVertexHit = (point: maplibregl.Point) => {
+      if (!vertexLayerIds.length) return false
+      const features = map.queryRenderedFeatures(point, { layers: vertexLayerIds })
+      return features.length > 0
+    }
+
+    const handleMouseDown = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+      if (isDrawing || isVertexHit(e.point)) return
+      const featureId = getFeatureIdAtPoint(e.point)
+      if (!featureId) return
+
+      dragStateRef.current = {
+        featureId,
+        startPoint: e.point,
+        dragging: false,
+      }
+      draw.changeMode('simple_select', { featureIds: [featureId] })
+    }
+
+    const handleMouseMove = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+      const state = dragStateRef.current
+      if (!state || state.dragging) return
+      const dx = e.point.x - state.startPoint.x
+      const dy = e.point.y - state.startPoint.y
+      if (Math.hypot(dx, dy) > 4) {
+        state.dragging = true
+      }
+    }
+
+    const handleMouseUp = () => {
+      const state = dragStateRef.current
+      if (!state) return
+      draw.changeMode('direct_select', { featureId: state.featureId })
+      dragStateRef.current = null
+    }
+
+    const handleMapClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+      if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
+      const featureId = getFeatureIdAtPoint(e.point)
+      if (!featureId) {
+        draw.changeMode('simple_select')
+        return
+      }
+      draw.changeMode('direct_select', { featureId })
+    }
+
+    map.on('mousedown', handleMouseDown)
+    map.on('mousemove', handleMouseMove)
+    map.on('mouseup', handleMouseUp)
+    map.on('click', handleMapClick)
+
+    return () => {
+      map.off('mousedown', handleMouseDown)
+      map.off('mousemove', handleMouseMove)
+      map.off('mouseup', handleMouseUp)
+      map.off('click', handleMapClick)
+    }
+  }, [isMapLoaded, isDrawing])
 
   const setMode = useCallback((mode: DrawMode) => {
     if (drawRef.current) {
@@ -275,7 +420,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
         {/* Instructions */}
         <div className="text-sm text-muted-foreground space-y-1">
           <p>Click "Draw Paddock" then click on the map to place vertices. Double-click to finish a polygon.</p>
-          <p>You can edit vertices by selecting a paddock and clicking "Edit Vertices".</p>
+          <p>Click a paddock to edit vertices, drag to reposition, and click outside to stop editing.</p>
         </div>
         
         {/* Import options */}

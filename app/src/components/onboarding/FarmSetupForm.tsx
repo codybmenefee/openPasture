@@ -58,7 +58,7 @@ export function FarmSetupForm({ onNext, onBack, initialData }: FarmSetupFormProp
               id="location"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="e.g., Canterbury, NZ"
+              placeholder="e.g., 943 Riverview Ln, Columbia, TN 38401"
             />
           </div>
           

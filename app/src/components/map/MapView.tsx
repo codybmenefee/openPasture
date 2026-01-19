@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
+import { PaddockEditPanel } from './PaddockEditPanel'
 import { LayerToggles } from './LayerToggles'
-import { useGeometry } from '@/lib/geometry'
+import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { todaysPlan } from '@/data/mock/plan'
 import type { Paddock, Section, SectionAlternative } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
@@ -26,7 +27,7 @@ export function MapView() {
   const [editSectionId, setEditSectionId] = useState<string | undefined>(undefined)
   const [initialPaddockId, setInitialPaddockId] = useState<string | undefined>(undefined)
   const mapRef = useRef<FarmMapHandle>(null)
-  const { getSectionById, addPaddock } = useGeometry()
+  const { getSectionById, getPaddockById, addPaddock } = useGeometry()
   
   const [layers, setLayers] = useState({
     satellite: false,
@@ -61,7 +62,26 @@ export function MapView() {
     return todaysPlan.sectionAlternatives.find((alt) => alt.id === search.sectionId) ?? null
   }, [getSectionById, search.entityType, search.sectionId])
 
-  const effectiveSectionGeometry = editSectionFeature ?? sectionFeature?.geometry ?? null
+  const sectionPaddockId = useMemo(() => {
+    if (search.paddockId) return search.paddockId
+    if (sectionFeature && 'paddockId' in sectionFeature) return sectionFeature.paddockId
+    const props = sectionFeature?.geometry?.properties as { paddockId?: string } | undefined
+    return props?.paddockId
+  }, [search.paddockId, sectionFeature])
+
+  const sectionPaddock = useMemo(() => {
+    if (!sectionPaddockId) return undefined
+    return getPaddockById(sectionPaddockId)
+  }, [getPaddockById, sectionPaddockId])
+
+  const clippedSectionGeometry = useMemo(() => {
+    if (!sectionFeature) return null
+    if (!sectionPaddock) return sectionFeature.geometry
+    const clipped = clipPolygonToPolygon(sectionFeature.geometry, sectionPaddock.geometry)
+    return clipped ?? sectionPaddock.geometry
+  }, [sectionFeature, sectionPaddock])
+
+  const effectiveSectionGeometry = editSectionFeature ?? clippedSectionGeometry ?? null
   const effectiveSectionId = editSectionId ?? sectionFeature?.id
 
   // Focus map on section bounds when available
@@ -190,6 +210,10 @@ export function MapView() {
     }
   }, [addPaddock, editMode, entityType, editSectionId, effectiveSectionId])
 
+  const handleEditPaddockSelect = useCallback((paddock: Paddock | null) => {
+    setSelectedPaddock(paddock)
+  }, [])
+
   return (
     <div className="flex h-full">
       {/* Map area */}
@@ -197,6 +221,7 @@ export function MapView() {
         <FarmMap
           ref={mapRef}
           onPaddockClick={setSelectedPaddock}
+          onEditPaddockSelect={handleEditPaddockSelect}
           onEditRequest={handleEditRequest}
           selectedPaddockId={selectedPaddock?.id}
           showSatellite={layers.satellite}
@@ -240,6 +265,16 @@ export function MapView() {
         <PaddockPanel
           paddock={selectedPaddock}
           onClose={() => setSelectedPaddock(null)}
+        />
+      )}
+
+      {selectedPaddock && editMode && entityType === 'paddock' && (
+        <PaddockEditPanel
+          paddock={selectedPaddock}
+          onClose={() => {
+            setSelectedPaddock(null)
+            mapRef.current?.setDrawMode('simple_select')
+          }}
         />
       )}
     </div>

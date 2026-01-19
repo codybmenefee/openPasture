@@ -152,7 +152,7 @@ export function DrawingToolbar({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Select</p>
+              <p>Select (click to edit, drag to move)</p>
             </TooltipContent>
           </Tooltip>
 
@@ -233,7 +233,7 @@ export function DrawingToolbar({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Click to select shapes, drag to pan</p>
+            <p>Click a shape to edit vertices, drag to move</p>
           </TooltipContent>
         </Tooltip>
 

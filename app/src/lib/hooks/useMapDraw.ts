@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import type { Feature, Polygon, FeatureCollection } from 'geojson'
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import { useGeometry } from '@/lib/geometry'
+import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import type { EntityType } from '@/lib/geometry'
 
 // Import MapboxDraw styles - these need to be imported in the component that uses this hook
@@ -127,12 +127,21 @@ export function useMapDraw({
   onFeatureDeleted,
 }: UseMapDrawOptions): UseMapDrawReturn {
   const drawRef = useRef<MapboxDraw | null>(null)
+  const [draw, setDraw] = useState<MapboxDraw | null>(null)
   const [currentMode, setCurrentMode] = useState<DrawMode>('simple_select')
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
 
-  const { addPaddock, updatePaddock, deletePaddock, addSection, updateSection, deleteSection } =
-    useGeometry()
+  const {
+    addPaddock,
+    updatePaddock,
+    deletePaddock,
+    addSection,
+    updateSection,
+    deleteSection,
+    getPaddockById,
+    getSectionsByPaddockId,
+  } = useGeometry()
 
   // Initialize MapboxDraw
   useEffect(() => {
@@ -152,6 +161,7 @@ export function useMapDraw({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     map.addControl(draw as any)
     drawRef.current = draw
+    setDraw(draw)
 
     return () => {
       if (map && drawRef.current) {
@@ -163,6 +173,7 @@ export function useMapDraw({
         }
         drawRef.current = null
       }
+      setDraw(null)
     }
   }, [map, editable])
 
@@ -196,13 +207,38 @@ export function useMapDraw({
       setIsDrawing(false)
     }
 
-    const handleUpdate = (e: { features: Feature<Polygon>[] }) => {
+    const handleUpdate = (e: { features: Feature<Polygon>[]; action?: string }) => {
       e.features.forEach((feature) => {
         if (!feature.id || feature.geometry.type !== 'Polygon') return
 
         const id = String(feature.id)
         if (entityType === 'paddock') {
+          const previousPaddock = getPaddockById(id)
+          const nextGeometry = feature as Feature<Polygon>
           updatePaddock(id, feature as Feature<Polygon>)
+          if (previousPaddock) {
+            const previousGeometry = previousPaddock.geometry
+            const translation = getTranslationDelta(previousGeometry, nextGeometry)
+            const shouldTranslate = e.action === 'move' || (e.action !== 'change_coordinates' && translation)
+
+            if (shouldTranslate && translation) {
+              const sections = getSectionsByPaddockId(id)
+              sections.forEach((section) => {
+                const moved = translatePolygon(section.geometry, translation.deltaLng, translation.deltaLat)
+                updateSection(section.id, moved)
+              })
+            } else {
+              const sections = getSectionsByPaddockId(id)
+              sections.forEach((section) => {
+                const clipped = clipPolygonToPolygon(section.geometry, nextGeometry)
+                if (clipped) {
+                  updateSection(section.id, clipped)
+                } else {
+                  deleteSection(section.id)
+                }
+              })
+            }
+          }
         } else {
           updateSection(id, feature as Feature<Polygon>)
         }
@@ -258,6 +294,8 @@ export function useMapDraw({
     addSection,
     updateSection,
     deleteSection,
+    getPaddockById,
+    getSectionsByPaddockId,
     onFeatureCreated,
     onFeatureUpdated,
     onFeatureDeleted,
@@ -288,7 +326,7 @@ export function useMapDraw({
   }, [])
 
   return {
-    draw: drawRef.current,
+    draw,
     currentMode,
     selectedFeatureIds,
     setMode,

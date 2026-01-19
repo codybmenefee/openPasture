@@ -71,7 +71,7 @@ function OnboardingPage() {
       {currentStep === 3 && (
         <OnboardingComplete
           farmName={farmData.name || 'Clearview Farm'}
-          location={farmData.location || 'Canterbury, NZ'}
+          location={farmData.location || '943 Riverview Ln, Columbia, TN 38401'}
           area={farmData.area || '450'}
           paddockCount={paddocks.length}
         />

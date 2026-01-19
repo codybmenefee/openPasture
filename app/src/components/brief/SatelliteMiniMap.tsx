@@ -4,7 +4,7 @@ import maplibregl from 'maplibre-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
-import { useGeometry } from '@/lib/geometry'
+import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import type { Section } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 import { cn } from '@/lib/utils'
@@ -135,6 +135,7 @@ export function SatelliteMiniMap({
   const mapContainer = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const drawRef = useRef<MapboxDraw | null>(null)
+  const dragStateRef = useRef<{ featureId: string; startPoint: maplibregl.Point; dragging: boolean } | null>(null)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const [currentMode, setCurrentMode] = useState<DrawMode>('simple_select')
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([])
@@ -324,6 +325,22 @@ export function SatelliteMiniMap({
     }
   }, [paddock, paddockBounds, previousSections, section, isEditActive])
 
+  useEffect(() => {
+    if (!mapRef.current || !isMapLoaded) return
+
+    const activeMode = drawRef.current?.getMode?.() ?? currentMode
+    const shouldEnableDrag =
+      !isEditActive || (activeMode === 'simple_select' && selectedFeatureIds.length === 0)
+
+    if (shouldEnableDrag) {
+      if (!mapRef.current.dragPan.isEnabled()) {
+        mapRef.current.dragPan.enable()
+      }
+    } else if (mapRef.current.dragPan.isEnabled()) {
+      mapRef.current.dragPan.disable()
+    }
+  }, [isMapLoaded, isEditActive, currentMode, selectedFeatureIds.length])
+
   // Initialize/cleanup MapboxDraw when edit mode changes
   useEffect(() => {
     if (!mapRef.current || !isMapLoaded || !isEditActive) {
@@ -385,7 +402,15 @@ export function SatelliteMiniMap({
     const handleUpdate = (e: { features: Feature<Polygon>[] }) => {
       e.features.forEach((feature) => {
         if (!feature.id || feature.geometry.type !== 'Polygon') return
-        updateSection(String(feature.id), feature as Feature<Polygon>)
+        let nextGeometry = feature as Feature<Polygon>
+
+        if (paddock) {
+          const clipped = clipPolygonToPolygon(nextGeometry, paddock.geometry)
+          if (!clipped) return
+          nextGeometry = clipped
+        }
+
+        updateSection(String(feature.id), nextGeometry)
       })
     }
 
@@ -420,7 +445,84 @@ export function SatelliteMiniMap({
         drawRef.current = null
       }
     }
-  }, [isMapLoaded, isEditActive, section, paddockId, addSection, updateSection, onSectionUpdate])
+  }, [isMapLoaded, isEditActive, section, paddockId, paddock, addSection, updateSection, onSectionUpdate])
+
+  useEffect(() => {
+    if (!mapRef.current || !drawRef.current || !isMapLoaded || !isEditActive) return
+
+    const map = mapRef.current
+    const draw = drawRef.current
+    const filterExistingLayers = (layerIds: string[]) =>
+      layerIds.filter((layerId) => map.getLayer(layerId))
+
+    const vertexLayerIds = filterExistingLayers([
+      'gl-draw-polygon-and-line-vertex-active',
+      'gl-draw-polygon-midpoint',
+    ])
+
+    const getFeatureIdAtPoint = (point: maplibregl.Point) => {
+      const ids = draw.getFeatureIdsAt({ x: point.x, y: point.y })
+      return ids.length > 0 ? String(ids[0]) : null
+    }
+
+    const isVertexHit = (point: maplibregl.Point) => {
+      if (!vertexLayerIds.length) return false
+      const features = map.queryRenderedFeatures(point, { layers: vertexLayerIds })
+      return features.length > 0
+    }
+
+    const handleMouseDown = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+      if (isDrawing || isVertexHit(e.point)) return
+      const featureId = getFeatureIdAtPoint(e.point)
+      if (!featureId) return
+
+      dragStateRef.current = {
+        featureId,
+        startPoint: e.point,
+        dragging: false,
+      }
+      draw.changeMode('simple_select', { featureIds: [featureId] })
+    }
+
+    const handleMouseMove = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+      const state = dragStateRef.current
+      if (!state || state.dragging) return
+      const dx = e.point.x - state.startPoint.x
+      const dy = e.point.y - state.startPoint.y
+      if (Math.hypot(dx, dy) > 4) {
+        state.dragging = true
+      }
+    }
+
+    const handleMouseUp = () => {
+      const state = dragStateRef.current
+      if (!state) return
+      draw.changeMode('direct_select', { featureId: state.featureId })
+      dragStateRef.current = null
+    }
+
+    const handleMapClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+      if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
+      const featureId = getFeatureIdAtPoint(e.point)
+      if (!featureId) {
+        draw.changeMode('simple_select')
+        return
+      }
+      draw.changeMode('direct_select', { featureId })
+    }
+
+    map.on('mousedown', handleMouseDown)
+    map.on('mousemove', handleMouseMove)
+    map.on('mouseup', handleMouseUp)
+    map.on('click', handleMapClick)
+
+    return () => {
+      map.off('mousedown', handleMouseDown)
+      map.off('mousemove', handleMouseMove)
+      map.off('mouseup', handleMouseUp)
+      map.off('click', handleMapClick)
+    }
+  }, [isMapLoaded, isEditActive, isDrawing])
 
   const setMode = useCallback((mode: DrawMode) => {
     if (drawRef.current) {

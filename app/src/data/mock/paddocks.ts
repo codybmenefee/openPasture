@@ -1,8 +1,8 @@
 import type { Paddock } from '@/lib/types'
 
-// Canterbury, NZ area - realistic farm layout
-const baseLng = 172.6362
-const baseLat = -43.5321
+// Columbia, TN area - realistic farm layout
+const baseLng = -87.0403892
+const baseLat = 35.6389946
 
 function createPolygon(offsetLng: number, offsetLat: number, size: number): Paddock['geometry'] {
   const lng = baseLng + offsetLng

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 import type {
@@ -10,6 +10,8 @@ import type {
 import { paddocks as mockPaddocks } from '@/data/mock/paddocks'
 
 const GeometryContext = createContext<GeometryContextValue | null>(null)
+const STORAGE_KEY = 'pan.geometry.v1'
+const STORAGE_VERSION = 1
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -53,15 +55,63 @@ function calculatePolygonArea(geometry: Feature<Polygon>): number {
   return Math.round(hectares * 10) / 10
 }
 
+function loadStoredGeometry(): { paddocks: Paddock[]; sections: Section[] } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { version?: number; paddocks?: Paddock[]; sections?: Section[] }
+    if (parsed.version !== STORAGE_VERSION) return null
+    if (!Array.isArray(parsed.paddocks) || !Array.isArray(parsed.sections)) return null
+    return { paddocks: parsed.paddocks, sections: parsed.sections }
+  } catch {
+    return null
+  }
+}
+
+function persistGeometry(paddocks: Paddock[], sections: Section[]) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: STORAGE_VERSION,
+        paddocks,
+        sections,
+      })
+    )
+  } catch {
+    // Ignore storage failures (quota, private mode, etc.)
+  }
+}
+
+function clearStoredGeometry() {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Ignore storage failures
+  }
+}
+
 export function GeometryProvider({
   children,
   initialPaddocks,
   initialSections = [],
   onGeometryChange,
 }: GeometryProviderProps) {
-  const [paddocks, setPaddocks] = useState<Paddock[]>(initialPaddocks ?? mockPaddocks)
-  const [sections, setSections] = useState<Section[]>(initialSections)
+  const storedGeometry = loadStoredGeometry()
+  const [paddocks, setPaddocks] = useState<Paddock[]>(
+    storedGeometry?.paddocks ?? initialPaddocks ?? mockPaddocks
+  )
+  const [sections, setSections] = useState<Section[]>(
+    storedGeometry?.sections ?? initialSections
+  )
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
+
+  useEffect(() => {
+    persistGeometry(paddocks, sections)
+  }, [paddocks, sections])
 
   const recordChange = useCallback(
     (change: GeometryChange) => {
@@ -239,6 +289,7 @@ export function GeometryProvider({
   )
 
   const resetToInitial = useCallback(() => {
+    clearStoredGeometry()
     setPaddocks(initialPaddocks ?? mockPaddocks)
     setSections(initialSections)
     setPendingChanges([])
