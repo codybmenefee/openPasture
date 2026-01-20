@@ -27,36 +27,48 @@ This document outlines a methodical approach to building the Grazing Intelligenc
 
 ---
 
-## Current State Snapshot (Jan 19, 2026)
+## Current State Snapshot (Jan 20, 2026)
 
-This is a frontend-first prototype. The UI is largely complete, but the data
-pipeline and backend services are not implemented yet. All data in `app/` is
-currently mock or client-side (localStorage).
+Phase 1 (Farm Geometry Foundation) is now complete. The app uses Convex for
+persistent storage and has a dev-mode auth bypass via `VITE_DEV_AUTH=true`.
 
-### Implemented in the app (mock-data driven)
+### Completed in this update
 
-- Morning Brief experience: narrative, recommendation, approval/modify flow
-- Map view with paddock/section rendering and geometry editing tools
-- Onboarding flow for farm setup and paddock drawing
-- Paddock detail, history, analytics, and settings screens
-- Loading, error, and low-confidence UI states
+**Convex Backend**
+- `users` table with user→farm mapping
+- `farmSettings` table for persistent settings
+- Seed functions for dev user, sample farm, paddocks, and settings
+- Queries: `getFarm`, `getUserByExternalId`, `getSettings`
+- Mutations: `seedSampleFarm`, `applyPaddockChanges`, `updatePaddockMetadata`,
+  `updateSettings`, `resetSettings`
 
-### Not yet implemented
+**Auth Layer**
+- Dev auth bypass: set `VITE_DEV_AUTH=true` to skip Clerk login
+- Prod auth: requires `VITE_CLERK_PUBLISHABLE_KEY`
+- `AppAuthProvider` and `AuthGate` components wrap the app
 
-- Backend APIs, database models, or persistent storage
+**Frontend Integration**
+- `GeometryProviderWithConvex` reads from Convex (no localStorage fallback)
+- `useCurrentUser` hook manages user→farm lookup and seeding
+- `useFarmSettings` hook manages settings persistence
+- `settings.tsx` route uses Convex-backed settings
+
+### Remaining gaps (for demo readiness)
+
 - Satellite ingestion and processing pipeline (Phases 2-3)
 - Rules-based planner and plan generation (Phase 4)
 - Real exports (GeoJSON/text) and integration workflows
+- Morning Brief, history, and analytics still use mock plan/observation data
 
-### Stack decisions (current)
+### Stack
 
 - Backend/data: Convex
-- Auth: Clerk
+- Auth: Clerk (dev bypass via env var)
 
-### Phase alignment (high level)
+### Phase status
 
-- Phase 0: UX prototype effectively complete (UI artifacts in `app/`)
-- Phase 1: Frontend geometry complete; backend/storage missing
+- Phase 0: UX prototype complete (UI artifacts in `app/`)
+- Phase 1: **Complete** (Convex backend + geometry persistence + auth layer)
 - Phases 2-4: Not started (data pipeline and intelligence layer)
 - Phase 5: UI complete; logic/API integration missing
 - Phase 6: UI polish present; export implementation missing

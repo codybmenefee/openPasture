@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { ThemeProvider } from '@/lib/theme'
+import { AppAuthProvider, AuthGate } from '@/lib/auth'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
 import { ErrorState } from '@/components/ui/error/ErrorState'
@@ -24,11 +25,15 @@ createRoot(document.getElementById('root')!).render(
     {convexClient ? (
       <ConvexProvider client={convexClient}>
         <ThemeProvider>
-          <GeometryProviderWithConvex>
-            <TooltipProvider delayDuration={300}>
-              <RouterProvider router={router} />
-            </TooltipProvider>
-          </GeometryProviderWithConvex>
+          <AppAuthProvider>
+            <AuthGate>
+              <GeometryProviderWithConvex>
+                <TooltipProvider delayDuration={300}>
+                  <RouterProvider router={router} />
+                </TooltipProvider>
+              </GeometryProviderWithConvex>
+            </AuthGate>
+          </AppAuthProvider>
         </ThemeProvider>
       </ConvexProvider>
     ) : (

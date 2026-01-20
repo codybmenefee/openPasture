@@ -11,6 +11,17 @@ import { cn } from '@/lib/utils'
 import { DrawingToolbar } from '@/components/map/DrawingToolbar'
 import type { DrawMode } from '@/lib/hooks'
 
+// Extend maplibre-gl types to include EventData for event handlers
+interface MapEventData {
+  features?: Array<{
+    properties?: Record<string, unknown>
+    geometry?: GeoJSON.Geometry
+    layer?: { id: string }
+  }>
+}
+
+type MapEvent = maplibregl.MapMouseEvent & MapEventData
+
 // Edit icon SVG component
 function EditIcon({ className }: { className?: string }) {
   return (
@@ -471,7 +482,7 @@ export function SatelliteMiniMap({
       return features.length > 0
     }
 
-    const handleMouseDown = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMouseDown = (e: MapEvent) => {
       if (isDrawing || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) return
@@ -484,7 +495,7 @@ export function SatelliteMiniMap({
       draw.changeMode('simple_select', { featureIds: [featureId] })
     }
 
-    const handleMouseMove = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMouseMove = (e: MapEvent) => {
       const state = dragStateRef.current
       if (!state || state.dragging) return
       const dx = e.point.x - state.startPoint.x
@@ -501,7 +512,7 @@ export function SatelliteMiniMap({
       dragStateRef.current = null
     }
 
-    const handleMapClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMapClick = (e: MapEvent) => {
       if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) {

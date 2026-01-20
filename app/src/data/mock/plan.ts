@@ -1,6 +1,6 @@
 import type { Plan, Section } from '@/lib/types'
 import { getPaddockById } from './paddocks'
-import { generateSection, generatePaddockStaySections, calculatePaddockDays, generateSectionAlternatives } from '@/lib/sectionGenerator'
+import { generateSection, generatePaddockStaySections, calculatePaddockDays } from '@/lib/sectionGenerator'
 
 // Get the current paddock (East Ridge - where livestock are)
 const currentPaddock = getPaddockById('p4')!
@@ -35,12 +35,13 @@ for (let day = 0; day < currentDayInPaddock - 1; day++) {
 }
 
 // Generate section alternatives - other polygon options within the same paddock
-const sectionAlternatives = generateSectionAlternatives(
-  currentPaddock,
-  currentDayInPaddock - 1,
-  totalDaysInPaddock,
-  2 // Generate 2 alternatives
-)
+// Temporarily disabled - uncomment when needed
+// const sectionAlternatives = generateSectionAlternatives(
+//   currentPaddock,
+//   currentDayInPaddock - 1,
+//   totalDaysInPaddock,
+//   2 // Generate 2 alternatives
+// )
 
 export const todaysPlan: Plan = {
   id: 'plan-2025-01-16',

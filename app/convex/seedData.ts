@@ -6,6 +6,18 @@ const BASE_LAT = 35.6389946
 const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 export const DEFAULT_FARM_EXTERNAL_ID = 'farm-1'
+export const DEFAULT_USER_EXTERNAL_ID = 'dev-user-1'
+
+export const defaultFarmSettings = {
+  minNDVIThreshold: 0.4,
+  minRestPeriod: 21,
+  cloudCoverTolerance: 50,
+  dailyBriefTime: '06:00',
+  emailNotifications: true,
+  pushNotifications: false,
+  virtualFenceProvider: '',
+  apiKey: '',
+}
 
 function calculateAreaHectares(feature: Feature<Polygon>, decimals = 1): number {
   if (!feature) return 0

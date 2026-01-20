@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { DEFAULT_FARM_ID } from '@/lib/convex/constants'
 import { mapFarmDoc, mapPaddockDoc, type FarmDoc, type PaddockDoc } from '@/lib/convex/mappers'
+import { useCurrentUser } from '@/lib/convex/useCurrentUser'
 import type { GeometryChange } from '@/lib/geometry/types'
 import type { Paddock } from '@/lib/types'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
@@ -15,8 +15,9 @@ interface GeometryProviderWithConvexProps {
 }
 
 export function GeometryProviderWithConvex({ children }: GeometryProviderWithConvexProps) {
-  const farmDoc = useQuery(api.farms.getFarm, { farmId: DEFAULT_FARM_ID }) as FarmDoc | null | undefined
-  const paddockDocs = useQuery(api.paddocks.listPaddocksByFarm, { farmId: DEFAULT_FARM_ID }) as
+  const { farmId, isLoading: isUserLoading } = useCurrentUser()
+  const farmDoc = useQuery(api.farms.getFarm, farmId ? { farmId } : 'skip') as FarmDoc | null | undefined
+  const paddockDocs = useQuery(api.paddocks.listPaddocksByFarm, farmId ? { farmId } : 'skip') as
     | PaddockDoc[]
     | undefined
 
@@ -28,50 +29,67 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
 
   useEffect(() => {
     if (seedRequestedRef.current) return
+    if (!farmId) return
     if (farmDoc === null) {
       seedRequestedRef.current = true
-      void seedFarm({ farmId: DEFAULT_FARM_ID })
+      void seedFarm({ farmId, seedSettings: true })
     }
-  }, [farmDoc, seedFarm])
+  }, [farmDoc, farmId, seedFarm])
 
   useEffect(() => {
     if (seedRequestedRef.current) return
+    if (!farmId) return
     if (farmDoc && paddockDocs && paddockDocs.length === 0) {
       seedRequestedRef.current = true
-      void seedFarm({ farmId: DEFAULT_FARM_ID })
+      void seedFarm({ farmId, seedSettings: true })
     }
-  }, [farmDoc, paddockDocs, seedFarm])
+  }, [farmDoc, farmId, paddockDocs, seedFarm])
 
   const paddocks = useMemo(() => (paddockDocs ?? []).map(mapPaddockDoc), [paddockDocs])
   const farm = farmDoc ? mapFarmDoc(farmDoc) : null
 
   const handleGeometryChange = useCallback(
     async (changes: GeometryChange[]) => {
-      try {
-        const result = await applyPaddockChanges({ farmId: DEFAULT_FARM_ID, changes })
-        return result
-      } catch (error) {
-        throw error
+      if (!farmId) {
+        throw new Error('Farm ID is unavailable.')
       }
+      await applyPaddockChanges({ farmId, changes })
     },
-    [applyPaddockChanges]
+    [applyPaddockChanges, farmId]
   )
 
   const handlePaddockMetadataChange = useCallback(
     async (paddockId: string, metadata: Partial<Omit<Paddock, 'id' | 'geometry'>>) => {
-      await updatePaddockMetadata({ farmId: DEFAULT_FARM_ID, paddockId, metadata })
+      if (!farmId) {
+        throw new Error('Farm ID is unavailable.')
+      }
+      await updatePaddockMetadata({ farmId, paddockId, metadata })
     },
-    [updatePaddockMetadata]
+    [farmId, updatePaddockMetadata]
   )
 
-  const isSeeding = farmDoc === null || (!!farmDoc && paddockDocs?.length === 0)
-  const isLoading = farmDoc === undefined || paddockDocs === undefined || isSeeding
+  const isSeeding = !!farmId && (farmDoc === null || (!!farmDoc && paddockDocs?.length === 0))
+  const isLoading =
+    isUserLoading ||
+    isSeeding ||
+    (!!farmId && (farmDoc === undefined || paddockDocs === undefined))
   if (isLoading) {
     const message = isSeeding ? 'Seeding farm geometry...' : 'Loading farm geometry...'
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message={message} />
       </div>
+    )
+  }
+
+  if (!farmId) {
+    return (
+      <ErrorState
+        title="Farm mapping unavailable"
+        message="No farm is associated with this account yet."
+        details={['Seed a farm record or map this user to a farm in Convex.']}
+        className="min-h-screen"
+      />
     )
   }
 

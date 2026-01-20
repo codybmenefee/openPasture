@@ -45,4 +45,25 @@ export default defineSchema({
   })
     .index('by_farm', ['farmId'])
     .index('by_farm_externalId', ['farmId', 'externalId']),
+  users: defineTable({
+    externalId: v.string(),
+    farmExternalId: v.string(),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index('by_externalId', ['externalId']),
+  farmSettings: defineTable({
+    farmExternalId: v.string(),
+    minNDVIThreshold: v.number(),
+    minRestPeriod: v.number(),
+    cloudCoverTolerance: v.number(),
+    dailyBriefTime: v.string(),
+    emailNotifications: v.boolean(),
+    pushNotifications: v.boolean(),
+    virtualFenceProvider: v.optional(v.string()),
+    apiKey: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index('by_farm', ['farmExternalId']),
 })

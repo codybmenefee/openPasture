@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 interface IntegrationCardProps {
   provider?: string
   apiKey?: string
-  onProviderChange: (provider: string | undefined) => void
-  onApiKeyChange: (apiKey: string | undefined) => void
+  onProviderChange: (provider: string) => void
+  onApiKeyChange: (apiKey: string) => void
 }
 
 const providers = [
@@ -40,7 +40,7 @@ export function IntegrationCard({
     : 'Not configured'
 
   const handleSaveKey = () => {
-    onApiKeyChange(tempKey || undefined)
+    onApiKeyChange(tempKey)
     setIsEditingKey(false)
   }
 
@@ -59,7 +59,7 @@ export function IntegrationCard({
           <label className="text-sm font-medium">Provider</label>
           <Select 
             value={provider || 'none'} 
-            onValueChange={(v) => onProviderChange(v === 'none' ? undefined : v)}
+            onValueChange={(v) => onProviderChange(v === 'none' ? '' : v)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select a provider" />

@@ -76,11 +76,14 @@ export function clipPolygonToPolygon(
     return null
   }
 
-  if (result.geometry.type === 'Polygon') {
+  const feature = result as Feature<GeoJSON.Geometry, Record<string, unknown>>
+  const geometryType = feature.geometry.type
+
+  if (geometryType === 'Polygon') {
     return result as Feature<Polygon>
   }
 
-  if (result.geometry.type === 'MultiPolygon') {
+  if (geometryType === 'MultiPolygon') {
     const multi = result.geometry as MultiPolygon
     let bestPolygon: Position[][] | null = null
     let bestArea = -Infinity

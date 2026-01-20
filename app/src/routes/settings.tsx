@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { SettingsForm } from '@/components/settings'
 import { Button } from '@/components/ui/button'
-import { getSettings, saveSettings, resetSettings, defaultSettings } from '@/data/mock/settings'
+import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
+import { defaultSettings } from '@/data/mock/settings'
+import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import type { FarmSettings } from '@/lib/types'
 
 export const Route = createFileRoute('/settings')({
@@ -10,13 +12,16 @@ export const Route = createFileRoute('/settings')({
 })
 
 function SettingsPage() {
+  const { settings: storedSettings, isLoading, saveSettings, resetSettings } = useFarmSettings()
   const [settings, setSettings] = useState<FarmSettings>(defaultSettings)
   const [hasChanges, setHasChanges] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    setSettings(getSettings())
-  }, [])
+    if (isLoading) return
+    setSettings(storedSettings)
+    setHasChanges(false)
+  }, [isLoading, storedSettings])
 
   const handleChange = (newSettings: FarmSettings) => {
     setSettings(newSettings)
@@ -24,22 +29,30 @@ function SettingsPage() {
     setSaved(false)
   }
 
-  const handleSave = () => {
-    saveSettings(settings)
+  const handleSave = async () => {
+    await saveSettings(settings)
     setHasChanges(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const handleReset = () => {
-    resetSettings()
+  const handleReset = async () => {
+    await resetSettings()
     setSettings(defaultSettings)
     setHasChanges(false)
   }
 
   const handleCancel = () => {
-    setSettings(getSettings())
+    setSettings(storedSettings)
     setHasChanges(false)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Loading settings..." />
+      </div>
+    )
   }
 
   return (

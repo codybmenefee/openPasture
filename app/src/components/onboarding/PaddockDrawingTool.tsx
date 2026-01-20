@@ -14,6 +14,17 @@ import { useFarm } from '@/lib/convex/useFarm'
 import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 
+// Extend maplibre-gl types to include EventData for event handlers
+interface MapEventData {
+  features?: Array<{
+    properties?: Record<string, unknown>
+    geometry?: GeoJSON.Geometry
+    layer?: { id: string }
+  }>
+}
+
+type MapEvent = maplibregl.MapMouseEvent & MapEventData
+
 interface PaddockDrawingToolProps {
   onNext: () => void
   onBack: () => void
@@ -297,7 +308,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
       return features.length > 0
     }
 
-    const handleMouseDown = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMouseDown = (e: MapEvent) => {
       if (isDrawing || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) return
@@ -310,7 +321,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
       draw.changeMode('simple_select', { featureIds: [featureId] })
     }
 
-    const handleMouseMove = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMouseMove = (e: MapEvent) => {
       const state = dragStateRef.current
       if (!state || state.dragging) return
       const dx = e.point.x - state.startPoint.x
@@ -327,7 +338,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
       dragStateRef.current = null
     }
 
-    const handleMapClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMapClick = (e: MapEvent) => {
       if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) {

@@ -1,24 +1,33 @@
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { DEFAULT_FARM_ID } from './constants'
 import { mapFarmDoc, type FarmDoc } from './mappers'
 import type { Farm } from '@/lib/types'
+import { useCurrentUser } from './useCurrentUser'
 
 interface UseFarmResult {
+  farmId: string | null
   farm: Farm | null | undefined
   isLoading: boolean
 }
 
 export function useFarm(): UseFarmResult {
-  const farmDoc = useQuery(api.farms.getFarm, { farmId: DEFAULT_FARM_ID }) as FarmDoc | null | undefined
+  const { farmId, isLoading: isUserLoading } = useCurrentUser()
+  const farmDoc = useQuery(
+    api.farms.getFarm,
+    farmId ? { farmId } : 'skip'
+  ) as FarmDoc | null | undefined
+
+  if (isUserLoading || (!!farmId && farmDoc === undefined)) {
+    return { farmId, farm: undefined, isLoading: true }
+  }
+
+  if (!farmId || farmDoc === null) {
+    return { farmId, farm: null, isLoading: false }
+  }
 
   if (farmDoc === undefined) {
-    return { farm: undefined, isLoading: true }
+    return { farmId, farm: undefined, isLoading: true }
   }
 
-  if (farmDoc === null) {
-    return { farm: null, isLoading: false }
-  }
-
-  return { farm: mapFarmDoc(farmDoc), isLoading: false }
+  return { farmId, farm: mapFarmDoc(farmDoc), isLoading: false }
 }

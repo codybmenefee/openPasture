@@ -1,5 +1,5 @@
 import type { Feature, Polygon } from 'geojson'
-import type { Farm, Paddock } from '@/lib/types'
+import type { Farm, FarmSettings, Paddock } from '@/lib/types'
 
 export interface FarmDoc {
   _id: string
@@ -25,6 +25,27 @@ export interface PaddockDoc {
   geometry: Feature<Polygon>
 }
 
+export interface UserDoc {
+  _id: string
+  externalId: string
+  farmExternalId: string
+  name?: string
+  email?: string
+}
+
+export interface FarmSettingsDoc {
+  _id: string
+  farmExternalId: string
+  minNDVIThreshold: number
+  minRestPeriod: number
+  cloudCoverTolerance: number
+  dailyBriefTime: string
+  emailNotifications: boolean
+  pushNotifications: boolean
+  virtualFenceProvider?: string
+  apiKey?: string
+}
+
 export function mapFarmDoc(doc: FarmDoc): Farm {
   return {
     id: doc.externalId,
@@ -48,5 +69,18 @@ export function mapPaddockDoc(doc: PaddockDoc): Paddock {
     waterAccess: doc.waterAccess,
     lastGrazed: doc.lastGrazed,
     geometry: doc.geometry,
+  }
+}
+
+export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
+  return {
+    minNDVIThreshold: doc.minNDVIThreshold,
+    minRestPeriod: doc.minRestPeriod,
+    cloudCoverTolerance: doc.cloudCoverTolerance,
+    dailyBriefTime: doc.dailyBriefTime,
+    emailNotifications: doc.emailNotifications,
+    pushNotifications: doc.pushNotifications,
+    virtualFenceProvider: doc.virtualFenceProvider,
+    apiKey: doc.apiKey,
   }
 }

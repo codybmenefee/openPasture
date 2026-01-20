@@ -12,6 +12,17 @@ import { useFarm } from '@/lib/convex/useFarm'
 import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 
+// Extend maplibre-gl types to include EventData for event handlers
+interface MapEventData {
+  features?: Array<{
+    properties?: Record<string, unknown>
+    geometry?: GeoJSON.Geometry
+    layer?: { id: string }
+  }>
+}
+
+type MapEvent = maplibregl.MapMouseEvent & MapEventData
+
 interface FarmMapProps {
   onPaddockClick?: (paddock: Paddock) => void
   onEditPaddockSelect?: (paddock: Paddock | null) => void
@@ -460,10 +471,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     if (!mapInstance) return null
     const half = sizePx / 2
     const centerPoint = mapInstance.project(center)
-    const topLeft = mapInstance.unproject({ x: centerPoint.x - half, y: centerPoint.y - half })
-    const topRight = mapInstance.unproject({ x: centerPoint.x + half, y: centerPoint.y - half })
-    const bottomRight = mapInstance.unproject({ x: centerPoint.x + half, y: centerPoint.y + half })
-    const bottomLeft = mapInstance.unproject({ x: centerPoint.x - half, y: centerPoint.y + half })
+    const topLeft = mapInstance.unproject([centerPoint.x - half, centerPoint.y - half])
+    const topRight = mapInstance.unproject([centerPoint.x + half, centerPoint.y - half])
+    const bottomRight = mapInstance.unproject([centerPoint.x + half, centerPoint.y + half])
+    const bottomLeft = mapInstance.unproject([centerPoint.x - half, centerPoint.y + half])
 
     return {
       type: 'Feature',
@@ -577,7 +588,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Add paddock and section layers once map is loaded
   useEffect(() => {
     if (!isMapReady()) return
-    const map = mapInstance
+    const map = mapInstance!
+    if (!map) return
 
     // Create GeoJSON feature collection for paddocks
     const paddocksGeojson: GeoJSON.FeatureCollection = {
@@ -718,17 +730,19 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     const filterExistingLayers = (layerIds: string[]) =>
       layerIds.filter((layerId) => map.getLayer(layerId))
 
-    const handlePaddockLayerClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handlePaddockLayerClick = (e: MapEvent) => {
       if (e.features && e.features[0]) {
-        const paddockId = e.features[0].properties?.id
-        const paddock = getPaddockById(paddockId)
-        if (paddock) {
-          handlePaddockClick(paddock)
+        const paddockId = e.features[0].properties?.id as string | undefined
+        if (paddockId) {
+          const paddock = getPaddockById(paddockId)
+          if (paddock) {
+            handlePaddockClick(paddock)
+          }
         }
       }
     }
 
-    const handleMapClickLog = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMapClickLog = (e: MapEvent) => {
       if (!isEditActive || entityType !== 'section') return
       const now = Date.now()
       const last = lastClickRef.current
@@ -781,7 +795,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     }
 
-    const handleMapDoubleClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMapDoubleClick = (e: MapEvent) => {
       const isSectionEditDoubleClick = isEditActive && entityType === 'section'
       if (isEditActive && !isSectionEditDoubleClick) return
       if (isDrawing) return
@@ -964,7 +978,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     paddockGeometryRef.current = nextPaddockGeometries
 
-    pushSectionData(mapInstance, sectionState)
+    if (mapInstance) {
+      pushSectionData(mapInstance, sectionState)
+    }
   }, [mapInstance, isMapLoaded, paddocks, updateSectionListForPaddock])
 
   // Click-to-edit and drag-to-move behavior in edit mode
@@ -1009,7 +1025,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       })
     }
 
-    const handleMouseDown = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMouseDown = (e: MapEvent) => {
       const vertexHit = isVertexHit(e.point)
       const featureId = isDrawing || vertexHit ? null : getFeatureIdAtPoint(e.point)
       if (isDrawing || vertexHit) return
@@ -1031,7 +1047,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     }
 
-    const handleMouseMove = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMouseMove = (e: MapEvent) => {
       const state = dragStateRef.current
       if (!state || state.dragging) return
       const dx = e.point.x - state.startPoint.x
@@ -1059,7 +1075,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       dragStateRef.current = null
     }
 
-    const handleMapClick = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
+    const handleMapClick = (e: MapEvent) => {
       if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) {
@@ -1152,14 +1168,16 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Hide native paddock layers when editing paddocks (Draw will render them)
   useEffect(() => {
     if (!isMapReady()) return
+    const map = mapInstance!
+    if (!map) return
 
     const paddockLayers = ['paddocks-fill', 'paddocks-outline']
     const shouldHide = isEditActive && entityType === 'paddock' && !!draw
     const visibility = shouldHide ? 'none' : (showPaddocks ? 'visible' : 'none')
     
     paddockLayers.forEach(layerId => {
-      if (mapInstance.getLayer(layerId)) {
-        mapInstance.setLayoutProperty(layerId, 'visibility', visibility)
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visibility)
       }
     })
   }, [mapInstance, isMapLoaded, isEditActive, entityType, showPaddocks, draw])
@@ -1167,13 +1185,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Update selected paddock highlight
   useEffect(() => {
     if (!isMapReady()) return
+    const map = mapInstance!
+    if (!map) return
 
-    if (mapInstance.getLayer('paddocks-selected')) {
-      mapInstance.removeLayer('paddocks-selected')
+    if (map.getLayer('paddocks-selected')) {
+      map.removeLayer('paddocks-selected')
     }
 
     if (selectedPaddockId && !isEditActive) {
-      mapInstance.addLayer({
+      map.addLayer({
         id: 'paddocks-selected',
         type: 'line',
         source: 'paddocks',
@@ -1189,16 +1209,18 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Toggle satellite/OSM basemap
   useEffect(() => {
     if (!isMapReady()) return
+    const map = mapInstance!
+    if (!map) return
 
-    if (mapInstance.getLayer('satellite-tiles')) {
-      mapInstance.setLayoutProperty(
+    if (map.getLayer('satellite-tiles')) {
+      map.setLayoutProperty(
         'satellite-tiles',
         'visibility',
         showSatellite ? 'visible' : 'none'
       )
     }
-    if (mapInstance.getLayer('osm-tiles')) {
-      mapInstance.setLayoutProperty(
+    if (map.getLayer('osm-tiles')) {
+      map.setLayoutProperty(
         'osm-tiles',
         'visibility',
         showSatellite ? 'none' : 'visible'
@@ -1209,11 +1231,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Toggle NDVI heat layer
   useEffect(() => {
     if (!isMapReady()) return
+    const map = mapInstance!
+    if (!map) return
     
     const ndviLayers = ['ndvi-heat', 'ndvi-heat-outline']
     ndviLayers.forEach(layerId => {
-      if (mapInstance.getLayer(layerId)) {
-        mapInstance.setLayoutProperty(
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(
           layerId,
           'visibility',
           showNdviHeat ? 'visible' : 'none'
@@ -1225,9 +1249,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Toggle labels visibility
   useEffect(() => {
     if (!isMapReady()) return
+    const map = mapInstance!
+    if (!map) return
     
-    if (mapInstance.getLayer('paddocks-labels')) {
-      mapInstance.setLayoutProperty(
+    if (map.getLayer('paddocks-labels')) {
+      map.setLayoutProperty(
         'paddocks-labels',
         'visibility',
         showLabels ? 'visible' : 'none'
@@ -1238,6 +1264,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Toggle sections visibility
   useEffect(() => {
     if (!isMapReady()) return
+    const map = mapInstance!
+    if (!map) return
     
     console.log('[Sections] Toggle visibility, showSections:', showSections)
     
@@ -1250,8 +1278,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       'sections-alternatives-outline',
     ]
     sectionLayers.forEach(layerId => {
-      if (mapInstance.getLayer(layerId)) {
-        mapInstance.setLayoutProperty(
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(
           layerId,
           'visibility',
           showSections ? 'visible' : 'none'
