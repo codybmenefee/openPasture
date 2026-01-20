@@ -244,6 +244,9 @@ export function useMapDraw({
         }
 
         onFeatureUpdated?.(id, feature as Feature<Polygon>)
+        if (e.action === 'move' && drawRef.current) {
+          drawRef.current.changeMode('direct_select', { featureId: id })
+        }
       })
     }
 

@@ -8,8 +8,8 @@ import { FeedbackModal } from './FeedbackModal'
 import { BriefSkeleton } from '@/components/ui/loading'
 import { LowConfidenceWarning } from '@/components/ui/error'
 import { todaysPlan, getFormattedDate } from '@/data/mock/plan'
-import { getPaddockById } from '@/data/mock/paddocks'
 import type { PlanStatus } from '@/lib/types'
+import { useGeometry } from '@/lib/geometry'
 
 // Simulated loading state for demo
 const SIMULATE_LOADING = true
@@ -19,6 +19,7 @@ const LOADING_DURATION = 1500
 const LOW_CONFIDENCE_THRESHOLD = 70
 
 export function MorningBrief() {
+  const { getPaddockById } = useGeometry()
   const [isLoading, setIsLoading] = useState(SIMULATE_LOADING)
   const [planStatus, setPlanStatus] = useState<PlanStatus>(todaysPlan.status)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -54,7 +55,7 @@ export function MorningBrief() {
     setFeedbackOpen(true)
   }
 
-  const handleFeedbackSubmit = (_alternativePaddockId: string) => {
+  const handleFeedbackSubmit = () => {
     setPlanStatus('modified')
     setFeedbackOpen(false)
     setApprovedAt(new Date().toLocaleTimeString('en-US', { 

@@ -12,9 +12,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 // HelpCircle removed - was unused
-import { farm } from '@/data/mock/farm'
-import { paddocks, getStatusCounts } from '@/data/mock/paddocks'
 import type { Paddock, PaddockStatus } from '@/lib/types'
+import { useGeometry } from '@/lib/geometry'
+import { useFarm } from '@/lib/convex/useFarm'
 
 type StatusGroup = 'ready' | 'recovering' | 'grazed'
 
@@ -52,7 +52,7 @@ const statusGroupConfig: Record<StatusGroup, {
   },
 }
 
-function getPaddocksByGroup(group: StatusGroup): Paddock[] {
+function getPaddocksByGroup(group: StatusGroup, paddocks: Paddock[]): Paddock[] {
   const config = statusGroupConfig[group]
   return paddocks.filter(p => config.statuses.includes(p.status))
 }
@@ -67,7 +67,12 @@ function getStatusLabel(status: PaddockStatus): string {
 }
 
 export function FarmOverview() {
-  const counts = getStatusCounts()
+  const { paddocks } = useGeometry()
+  const { farm } = useFarm()
+  const counts = paddocks.reduce((acc, paddock) => {
+    acc[paddock.status] = (acc[paddock.status] || 0) + 1
+    return acc
+  }, {} as Record<PaddockStatus, number>)
   const [openGroup, setOpenGroup] = useState<StatusGroup | null>(null)
 
   const groupCounts = {
@@ -76,7 +81,7 @@ export function FarmOverview() {
     grazed: counts.grazed || 0,
   }
 
-  const selectedPaddocks = openGroup ? getPaddocksByGroup(openGroup) : []
+  const selectedPaddocks = openGroup ? getPaddocksByGroup(openGroup, paddocks) : []
   const selectedConfig = openGroup ? statusGroupConfig[openGroup] : null
 
   return (
@@ -87,12 +92,12 @@ export function FarmOverview() {
         </CardHeader>
         <CardContent className="space-y-2 xl:space-y-3">
           <div>
-            <p className="text-sm xl:text-base font-medium">{farm.name}</p>
-            <p className="text-xs xl:text-sm text-muted-foreground">{farm.location}</p>
+            <p className="text-sm xl:text-base font-medium">{farm?.name ?? 'Farm overview'}</p>
+            <p className="text-xs xl:text-sm text-muted-foreground">{farm?.location ?? 'Location unavailable'}</p>
           </div>
 
           <div className="text-xs xl:text-sm text-muted-foreground">
-            {farm.paddockCount} paddocks / {farm.totalArea} ha
+            {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ?? '—'} ha
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 xl:gap-2 text-center">

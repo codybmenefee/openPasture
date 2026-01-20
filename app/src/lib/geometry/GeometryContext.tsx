@@ -91,39 +91,55 @@ function clearStoredGeometry() {
   }
 }
 
+function stripFeatureId(feature: Feature<Polygon>): Feature<Polygon> {
+  const { id: _id, ...rest } = feature as Feature<Polygon> & { id?: string | number }
+  return rest
+}
+
 export function GeometryProvider({
   children,
   initialPaddocks,
-  initialSections = [],
+  initialSections,
   onGeometryChange,
+  onPaddockMetadataChange,
 }: GeometryProviderProps) {
-  const storedGeometry = loadStoredGeometry()
+  const shouldUseLocalStorage = !onGeometryChange && !initialPaddocks
+  const storedGeometry = shouldUseLocalStorage ? loadStoredGeometry() : null
   const [paddocks, setPaddocks] = useState<Paddock[]>(() => {
-    const source = storedGeometry?.paddocks ?? initialPaddocks ?? mockPaddocks
+    const source = initialPaddocks ?? storedGeometry?.paddocks ?? mockPaddocks
     return normalizePaddocks(source)
   })
   const [sections, setSections] = useState<Section[]>(() => {
-    const source = storedGeometry?.sections ?? initialSections
+    const source = storedGeometry?.sections ?? (initialSections ?? [])
     return normalizeSections(source)
   })
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
 
   useEffect(() => {
+    if (!shouldUseLocalStorage) return
     persistGeometry(paddocks, sections)
-  }, [paddocks, sections])
+  }, [paddocks, sections, shouldUseLocalStorage])
+
 
   const recordChange = useCallback(
     (change: GeometryChange) => {
-      const pendingChange: PendingChange = { ...change, synced: false }
+      const normalizedChange: GeometryChange = change.geometry
+        ? { ...change, geometry: stripFeatureId(change.geometry) }
+        : change
+      const pendingChange: PendingChange = { ...normalizedChange, synced: false }
       setPendingChanges((prev) => [...prev, pendingChange])
 
       // If there's a backend hook, call it
       if (onGeometryChange) {
-        onGeometryChange([change]).then(() => {
-          setPendingChanges((prev) =>
-            prev.map((pc) => (pc.id === change.id && pc.timestamp === change.timestamp ? { ...pc, synced: true } : pc))
-          )
-        })
+        onGeometryChange([normalizedChange])
+          .then(() => {
+            setPendingChanges((prev) =>
+              prev.map((pc) => (pc.id === change.id && pc.timestamp === change.timestamp ? { ...pc, synced: true } : pc))
+            )
+          })
+          .catch(() => {
+            // Keep pending change unsynced if backend fails
+          })
       }
     },
     [onGeometryChange]
@@ -143,11 +159,21 @@ export function GeometryProvider({
       }
 
       setPaddocks((prev) => [...prev, newPaddock])
+      const changeMetadata = {
+        name: newPaddock.name,
+        status: newPaddock.status,
+        ndvi: newPaddock.ndvi,
+        restDays: newPaddock.restDays,
+        area: newPaddock.area,
+        waterAccess: newPaddock.waterAccess,
+        lastGrazed: newPaddock.lastGrazed,
+      }
       recordChange({
         id,
         entityType: 'paddock',
         changeType: 'add',
         geometry,
+        metadata: changeMetadata,
         timestamp: new Date().toISOString(),
       })
 
@@ -178,8 +204,11 @@ export function GeometryProvider({
       setPaddocks((prev) =>
         prev.map((p) => (p.id === id ? { ...p, ...metadata } : p))
       )
+      if (onPaddockMetadataChange) {
+        void onPaddockMetadataChange(id, metadata)
+      }
     },
-    []
+    [onPaddockMetadataChange]
   )
 
   const deletePaddock = useCallback(
@@ -290,7 +319,7 @@ export function GeometryProvider({
   const resetToInitial = useCallback(() => {
     clearStoredGeometry()
     setPaddocks(normalizePaddocks(initialPaddocks ?? mockPaddocks))
-    setSections(normalizeSections(initialSections))
+    setSections(normalizeSections(initialSections ?? []))
     setPendingChanges([])
   }, [initialPaddocks, initialSections])
 
@@ -310,6 +339,7 @@ export function GeometryProvider({
       getSectionById,
       getSectionsByPaddockId,
       onGeometryChange,
+      onPaddockMetadataChange,
       resetToInitial,
     }),
     [
@@ -327,6 +357,7 @@ export function GeometryProvider({
       getSectionById,
       getSectionsByPaddockId,
       onGeometryChange,
+      onPaddockMetadataChange,
       resetToInitial,
     ]
   )

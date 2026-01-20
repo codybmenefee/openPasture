@@ -5,9 +5,9 @@ import { ConfidenceBar } from './ConfidenceBar'
 import { SatelliteMiniMap } from './SatelliteMiniMap'
 import { PaddockMiniMap } from './PaddockMiniMap'
 import type { Paddock, Section, SectionAlternative } from '@/lib/types'
-import { getPaddockById } from '@/data/mock/paddocks'
 import { MapPin, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useGeometry } from '@/lib/geometry'
 
 interface BriefCardProps {
   currentPaddockId: string
@@ -40,6 +40,7 @@ export function BriefCard({
   previousSections = [],
   sectionAlternatives = [],
 }: BriefCardProps) {
+  const { getPaddockById } = useGeometry()
   const currentPaddock = getPaddockById(currentPaddockId)
   const daysRemaining = totalDaysPlanned - daysInCurrentPaddock
   const [showAlternatives, setShowAlternatives] = useState(false)

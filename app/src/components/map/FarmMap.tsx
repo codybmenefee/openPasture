@@ -2,13 +2,15 @@ import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHand
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
-import { farm } from '@/data/mock/farm'
 import { todaysPlan } from '@/data/mock/plan'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import { useMapDraw, loadGeometriesToDraw, type DrawMode } from '@/lib/hooks'
 import { DrawingToolbar } from './DrawingToolbar'
 import type { Feature, Polygon } from 'geojson'
+import { useFarm } from '@/lib/convex/useFarm'
+import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
+import { ErrorState } from '@/components/ui/error/ErrorState'
 
 interface FarmMapProps {
   onPaddockClick?: (paddock: Paddock) => void
@@ -66,8 +68,174 @@ const statusColors: Record<PaddockStatus, string> = {
   grazed: '#ef4444',
 }
 
+function pushSectionData(mapInstance: maplibregl.Map, sectionState: SectionRenderState) {
+  console.log('[Sections] pushSectionData called')
+  const updateSource = (sourceId: string, items: SectionRenderItem[]) => {
+    const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
+    if (!source) {
+      console.warn('[Sections] Source not found:', sourceId)
+      return
+    }
+
+    const features = items.map((item) => {
+      const coords = item.geometry.geometry.coordinates[0]
+      console.log(`[Sections] ${sourceId} feature ${item.id}:`, {
+        coordCount: coords.length,
+        sampleCoord: coords[0],
+        paddockId: item.paddockId,
+      })
+
+      return {
+        ...item.geometry,
+        properties: {
+          ...(item.geometry.properties ?? {}),
+          ...item.properties,
+          id: item.id,
+          paddockId: item.paddockId,
+        },
+      }
+    })
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features,
+    }
+    console.log(`[Sections] Updating ${sourceId}:`, items.length, 'features')
+    source.setData(geojson)
+  }
+
+  updateSource('sections-grazed', sectionState.grazed)
+  updateSource('sections-current', sectionState.current)
+  updateSource('sections-alternatives', sectionState.alternatives)
+}
+
+function ensureSectionLayers(mapInstance: maplibregl.Map) {
+  console.log('[Sections] ensureSectionLayers called')
+  const emptyCollection: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [],
+  }
+
+  if (!mapInstance.getSource('sections-grazed')) {
+    console.log('[Sections] Adding source: sections-grazed')
+    mapInstance.addSource('sections-grazed', {
+      type: 'geojson',
+      data: emptyCollection,
+    })
+  } else {
+    console.log('[Sections] Source already exists: sections-grazed')
+  }
+
+  if (!mapInstance.getLayer('sections-grazed-fill')) {
+    console.log('[Sections] Adding layer: sections-grazed-fill')
+    mapInstance.addLayer({
+      id: 'sections-grazed-fill',
+      type: 'fill',
+      source: 'sections-grazed',
+      paint: {
+        'fill-color': '#64748b',
+        'fill-opacity': 0.18,
+      },
+    })
+  }
+
+  if (!mapInstance.getLayer('sections-grazed-outline')) {
+    console.log('[Sections] Adding layer: sections-grazed-outline')
+    mapInstance.addLayer({
+      id: 'sections-grazed-outline',
+      type: 'line',
+      source: 'sections-grazed',
+      paint: {
+        'line-color': '#94a3b8',
+        'line-width': 2,
+        'line-dasharray': [2, 2],
+      },
+    })
+  }
+
+  if (!mapInstance.getSource('sections-current')) {
+    console.log('[Sections] Adding source: sections-current')
+    mapInstance.addSource('sections-current', {
+      type: 'geojson',
+      data: emptyCollection,
+    })
+  } else {
+    console.log('[Sections] Source already exists: sections-current')
+  }
+
+  if (!mapInstance.getLayer('sections-current-fill')) {
+    console.log('[Sections] Adding layer: sections-current-fill')
+    mapInstance.addLayer({
+      id: 'sections-current-fill',
+      type: 'fill',
+      source: 'sections-current',
+      paint: {
+        'fill-color': '#22c55e',
+        'fill-opacity': 0.45,
+      },
+    })
+  }
+
+  if (!mapInstance.getLayer('sections-current-outline')) {
+    console.log('[Sections] Adding layer: sections-current-outline')
+    mapInstance.addLayer({
+      id: 'sections-current-outline',
+      type: 'line',
+      source: 'sections-current',
+      paint: {
+        'line-color': '#22c55e',
+        'line-width': 3,
+      },
+    })
+  }
+
+  if (!mapInstance.getSource('sections-alternatives')) {
+    console.log('[Sections] Adding source: sections-alternatives')
+    mapInstance.addSource('sections-alternatives', {
+      type: 'geojson',
+      data: emptyCollection,
+    })
+  } else {
+    console.log('[Sections] Source already exists: sections-alternatives')
+  }
+
+  if (!mapInstance.getLayer('sections-alternatives-fill')) {
+    console.log('[Sections] Adding layer: sections-alternatives-fill')
+    mapInstance.addLayer({
+      id: 'sections-alternatives-fill',
+      type: 'fill',
+      source: 'sections-alternatives',
+      paint: {
+        'fill-color': '#60a5fa',
+        'fill-opacity': 0.25,
+      },
+    })
+  }
+
+  if (!mapInstance.getLayer('sections-alternatives-outline')) {
+    console.log('[Sections] Adding layer: sections-alternatives-outline')
+    mapInstance.addLayer({
+      id: 'sections-alternatives-outline',
+      type: 'line',
+      source: 'sections-alternatives',
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': 2,
+        'line-dasharray': [1.5, 1.5],
+      },
+    })
+  }
+}
+
 function createInitialSectionState(): SectionRenderState {
   const { recommendedSection, previousSections, sectionAlternatives, currentPaddockId } = todaysPlan
+
+  console.log('[Sections] Creating initial section state:', {
+    hasRecommended: !!recommendedSection,
+    previousCount: previousSections.length,
+    alternativesCount: sectionAlternatives.length,
+    currentPaddockId,
+  })
 
   const current: SectionRenderItem[] = recommendedSection
     ? [{
@@ -109,6 +277,12 @@ function createInitialSectionState(): SectionRenderState {
     }
   })
 
+  console.log('[Sections] Render state:', {
+    currentCount: current.length,
+    grazedCount: grazed.length,
+    alternativesCount: alternatives.length,
+  })
+
   return { current, grazed, alternatives }
 }
 
@@ -134,18 +308,44 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   compactToolbar = false,
 }, ref) {
   const mapContainer = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null)
   const [isMapLoaded, setIsMapLoaded] = useState(false)
   const lastClickRef = useRef<{ time: number; point: maplibregl.Point } | null>(null)
   const lastSectionPickRef = useRef<{ time: number; point: maplibregl.Point; index: number; ids: string[] } | null>(null)
-  const dragStateRef = useRef<{ featureId: string; startPoint: maplibregl.Point; dragging: boolean } | null>(null)
+  const dragStateRef = useRef<{
+    featureId: string
+    startPoint: maplibregl.Point
+    startLngLat: maplibregl.LngLat
+    startGeometry: Feature<Polygon> | null
+    dragging: boolean
+    manual: boolean
+    lastGeometry?: Feature<Polygon> | null
+  } | null>(null)
   const lastSelectedPaddockIdRef = useRef<string | null>(null)
   const sectionStateRef = useRef<SectionRenderState>(createInitialSectionState())
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
+  const lastLoadedPaddockKeyRef = useRef<string | null>(null)
 
   const { paddocks, getPaddockById } = useGeometry()
+  const { farm, isLoading: isFarmLoading } = useFarm()
+  const farmId = farm?.id ?? null
+  const farmLng = farm?.coordinates?.[0] ?? null
+  const farmLat = farm?.coordinates?.[1] ?? null
 
   const isEditActive = editable && editMode
+
+  const isMapReady = useCallback(() => {
+    if (!mapInstance || !isMapLoaded) return false
+    if (mapRef.current !== mapInstance) return false
+    if (!mapInstance.isStyleLoaded?.()) return false
+    try {
+      mapInstance.getStyle()
+    } catch {
+      return false
+    }
+    return true
+  }, [mapInstance, isMapLoaded])
 
   const {
     draw,
@@ -311,7 +511,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current) return
+    if (!mapContainer.current || farmLng === null || farmLat === null || mapRef.current) return
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -320,9 +520,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         sources: {
           osm: {
             type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'],
             tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors',
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
           },
           satellite: {
             type: 'raster',
@@ -353,11 +553,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           },
         ],
       },
-      center: farm.coordinates,
+      center: [farmLng, farmLat],
       zoom: 14,
       doubleClickZoom: false,
     })
     map.doubleClickZoom.disable()
+
+    mapRef.current = map
 
     map.on('load', () => {
       setMapInstance(map)
@@ -366,14 +568,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     return () => {
       map.remove()
+      mapRef.current = null
       setMapInstance(null)
       setIsMapLoaded(false)
     }
-  }, [])
+  }, [farmId, farmLng, farmLat])
 
   // Add paddock and section layers once map is loaded
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
     const map = mapInstance
 
     // Create GeoJSON feature collection for paddocks
@@ -505,9 +708,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
       })
 
-      // Add sections source and layers
-      ensureSectionLayers(map)
-    }
+  // Add sections source and layers
+  ensureSectionLayers(map)
+
+  // Push section data to sources after layers are created
+  pushSectionData(map, sectionStateRef.current)
+}
 
     const filterExistingLayers = (layerIds: string[]) =>
       layerIds.filter((layerId) => map.getLayer(layerId))
@@ -691,8 +897,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     }
 
-    const canvas = map.getCanvas()
-
     const handlePaddocksMouseEnter = () => {
       if (!isEditActive) {
         map.getCanvas().style.cursor = 'pointer'
@@ -726,9 +930,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Keep section sources synced and clipped to paddock bounds
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
     const sectionState = sectionStateRef.current
     if (!sectionState) return
+
+    console.log('[Sections] Updating section sources, paddocks:', paddocks.length)
 
     const nextPaddockGeometries: Record<string, Feature<Polygon>> = {}
     paddocks.forEach((paddock) => {
@@ -758,27 +964,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     paddockGeometryRef.current = nextPaddockGeometries
 
-    const updateSource = (sourceId: string, items: SectionRenderItem[]) => {
-      const source = mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource | undefined
-      if (!source) return
-
-      source.setData({
-        type: 'FeatureCollection',
-        features: items.map((item) => ({
-          ...item.geometry,
-          properties: {
-            ...(item.geometry.properties ?? {}),
-            ...item.properties,
-            id: item.id,
-            paddockId: item.paddockId,
-          },
-        })),
-      })
-    }
-
-    updateSource('sections-grazed', sectionState.grazed)
-    updateSource('sections-current', sectionState.current)
-    updateSource('sections-alternatives', sectionState.alternatives)
+    pushSectionData(mapInstance, sectionState)
   }, [mapInstance, isMapLoaded, paddocks, updateSectionListForPaddock])
 
   // Click-to-edit and drag-to-move behavior in edit mode
@@ -805,7 +991,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     const getFeatureIdAtPoint = (point: maplibregl.Point) => {
       const ids = draw.getFeatureIdsAt({ x: point.x, y: point.y })
-      return ids.length > 0 ? String(ids[0]) : null
+      const firstValid = ids.find((id) => id !== undefined && id !== null && id !== '')
+      return firstValid !== undefined ? String(firstValid) : null
     }
 
     const isVertexHit = (point: maplibregl.Point) => {
@@ -823,16 +1010,25 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMouseDown = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
-      if (isDrawing || isVertexHit(e.point)) return
-      const featureId = getFeatureIdAtPoint(e.point)
+      const vertexHit = isVertexHit(e.point)
+      const featureId = isDrawing || vertexHit ? null : getFeatureIdAtPoint(e.point)
+      if (isDrawing || vertexHit) return
       if (!featureId) return
-
+      if (map.dragPan.isEnabled()) {
+        map.dragPan.disable()
+      }
+      const alreadySelected = draw.getSelectedIds().includes(featureId)
+      if (!alreadySelected) {
+        draw.changeMode('simple_select', { featureIds: [featureId] })
+      }
       dragStateRef.current = {
         featureId,
         startPoint: e.point,
+        startLngLat: e.lngLat,
+        startGeometry: (draw.get(featureId) as Feature<Polygon> | undefined) ?? null,
         dragging: false,
+        manual: !alreadySelected,
       }
-      draw.changeMode('simple_select', { featureIds: [featureId] })
     }
 
     const handleMouseMove = (e: maplibregl.MapMouseEvent & maplibregl.EventData) => {
@@ -843,12 +1039,23 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       if (Math.hypot(dx, dy) > 4) {
         state.dragging = true
       }
+      if (!state.dragging || !state.manual || !state.startGeometry) return
+      const deltaLng = e.lngLat.lng - state.startLngLat.lng
+      const deltaLat = e.lngLat.lat - state.startLngLat.lat
+      const moved = translatePolygon(state.startGeometry, deltaLng, deltaLat)
+      state.lastGeometry = moved
+      draw.add({ ...moved, id: state.featureId })
     }
 
     const handleMouseUp = () => {
       const state = dragStateRef.current
       if (!state) return
-      draw.changeMode('direct_select', { featureId: state.featureId })
+      if (state.manual && state.dragging && state.lastGeometry) {
+        map.fire('draw.update', { features: [state.lastGeometry], action: 'move' })
+        draw.changeMode('direct_select', { featureId: state.featureId })
+      } else if (!state.dragging) {
+        draw.changeMode('direct_select', { featureId: state.featureId })
+      }
       dragStateRef.current = null
     }
 
@@ -862,12 +1069,26 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       draw.changeMode('direct_select', { featureId })
     }
 
+    const handleMouseDownCapture = (event: MouseEvent) => {
+      if (isDrawing) return
+      const rect = map.getCanvas().getBoundingClientRect()
+      const point = new maplibregl.Point(event.clientX - rect.left, event.clientY - rect.top)
+      if (isVertexHit(point)) return
+      const featureId = getFeatureIdAtPoint(point)
+      if (!featureId) return
+      if (!draw.getSelectedIds().includes(featureId)) {
+        draw.changeMode('simple_select', { featureIds: [featureId] })
+      }
+    }
+
+    map.getCanvas().addEventListener('mousedown', handleMouseDownCapture, { capture: true })
     map.on('mousedown', handleMouseDown)
     map.on('mousemove', handleMouseMove)
     map.on('mouseup', handleMouseUp)
     map.on('click', handleMapClick)
 
     return () => {
+      map.getCanvas().removeEventListener('mousedown', handleMouseDownCapture, { capture: true })
       map.off('mousedown', handleMouseDown)
       map.off('mousemove', handleMouseMove)
       map.off('mouseup', handleMouseUp)
@@ -877,13 +1098,24 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Load paddock geometries into draw when edit mode is activated
   useEffect(() => {
-    if (!draw || !isEditActive || entityType !== 'paddock') return
+    if (!draw || !isEditActive || entityType !== 'paddock') {
+      if (!isEditActive || entityType !== 'paddock') {
+        lastLoadedPaddockKeyRef.current = null
+      }
+      return
+    }
 
     // Load existing paddock geometries into the draw plugin
     const features = paddocks.map((p) => ({
       ...p.geometry,
       id: p.id,
     }))
+    const nextKey = paddocks.map((p) => p.id).sort().join('|')
+    const drawFeatureCount = draw.getAll().features.length
+    if (lastLoadedPaddockKeyRef.current === nextKey && drawFeatureCount > 0) {
+      return
+    }
+    lastLoadedPaddockKeyRef.current = nextKey
     loadGeometriesToDraw(draw, features)
   }, [draw, isEditActive, entityType, paddocks])
 
@@ -919,7 +1151,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Hide native paddock layers when editing paddocks (Draw will render them)
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
 
     const paddockLayers = ['paddocks-fill', 'paddocks-outline']
     const shouldHide = isEditActive && entityType === 'paddock' && !!draw
@@ -934,7 +1166,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Update selected paddock highlight
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
 
     if (mapInstance.getLayer('paddocks-selected')) {
       mapInstance.removeLayer('paddocks-selected')
@@ -956,8 +1188,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Toggle satellite/OSM basemap
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
-    
+    if (!isMapReady()) return
+
     if (mapInstance.getLayer('satellite-tiles')) {
       mapInstance.setLayoutProperty(
         'satellite-tiles',
@@ -976,7 +1208,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Toggle NDVI heat layer
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
     
     const ndviLayers = ['ndvi-heat', 'ndvi-heat-outline']
     ndviLayers.forEach(layerId => {
@@ -992,7 +1224,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Toggle labels visibility
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
     
     if (mapInstance.getLayer('paddocks-labels')) {
       mapInstance.setLayoutProperty(
@@ -1005,7 +1237,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Toggle sections visibility
   useEffect(() => {
-    if (!mapInstance || !isMapLoaded) return
+    if (!isMapReady()) return
+    
+    console.log('[Sections] Toggle visibility, showSections:', showSections)
     
     const sectionLayers = [
       'sections-grazed-fill',
@@ -1022,6 +1256,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           'visibility',
           showSections ? 'visible' : 'none'
         )
+        console.log('[Sections] Set', layerId, 'visibility to', showSections ? 'visible' : 'none')
+      } else {
+        console.warn('[Sections] Layer not found:', layerId)
       }
     })
   }, [mapInstance, isMapLoaded, showSections])
@@ -1036,7 +1273,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   return (
     <div className="relative h-full w-full">
-      <div ref={mapContainer} className="h-full w-full" />
+      {isFarmLoading ? (
+        <MapSkeleton className="h-full w-full" />
+      ) : !farm ? (
+        <ErrorState
+          title="Map unavailable"
+          message="Farm geometry could not be loaded."
+          className="h-full"
+        />
+      ) : (
+        <div ref={mapContainer} className="h-full w-full" />
+      )}
       
       {isEditActive && showToolbar && (
         <div className={`absolute ${toolbarPositionClasses[toolbarPosition]} z-10`}>
@@ -1056,105 +1303,3 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   )
 })
 
-// Helper function to add section layers
-function ensureSectionLayers(mapInstance: maplibregl.Map) {
-  const emptyCollection: GeoJSON.FeatureCollection = {
-    type: 'FeatureCollection',
-    features: [],
-  }
-
-  if (!mapInstance.getSource('sections-grazed')) {
-    mapInstance.addSource('sections-grazed', {
-      type: 'geojson',
-      data: emptyCollection,
-    })
-  }
-
-  if (!mapInstance.getLayer('sections-grazed-fill')) {
-    mapInstance.addLayer({
-      id: 'sections-grazed-fill',
-      type: 'fill',
-      source: 'sections-grazed',
-      paint: {
-        'fill-color': '#64748b',
-        'fill-opacity': 0.18,
-      },
-    })
-  }
-
-  if (!mapInstance.getLayer('sections-grazed-outline')) {
-    mapInstance.addLayer({
-      id: 'sections-grazed-outline',
-      type: 'line',
-      source: 'sections-grazed',
-      paint: {
-        'line-color': '#94a3b8',
-        'line-width': 2,
-        'line-dasharray': [2, 2],
-      },
-    })
-  }
-
-  if (!mapInstance.getSource('sections-current')) {
-    mapInstance.addSource('sections-current', {
-      type: 'geojson',
-      data: emptyCollection,
-    })
-  }
-
-  if (!mapInstance.getLayer('sections-current-fill')) {
-    mapInstance.addLayer({
-      id: 'sections-current-fill',
-      type: 'fill',
-      source: 'sections-current',
-      paint: {
-        'fill-color': '#22c55e',
-        'fill-opacity': 0.45,
-      },
-    })
-  }
-
-  if (!mapInstance.getLayer('sections-current-outline')) {
-    mapInstance.addLayer({
-      id: 'sections-current-outline',
-      type: 'line',
-      source: 'sections-current',
-      paint: {
-        'line-color': '#22c55e',
-        'line-width': 3,
-      },
-    })
-  }
-
-  if (!mapInstance.getSource('sections-alternatives')) {
-    mapInstance.addSource('sections-alternatives', {
-      type: 'geojson',
-      data: emptyCollection,
-    })
-  }
-
-  if (!mapInstance.getLayer('sections-alternatives-fill')) {
-    mapInstance.addLayer({
-      id: 'sections-alternatives-fill',
-      type: 'fill',
-      source: 'sections-alternatives',
-      paint: {
-        'fill-color': '#60a5fa',
-        'fill-opacity': 0.25,
-      },
-    })
-  }
-
-  if (!mapInstance.getLayer('sections-alternatives-outline')) {
-    mapInstance.addLayer({
-      id: 'sections-alternatives-outline',
-      type: 'line',
-      source: 'sections-alternatives',
-      paint: {
-        'line-color': '#3b82f6',
-        'line-width': 2,
-        'line-dasharray': [1.5, 1.5],
-      },
-    })
-  }
-}

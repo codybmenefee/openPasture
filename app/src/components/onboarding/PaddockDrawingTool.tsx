@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DrawingToolbar } from '@/components/map/DrawingToolbar'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
-import { farm } from '@/data/mock/farm'
 import type { Feature, Polygon } from 'geojson'
 import type { DrawMode } from '@/lib/hooks'
+import { useFarm } from '@/lib/convex/useFarm'
+import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
+import { ErrorState } from '@/components/ui/error/ErrorState'
 
 interface PaddockDrawingToolProps {
   onNext: () => void
@@ -120,10 +122,11 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
     paddocks,
     resetToInitial,
   } = useGeometry()
+  const { farm, isLoading: isFarmLoading } = useFarm()
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || mapRef.current) return
+    if (!mapContainer.current || mapRef.current || !farm) return
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
@@ -132,9 +135,9 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
         sources: {
           osm: {
             type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+            tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'],
             tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors',
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
           },
         },
         layers: [
@@ -252,6 +255,7 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
     updateSection,
     deleteSection,
     drawnPaddockCount,
+    farm,
   ])
 
   useEffect(() => {
@@ -392,7 +396,17 @@ export function PaddockDrawingTool({ onNext, onBack }: PaddockDrawingToolProps) 
       <CardContent className="space-y-6">
         {/* Map with drawing */}
         <div className="relative h-[400px] rounded-lg overflow-hidden border border-border">
-          <div ref={mapContainer} className="h-full w-full" />
+          {isFarmLoading ? (
+            <MapSkeleton className="h-full w-full" />
+          ) : !farm ? (
+            <ErrorState
+              title="Farm geometry unavailable"
+              message="We could not load the farm boundary for onboarding."
+              className="h-full"
+            />
+          ) : (
+            <div ref={mapContainer} className="h-full w-full" />
+          )}
           
           {isMapLoaded && (
             <div className="absolute top-3 left-3 z-10">

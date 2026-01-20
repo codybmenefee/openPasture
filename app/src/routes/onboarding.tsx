@@ -7,7 +7,7 @@ import {
   PaddockDrawingTool,
   OnboardingComplete 
 } from '@/components/onboarding'
-import { paddocks } from '@/data/mock/paddocks'
+import { useGeometry } from '@/lib/geometry'
 
 export const Route = createFileRoute('/onboarding')({
   component: OnboardingPage,
@@ -22,6 +22,7 @@ interface FarmData {
 }
 
 function OnboardingPage() {
+  const { paddocks } = useGeometry()
   const [currentStep, setCurrentStep] = useState(0)
   const [farmData, setFarmData] = useState<FarmData>({
     name: '',

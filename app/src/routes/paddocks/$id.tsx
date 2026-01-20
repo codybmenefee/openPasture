@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getPaddockById } from '@/data/mock/paddocks'
 import { getObservationsForPaddock, getLatestObservation, calculateNdviTrend } from '@/data/mock/observations'
 import { getGrazingHistoryForPaddock, getPaddockStaysForPaddock } from '@/data/mock/grazingHistory'
 import { 
@@ -13,6 +12,7 @@ import {
 import { ErrorState } from '@/components/ui/error'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Droplets, Timer, Grid3X3 } from 'lucide-react'
+import { useGeometry } from '@/lib/geometry'
 
 export const Route = createFileRoute('/paddocks/$id')({
   component: PaddockDetailPage,
@@ -20,6 +20,7 @@ export const Route = createFileRoute('/paddocks/$id')({
 
 function PaddockDetailPage() {
   const { id } = Route.useParams()
+  const { getPaddockById } = useGeometry()
   
   const paddock = getPaddockById(id)
   

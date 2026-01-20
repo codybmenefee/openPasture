@@ -203,7 +203,7 @@ export function MapView() {
         setInitialPaddockId(nextInitialPaddockId)
       } else {
         nextFocusPaddockId = request.paddockId
-        nextInitialPaddockId = undefined
+        nextInitialPaddockId = request.paddockId
         setFocusPaddockId(nextFocusPaddockId)
         setInitialPaddockId(nextInitialPaddockId)
       }

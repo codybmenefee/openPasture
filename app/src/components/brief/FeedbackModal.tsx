@@ -6,8 +6,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { getPaddockById } from '@/data/mock/paddocks'
 import type { PaddockAlternative } from '@/lib/types'
+import { useGeometry } from '@/lib/geometry'
 
 interface FeedbackModalProps {
   open: boolean
@@ -24,6 +24,7 @@ const quickReasons = [
 ]
 
 export function FeedbackModal({ open, onOpenChange, alternatives, onSubmit }: FeedbackModalProps) {
+  const { getPaddockById } = useGeometry()
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [selectedPaddock, setSelectedPaddock] = useState<string | null>(null)
   const [notes, setNotes] = useState('')

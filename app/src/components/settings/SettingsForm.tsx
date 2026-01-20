@@ -5,7 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { ThresholdSlider } from './ThresholdSlider'
 import { IntegrationCard } from './IntegrationCard'
 import type { FarmSettings } from '@/lib/types'
-import { farm } from '@/data/mock/farm'
+import { useFarm } from '@/lib/convex/useFarm'
 
 interface SettingsFormProps {
   settings: FarmSettings
@@ -13,6 +13,7 @@ interface SettingsFormProps {
 }
 
 export function SettingsForm({ settings, onChange }: SettingsFormProps) {
+  const { farm } = useFarm()
   const updateSetting = <K extends keyof FarmSettings>(
     key: K,
     value: FarmSettings[K]
@@ -31,18 +32,18 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Farm Name</label>
-              <Input value={farm.name} readOnly className="bg-muted" />
+              <Input value={farm?.name ?? ''} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Location</label>
-              <Input value={farm.location} readOnly className="bg-muted" />
+              <Input value={farm?.location ?? ''} readOnly className="bg-muted" />
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Total Area</label>
             <div className="flex items-center gap-2">
               <Input 
-                value={farm.totalArea} 
+                value={farm?.totalArea ?? ''} 
                 readOnly 
                 className="bg-muted w-24" 
               />

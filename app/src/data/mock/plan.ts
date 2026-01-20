@@ -60,12 +60,12 @@ export const todaysPlan: Plan = {
   // Section-based grazing fields
   daysInCurrentPaddock: currentDayInPaddock,
   totalDaysPlanned: totalDaysInPaddock,
-  recommendedSection: todaysSection,
+  recommendedSection: null as unknown as Section,
   isPaddockTransition: false,
-  previousSections,
+  previousSections: [],
   
   // Section alternatives - other polygon options within same paddock
-  sectionAlternatives,
+  sectionAlternatives: [],
   paddockAlternatives: [], // No paddock alternatives when not transitioning
 }
 

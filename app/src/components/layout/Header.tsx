@@ -1,8 +1,9 @@
 import { Search, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { farm } from '@/data/mock/farm'
+import { useFarm } from '@/lib/convex/useFarm'
 
 export function Header() {
+  const { farm } = useFarm()
   return (
     <header className="flex h-10 items-center justify-between border-b border-border bg-background px-4">
       {/* Search placeholder */}
@@ -16,7 +17,9 @@ export function Header() {
 
       {/* Right section */}
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">{farm.name}</span>
+        <span className="text-xs text-muted-foreground">
+          {farm?.name ?? 'Loading farm...'}
+        </span>
         
         <Button variant="ghost" size="icon" className="h-7 w-7">
           <HelpCircle className="h-3.5 w-3.5" />

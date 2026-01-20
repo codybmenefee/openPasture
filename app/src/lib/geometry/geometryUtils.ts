@@ -72,6 +72,7 @@ export function clipPolygonToPolygon(
   const result = intersect(featureCollection([subject, boundary]))
 
   if (!result) {
+    console.log('[Sections] clipPolygonToPolygon: no intersection result')
     return null
   }
 
@@ -94,6 +95,7 @@ export function clipPolygonToPolygon(
     })
 
     if (!bestPolygon) {
+      console.log('[Sections] clipPolygonToPolygon: no best polygon found in MultiPolygon')
       return null
     }
 
@@ -106,5 +108,6 @@ export function clipPolygonToPolygon(
     }
   }
 
+  console.log('[Sections] clipPolygonToPolygon: unexpected geometry type:', result.geometry.type)
   return null
 }

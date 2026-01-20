@@ -21,6 +21,7 @@ export interface Farm {
   totalArea: number
   paddockCount: number
   coordinates: [number, number] // [lng, lat] center point
+  geometry: Feature<Polygon>
 }
 
 export interface Paddock {

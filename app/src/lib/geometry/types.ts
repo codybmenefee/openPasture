@@ -4,6 +4,9 @@ import type { Paddock, Section } from '@/lib/types'
 export type GeometryChangeType = 'add' | 'update' | 'delete'
 export type EntityType = 'paddock' | 'section'
 
+export type PaddockMetadata = Omit<Paddock, 'id' | 'geometry'>
+export type SectionMetadata = Omit<Section, 'id' | 'paddockId' | 'geometry'>
+
 export interface GeometryChange {
   id: string
   entityType: EntityType
@@ -11,6 +14,7 @@ export interface GeometryChange {
   geometry?: Feature<Polygon>
   parentId?: string // paddockId for sections
   timestamp: string
+  metadata?: Partial<PaddockMetadata | SectionMetadata>
 }
 
 export interface PendingChange extends GeometryChange {
@@ -41,6 +45,7 @@ export interface GeometryContextValue {
   
   // Backend integration hook
   onGeometryChange?: (changes: GeometryChange[]) => Promise<void>
+  onPaddockMetadataChange?: (id: string, metadata: Partial<PaddockMetadata>) => Promise<void>
   
   // Reset to initial state (useful for testing/demo)
   resetToInitial: () => void
@@ -51,4 +56,5 @@ export interface GeometryProviderProps {
   initialPaddocks?: Paddock[]
   initialSections?: Section[]
   onGeometryChange?: (changes: GeometryChange[]) => Promise<void>
+  onPaddockMetadataChange?: (id: string, metadata: Partial<PaddockMetadata>) => Promise<void>
 }

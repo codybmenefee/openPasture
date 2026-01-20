@@ -27,6 +27,61 @@ This document outlines a methodical approach to building the Grazing Intelligenc
 
 ---
 
+## Current State Snapshot (Jan 19, 2026)
+
+This is a frontend-first prototype. The UI is largely complete, but the data
+pipeline and backend services are not implemented yet. All data in `app/` is
+currently mock or client-side (localStorage).
+
+### Implemented in the app (mock-data driven)
+
+- Morning Brief experience: narrative, recommendation, approval/modify flow
+- Map view with paddock/section rendering and geometry editing tools
+- Onboarding flow for farm setup and paddock drawing
+- Paddock detail, history, analytics, and settings screens
+- Loading, error, and low-confidence UI states
+
+### Not yet implemented
+
+- Backend APIs, database models, or persistent storage
+- Satellite ingestion and processing pipeline (Phases 2-3)
+- Rules-based planner and plan generation (Phase 4)
+- Real exports (GeoJSON/text) and integration workflows
+
+### Stack decisions (current)
+
+- Backend/data: Convex
+- Auth: Clerk
+
+### Phase alignment (high level)
+
+- Phase 0: UX prototype effectively complete (UI artifacts in `app/`)
+- Phase 1: Frontend geometry complete; backend/storage missing
+- Phases 2-4: Not started (data pipeline and intelligence layer)
+- Phase 5: UI complete; logic/API integration missing
+- Phase 6: UI polish present; export implementation missing
+
+## Next Logical Chunk: Working Demo Slice (Single Farm)
+
+**Goal:** Replace mock data with a minimal end-to-end data loop so a small cohort can use the app daily.
+
+### Scope
+
+- Convex backend foundation with `Farm`, `Paddock`, `Observation`, `Plan`, and `Feedback` data
+- Clerk auth wired to a small set of users (single farm per user for now)
+- Satellite PoC to minimal pipeline (latest cloud-safe NDVI, optional 21-day window + cloud mask + zonal stats)
+- Rules-based planner to generate a daily recommendation with alternatives
+- Frontend integration for brief, plan, approve, and feedback flows
+- Basic ops: daily refresh job, cloud cover fallbacks, and logging
+
+### Out of scope for this chunk
+
+- Enterprise org management, billing, and admin tooling
+- Production-grade exports and third-party integrations
+- Multi-farm analytics and deep historical trends
+
+---
+
 ## Phase 0: UX Design & Prototyping
 
 **Duration:** 1-2 weeks
@@ -65,14 +120,15 @@ The product IS the Morning Farm Brief. If this experience isn't crisp, nothing e
 - Sample farm GeoJSON (realistic New Zealand/Australian pastoral layout)
 - Sample paddock polygons (5-8 paddocks, varying sizes)
 - Frontend: Interactive map component with paddock visualization
-- Backend: API to serve farm/paddock geometry
-- Database schema: `Farm`, `Paddock` models (PostgreSQL + PostGIS)
+- Backend: Convex functions to serve farm/paddock geometry
+- Data model: `Farm`, `Paddock` collections in Convex (GeoJSON stored)
 
-### Technical Stack Decisions Required
+### Technical Stack (current)
 
 - Frontend framework (React + MapLibre GL JS or Leaflet recommended)
-- Backend framework (FastAPI in Python, aligns with geospatial tooling)
-- Database (PostgreSQL with PostGIS extension)
+- Backend/data layer (Convex)
+- Auth (Clerk)
+- Geospatial storage (GeoJSON in Convex; optional PostGIS later)
 
 ### What Gets Tested
 
@@ -83,10 +139,10 @@ The product IS the Morning Farm Brief. If this experience isn't crisp, nothing e
 ### Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────────┐     ┌─────────────┐
-│  Map Component  │ --> │ /farms/{id}/paddocks│ --> │   PostGIS   │
-│   (Frontend)    │     │    (Backend API)    │     │  (Database) │
-└─────────────────┘     └─────────────────────┘     └─────────────┘
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────┐
+│  Map Component  │ --> │ Convex Query/Mutation│ --> │ Convex Data │
+│   (Frontend)    │     │    (Backend API)     │     │  Storage    │
+└─────────────────┘     └──────────────────────┘     └─────────────┘
 ```
 
 ---
@@ -295,9 +351,9 @@ This is where the product "becomes real" - everything prior was infrastructure.
 After this plan is approved:
 
 1. Create Phase 0 UX artifacts (wireframes, design system choices)
-2. Set up project scaffolding (monorepo with `frontend/`, `backend/`, `notebooks/`)
-3. Create sample farm GeoJSON data file
-4. Spin up basic FastAPI + React skeleton
+2. Set up Convex project and Clerk auth integration (define user-to-farm mapping)
+3. Create sample farm GeoJSON data file and seed it into Convex
+4. Wire the frontend to Convex queries/mutations for paddocks and plans
 
 The first code should be a map that renders paddocks. Everything else builds from there.
 
@@ -311,7 +367,7 @@ Per the existing documentation, the following are NOT in scope for the demo:
 - Real-time tracking
 - Drone sensing
 - Mobile native apps
-- Multi-farm/multi-user auth (single demo user is fine)
+- Enterprise org management, billing, and admin tooling
 - LLM-powered brief generation (template-based first)
 
 These can be added as enhancement phases after the demo is complete.
