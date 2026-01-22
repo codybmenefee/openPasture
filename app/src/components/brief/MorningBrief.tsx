@@ -8,20 +8,43 @@ import { FeedbackModal } from './FeedbackModal'
 import { BriefSkeleton } from '@/components/ui/loading'
 import { LowConfidenceWarning } from '@/components/ui/error'
 import { getFormattedDate } from '@/data/mock/plan'
-import type { PlanStatus } from '@/lib/types'
+import type { PlanStatus, Section } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 
 const LOW_CONFIDENCE_THRESHOLD = 70
 
+function planSectionToSection(plan: any): Section | null {
+  if (!plan?.sectionGeometry) {
+    return null
+  }
+  
+  // Convert raw Polygon to GeoJSON Feature
+  const sectionFeature = {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: plan.sectionGeometry,
+  }
+  
+  return {
+    id: plan._id,
+    paddockId: plan.primaryPaddockExternalId || '',
+    date: plan.date,
+    geometry: sectionFeature,
+    targetArea: plan.sectionAreaHectares || 0,
+    reasoning: plan.reasoning || [],
+  }
+}
+
 export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
   const { getPaddockById } = useGeometry()
-  const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback } = useTodayPlan(farmExternalId)
+  const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback, deleteTodayPlan } = useTodayPlan(farmExternalId)
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>('pending')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [approvedAt, setApprovedAt] = useState<string | null>(null)
   const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
 
   useEffect(() => {
     if (plan) {
@@ -34,6 +57,12 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
 
   const handleGeneratePlan = async () => {
     await generatePlan()
+  }
+
+  const handleResetPlan = async () => {
+    setIsResetting(true)
+    await deleteTodayPlan()
+    setIsResetting(false)
   }
 
   const handleApprove = async () => {
@@ -84,9 +113,10 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
           <p className="text-sm text-muted-foreground mb-4">No plan available for today</p>
           <button
             onClick={handleGeneratePlan}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
+            disabled={isLoading}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm disabled:opacity-50"
           >
-            Generate Plan
+            {isLoading ? 'Generating...' : 'Generate Plan'}
           </button>
         </div>
       </div>
@@ -103,11 +133,13 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
         approvedAt={approvedAt!}
         confidence={plan.confidenceScore || 0}
         wasModified={planStatus === 'modified'}
-        section={plan.sectionGeometry}
+        section={planSectionToSection(plan)}
         daysInCurrentPaddock={2}
         totalDaysPlanned={4}
         isPaddockTransition={false}
         previousSections={[]}
+        sectionJustification={plan.sectionJustification}
+        paddockGrazedPercentage={plan.paddockGrazedPercentage}
       />
     )
   }
@@ -142,6 +174,17 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
             </p>
           </div>
 
+          {/* Debug: Reset plan button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleResetPlan}
+              disabled={isResetting}
+              className="text-xs text-muted-foreground hover:text-foreground underline disabled:opacity-50"
+            >
+              {isResetting ? 'Resetting...' : 'Reset plan (debug)'}
+            </button>
+          </div>
+
           {recommendedPaddock && (
             <BriefCard
               currentPaddockId={plan.primaryPaddockExternalId || ''}
@@ -150,12 +193,14 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
               reasoning={plan.reasoning || []}
               onApprove={handleApprove}
               onModify={handleModify}
-              section={plan.sectionGeometry}
+              section={planSectionToSection(plan)}
               daysInCurrentPaddock={2}
               totalDaysPlanned={4}
               isPaddockTransition={false}
               previousSections={[]}
               sectionAlternatives={[]}
+              sectionJustification={plan.sectionJustification}
+              paddockGrazedPercentage={plan.paddockGrazedPercentage}
             />
           )}
         </div>

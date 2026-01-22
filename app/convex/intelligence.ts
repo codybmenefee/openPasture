@@ -1,6 +1,5 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
-import { Id } from './_generated/dataModel'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
 
 
@@ -37,6 +36,48 @@ export const getGrazingEventsForFarm = query({
     return await ctx.db
       .query('grazingEvents')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+  },
+})
+
+
+export const getMostRecentGrazingEvent = query({
+  args: { farmExternalId: v.string() },
+  handler: async (ctx, args) => {
+    const events = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+    
+    if (events.length === 0) {
+      return null
+    }
+    
+    return events.reduce((latest: any, event: any) => {
+      if (!latest || new Date(event.date) > new Date(latest.date)) {
+        return event
+      }
+      return latest
+    }, null)
+  },
+})
+
+
+export const getPaddocksForFarm = query({
+  args: { farmExternalId: v.string() },
+  handler: async (ctx, args) => {
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId))
+      .first()
+    
+    if (!farm) {
+      return []
+    }
+    
+    return await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
       .collect()
   },
 })
@@ -147,17 +188,32 @@ export const getPlanGenerationData = query({
 
     const todayPlan = existingPlan.find((p: any) => p.date === args.date)
     if (todayPlan) {
-      return { existingPlanId: todayPlan._id, observations: null, grazingEvents: null, settings: null, farm: null }
+      return { existingPlanId: todayPlan._id, observations: null, grazingEvents: null, settings: null, farm: null, mostRecentGrazingEvent: null, paddocks: null }
     }
 
-    const [observations, grazingEvents, settings, farm] = await Promise.all([
+    const [observations, grazingEvents, settings, farm, mostRecentGrazingEvent, paddocks] = await Promise.all([
       ctx.db.query('observations').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).collect(),
       ctx.db.query('grazingEvents').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).collect(),
       ctx.db.query('farmSettings').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).first(),
       ctx.db.query('farms').withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId)).first(),
+      (async () => {
+        const events = await ctx.db.query('grazingEvents').withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId)).collect()
+        if (events.length === 0) return null
+        return events.reduce((latest: any, event: any) => {
+          if (!latest || new Date(event.date) > new Date(latest.date)) {
+            return event
+          }
+          return latest
+        }, null)
+      })(),
+      (async () => {
+        const farmRecord = await ctx.db.query('farms').withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId)).first()
+        if (!farmRecord) return []
+        return await ctx.db.query('paddocks').withIndex('by_farm', (q: any) => q.eq('farmId', farmRecord._id)).collect()
+      })(),
     ])
 
-    return { existingPlanId: null, observations, grazingEvents, settings, farm }
+    return { existingPlanId: null, observations, grazingEvents, settings, farm, mostRecentGrazingEvent, paddocks }
   },
 })
 
@@ -224,5 +280,124 @@ export const createFallbackPlan = mutation({
       createdAt: now,
       updatedAt: now,
     })
+  },
+})
+
+
+export const listAllPlansForFarm = query({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? 'farm-1'
+
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    return plans.map((p: any) => ({
+      id: p._id.toString(),
+      date: p.date,
+      status: p.status,
+      confidenceScore: p.confidenceScore,
+      primaryPaddock: p.primaryPaddockExternalId,
+    }))
+  },
+})
+
+
+export const deleteTodayPlan = mutation({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? 'farm-1'
+    const today = new Date().toISOString().split('T')[0]
+
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    const todayPlan = plans.find((p: any) => p.date === today)
+    if (todayPlan) {
+      await ctx.db.delete(todayPlan._id)
+      return { deleted: true, planId: todayPlan._id }
+    }
+
+    return { deleted: false, planId: null }
+  },
+})
+
+
+export const forceDeleteTodayPlan = mutation({
+  args: { planId: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.db.delete(args.planId as any)
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: String(e) }
+    }
+  },
+})
+
+
+export const deleteAllFallbackPlans = mutation({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    const fallbackReasoning = 'Plan generation failed, using fallback'
+    let deletedCount = 0
+
+    for (const plan of plans) {
+      if (plan.reasoning && plan.reasoning.includes(fallbackReasoning)) {
+        await ctx.db.delete(plan._id)
+        deletedCount++
+      }
+    }
+
+    return { deleted: deletedCount }
+  },
+})
+
+
+export const getAllSections = query({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<{
+    id: string
+    paddockId: string
+    date: string
+    geometry: any
+    targetArea: number
+    reasoning: string[]
+  }[]> => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    const sections = []
+
+    for (const plan of plans) {
+      console.log('[getAllSections] Checking plan:', plan._id, 'has sectionGeometry:', !!plan.sectionGeometry, 'date:', plan.date)
+      if (plan.sectionGeometry) {
+        sections.push({
+          id: plan._id.toString(),
+          paddockId: plan.primaryPaddockExternalId ?? '',
+          date: plan.date,
+          geometry: plan.sectionGeometry,
+          targetArea: plan.sectionAreaHectares ?? 0,
+          reasoning: plan.reasoning ?? [],
+        })
+      }
+    }
+
+    return sections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   },
 })

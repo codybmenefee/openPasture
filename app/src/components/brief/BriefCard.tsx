@@ -24,6 +24,9 @@ interface BriefCardProps {
   previousSections?: Section[]
   // Section alternatives
   sectionAlternatives?: SectionAlternative[]
+  // New props from agent
+  sectionJustification?: string
+  paddockGrazedPercentage?: number
 }
 
 export function BriefCard({ 
@@ -39,6 +42,8 @@ export function BriefCard({
   isPaddockTransition = false,
   previousSections = [],
   sectionAlternatives = [],
+  sectionJustification,
+  paddockGrazedPercentage,
 }: BriefCardProps) {
   const { getPaddockById } = useGeometry()
   const currentPaddock = getPaddockById(currentPaddockId)
@@ -184,6 +189,24 @@ export function BriefCard({
             ))}
           </ul>
         </div>
+
+        {/* Agent Justification (3-5 sentences from LLM) */}
+        {sectionJustification && (
+          <div className="bg-muted/30 rounded-md p-3 xl:p-4 border-l-2 border-primary">
+            <p className="text-xs xl:text-sm font-medium mb-1.5">Agent Recommendation</p>
+            <p className="text-sm xl:text-base text-muted-foreground leading-relaxed">
+              {sectionJustification}
+            </p>
+          </div>
+        )}
+
+        {/* Grazed Percentage */}
+        {paddockGrazedPercentage !== undefined && (
+          <div className="flex items-center justify-between text-xs xl:text-sm text-muted-foreground">
+            <span>Paddock grazed</span>
+            <span className="font-medium">{paddockGrazedPercentage}%</span>
+          </div>
+        )}
 
         {/* Section Alternatives */}
         {!isPaddockTransition && sectionAlternatives.length > 0 && (

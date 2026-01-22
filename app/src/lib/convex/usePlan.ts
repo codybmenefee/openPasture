@@ -10,6 +10,7 @@ export function useTodayPlan(farmExternalId: string) {
   const generatePlan = useAction(api.intelligenceActions.generateDailyPlan)
   const approvePlan = useMutation(api.intelligence.approvePlan)
   const submitFeedback = useMutation(api.intelligence.submitFeedback)
+  const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
 
   const isLoading = plan === undefined
   const isError = plan === null
@@ -18,11 +19,15 @@ export function useTodayPlan(farmExternalId: string) {
     plan,
     isLoading,
     isError,
-    generatePlan: () => generatePlan({ farmExternalId }),
+    generatePlan: async () => {
+      const result = await generatePlan({ farmExternalId })
+      return result ?? undefined
+    },
     approvePlan: (planId: string, userId: string) =>
       approvePlan({ planId, userId }),
     submitFeedback: (planId: string, feedback: string) =>
       submitFeedback({ planId, feedback }),
+    deleteTodayPlan: () => deleteTodayPlan({ farmExternalId }),
   }
 }
 

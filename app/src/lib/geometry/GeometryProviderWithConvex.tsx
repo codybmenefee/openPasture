@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { mapFarmDoc, mapPaddockDoc, type FarmDoc, type PaddockDoc } from '@/lib/convex/mappers'
+import { mapFarmDoc, mapPaddockDoc, mapSectionDoc, type FarmDoc, type PaddockDoc, type SectionDoc } from '@/lib/convex/mappers'
 import { useCurrentUser } from '@/lib/convex/useCurrentUser'
 import type { GeometryChange } from '@/lib/geometry/types'
 import type { Paddock } from '@/lib/types'
@@ -19,6 +19,9 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
   const farmDoc = useQuery(api.farms.getFarm, farmId ? { farmId } : 'skip') as FarmDoc | null | undefined
   const paddockDocs = useQuery(api.paddocks.listPaddocksByFarm, farmId ? { farmId } : 'skip') as
     | PaddockDoc[]
+    | undefined
+  const sectionDocs = useQuery(api.intelligence.getAllSections, farmId ? { farmExternalId: farmId } : 'skip') as
+    | SectionDoc[]
     | undefined
 
   const seedFarm = useMutation(api.farms.seedSampleFarm)
@@ -47,6 +50,10 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
 
   const paddocks = useMemo(() => (paddockDocs ?? []).map(mapPaddockDoc), [paddockDocs])
   const farm = farmDoc ? mapFarmDoc(farmDoc) : null
+  const sections = useMemo(() => {
+    console.log('[Sections] sectionDocs from Convex:', sectionDocs?.length, sectionDocs?.map(d => ({ id: d.id, paddockId: d.paddockId })))
+    return (sectionDocs ?? []).map(mapSectionDoc)
+  }, [sectionDocs])
 
   const handleGeometryChange = useCallback(
     async (changes: GeometryChange[]) => {
@@ -72,7 +79,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
   const isLoading =
     isUserLoading ||
     isSeeding ||
-    (!!farmId && (farmDoc === undefined || paddockDocs === undefined))
+    (!!farmId && (farmDoc === undefined || paddockDocs === undefined || sectionDocs === undefined))
   if (isLoading) {
     const message = isSeeding ? 'Seeding farm geometry...' : 'Loading farm geometry...'
     return (
@@ -110,6 +117,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
   return (
     <GeometryProvider
       initialPaddocks={paddocks}
+      initialSections={sections}
       onGeometryChange={handleGeometryChange}
       onPaddockMetadataChange={handlePaddockMetadataChange}
     >

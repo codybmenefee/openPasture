@@ -1,10 +1,9 @@
-"use node";
-
 import { action } from './_generated/server'
 import { v } from 'convex/values'
-import { Id } from './_generated/dataModel'
+import type { Id } from './_generated/dataModel'
 import { api } from './_generated/api'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
+import { runGrazingAgent } from './grazingAgentDirect'
 
 type PlanGenerationData = {
   existingPlanId: Id<'plans'> | null
@@ -12,44 +11,13 @@ type PlanGenerationData = {
   grazingEvents: any[] | null
   settings: any | null
   farm: any | null
-}
-
-type PlanRecommendation = {
-  targetPaddockId: string
-  confidence: number
-  reasoning: string[]
-  sectionGeometry: any
-  sectionAreaHectares: number
-  sectionCentroid: number[] | undefined
-  sectionAvgNdvi: number | undefined
-}
-
-async function runPythonAgent(convexData: any): Promise<PlanRecommendation> {
-  const { execSync } = require('child_process')
-  const path = require('path')
-
-  const scriptPath = path.join(process.cwd(), '..', 'src', 'intelligence', 'agent.py')
-  const contextJson = JSON.stringify(convexData).replace(/'/g, "\\'")
-
-  const result = execSync(
-    `python3 -c "
-import sys
-sys.path.insert(0, '${path.dirname(scriptPath)}')
-from agent import generate_daily_plan
-import json
-ctx = json.loads('${contextJson}')
-result = generate_daily_plan(ctx)
-print(json.dumps(result))
-" 2>&1`,
-    { encoding: 'utf-8', timeout: 120000 }
-  )
-
-  return JSON.parse(result)
+  mostRecentGrazingEvent: any | null
+  paddocks: any[] | null
 }
 
 export const generateDailyPlan = action({
   args: { farmExternalId: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<Id<'plans'>> => {
+  handler: async (ctx, args): Promise<Id<'plans'> | null> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
 
@@ -62,52 +30,42 @@ export const generateDailyPlan = action({
       return data.existingPlanId
     }
 
-    const convexData = {
-      farm: data.farm || { externalId: farmExternalId, name: 'Unknown Farm' },
-      observations: (data.observations || []).map((o: any) => ({
-        paddockExternalId: o.paddockExternalId,
-        ndviMean: o.ndviMean,
-        ndviStd: o.ndviStd,
-        date: o.date,
-        area: 42.5,
-      })),
-      grazingEvents: (data.grazingEvents || []).map((e: any) => ({
-        paddockExternalId: e.paddockExternalId,
-        date: e.date,
-      })),
-      settings: data.settings || {
-        minNDVIThreshold: 0.40,
-        minRestPeriod: 21,
-      },
+    // Check if we have basic data to work with
+    if (!data.paddocks || data.paddocks.length === 0) {
+      console.log("No paddocks found for farm:", farmExternalId)
+      return null
     }
 
-    try {
-      const recommendation = await runPythonAgent(convexData)
+    const activePaddockId = data.mostRecentGrazingEvent?.paddockExternalId || 
+      (data.paddocks && data.paddocks.length > 0 ? data.paddocks[0].externalId : null)
 
-      const planId = await ctx.runMutation(api.intelligence.createPlanFromRecommendation as any, {
-        farmExternalId,
-        date: today,
-        targetPaddockId: recommendation.targetPaddockId,
-        confidence: recommendation.confidence,
-        reasoning: recommendation.reasoning,
-        sectionGeometry: recommendation.sectionGeometry,
-        sectionAreaHectares: recommendation.sectionAreaHectares || 0,
-        sectionCentroid: recommendation.sectionCentroid,
-        sectionAvgNdvi: recommendation.sectionAvgNdvi,
-        fallback: false,
-      })
-
-      return planId
-    } catch (error: any) {
-      console.error('Failed to generate plan:', error.message)
-
-      const planId = await ctx.runMutation(api.intelligence.createFallbackPlan as any, {
-        farmExternalId,
-        date: today,
-      })
-
-      return planId
+    const settings = data.settings || {
+      minNDVIThreshold: 0.40,
+      minRestPeriod: 21,
     }
+
+    const result = await runGrazingAgent(
+      ctx,
+      farmExternalId,
+      data.farm?.name || farmExternalId,
+      activePaddockId,
+      settings
+    )
+
+    if (!result.success) {
+      console.error("Agent failed:", result.error)
+      return null
+    }
+
+    if (!result.planCreated) {
+      console.log("Agent did not create a plan - skipping fallback generation")
+      return null
+    }
+
+    const plans = await ctx.runQuery(api.intelligence.getTodayPlan as any, { farmExternalId })
+    const todayPlan = plans as any
+
+    return todayPlan?._id || null
   },
 })
 
@@ -116,6 +74,7 @@ export const runDailyBriefGeneration = action({
     const farms = await ctx.runQuery(api.intelligence.getAllFarms as any) as any[]
 
     const results: Array<{ farmId: string; success: boolean; planId?: Id<'plans'>; error?: string }> = []
+
     for (const farm of farms) {
       try {
         const today = new Date().toISOString().split('T')[0]
@@ -125,60 +84,69 @@ export const runDailyBriefGeneration = action({
           date: today,
         }) as PlanGenerationData
 
-        let planId: Id<'plans'>
         if (data.existingPlanId) {
-          planId = data.existingPlanId
-        } else {
-          const convexData = {
-            farm: data.farm || { externalId: farm.externalId, name: 'Unknown Farm' },
-            observations: (data.observations || []).map((o: any) => ({
-              paddockExternalId: o.paddockExternalId,
-              ndviMean: o.ndviMean,
-              ndviStd: o.ndviStd,
-              date: o.date,
-              area: 42.5,
-            })),
-            grazingEvents: (data.grazingEvents || []).map((e: any) => ({
-              paddockExternalId: e.paddockExternalId,
-              date: e.date,
-            })),
-            settings: data.settings || {
-              minNDVIThreshold: 0.40,
-              minRestPeriod: 21,
-            },
-          }
-
-          try {
-            const recommendation = await runPythonAgent(convexData)
-
-            planId = await ctx.runMutation(api.intelligence.createPlanFromRecommendation as any, {
-              farmExternalId: farm.externalId,
-              date: today,
-              targetPaddockId: recommendation.targetPaddockId,
-              confidence: recommendation.confidence,
-              reasoning: recommendation.reasoning,
-              sectionGeometry: recommendation.sectionGeometry,
-              sectionAreaHectares: recommendation.sectionAreaHectares || 0,
-              sectionCentroid: recommendation.sectionCentroid,
-              sectionAvgNdvi: recommendation.sectionAvgNdvi,
-              fallback: false,
-            })
-          } catch (error: any) {
-            console.error('Failed to generate plan:', error.message)
-
-            planId = await ctx.runMutation(api.intelligence.createFallbackPlan as any, {
-              farmExternalId: farm.externalId,
-              date: today,
-            })
-          }
+          results.push({ farmId: farm.externalId, success: true, planId: data.existingPlanId })
+          continue
         }
 
-        results.push({ farmId: farm.externalId, success: true, planId })
+        // Skip farms without paddocks
+        if (!data.paddocks || data.paddocks.length === 0) {
+          console.log("No paddocks found for farm:", farm.externalId)
+          results.push({ farmId: farm.externalId, success: true })
+          continue
+        }
+
+        const activePaddockId = data.mostRecentGrazingEvent?.paddockExternalId || 
+          (data.paddocks && data.paddocks.length > 0 ? data.paddocks[0].externalId : null)
+
+        const settings = data.settings || {
+          minNDVIThreshold: 0.40,
+          minRestPeriod: 21,
+        }
+
+        const result = await runGrazingAgent(
+          ctx,
+          farm.externalId,
+          data.farm?.name || farm.externalId,
+          activePaddockId,
+          settings
+        )
+
+        if (!result.success) {
+          console.error(`Agent failed for farm ${farm.externalId}:`, result.error)
+          results.push({ farmId: farm.externalId, success: false, error: result.error })
+        } else if (!result.planCreated) {
+          console.log(`Agent did not create plan for farm ${farm.externalId}`)
+          results.push({ farmId: farm.externalId, success: true })
+        } else {
+          const plans = await ctx.runQuery(api.intelligence.getTodayPlan as any, { farmExternalId: farm.externalId })
+          const todayPlan = plans as any
+          results.push({ 
+            farmId: farm.externalId, 
+            success: true, 
+            planId: todayPlan?._id as Id<'plans'> | undefined 
+          })
+        }
       } catch (error: any) {
+        console.error(`Failed to generate plan for farm ${farm.externalId}:`, error.message)
         results.push({ farmId: farm.externalId, success: false, error: error.message })
       }
     }
 
     return results
+  },
+})
+
+
+export const cleanupFallbackPlans = action({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<{ deleted: number }> => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+    
+    const result = await ctx.runMutation(api.intelligence.deleteAllFallbackPlans, {
+      farmExternalId,
+    })
+    
+    return result as { deleted: number }
   },
 })

@@ -9,6 +9,8 @@
  */
 
 import type * as farms from "../farms.js";
+import type * as grazingAgentDirect from "../grazingAgentDirect.js";
+import type * as grazingAgentTools from "../grazingAgentTools.js";
 import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as observations from "../observations.js";
@@ -25,6 +27,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   farms: typeof farms;
+  grazingAgentDirect: typeof grazingAgentDirect;
+  grazingAgentTools: typeof grazingAgentTools;
   intelligence: typeof intelligence;
   intelligenceActions: typeof intelligenceActions;
   observations: typeof observations;

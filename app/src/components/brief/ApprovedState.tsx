@@ -19,6 +19,9 @@ interface ApprovedStateProps {
   totalDaysPlanned?: number
   isPaddockTransition?: boolean
   previousSections?: Section[]
+  // New props from agent
+  sectionJustification?: string
+  paddockGrazedPercentage?: number
 }
 
 export function ApprovedState({ 
@@ -32,6 +35,8 @@ export function ApprovedState({
   totalDaysPlanned = 4,
   isPaddockTransition = false,
   previousSections = [],
+  sectionJustification,
+  paddockGrazedPercentage,
 }: ApprovedStateProps) {
   const daysRemaining = totalDaysPlanned - daysInCurrentPaddock
 
@@ -120,6 +125,24 @@ export function ApprovedState({
                       <span className="font-medium">{Math.round((daysInCurrentPaddock / totalDaysPlanned) * 100)}%</span>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Agent Justification */}
+              {sectionJustification && (
+                <div className="mt-2 p-2 rounded-md bg-muted/30 border-l-2 border-green-500">
+                  <p className="text-[10px] font-medium mb-0.5 text-muted-foreground">Agent Recommendation</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {sectionJustification}
+                  </p>
+                </div>
+              )}
+
+              {/* Grazed Percentage */}
+              {paddockGrazedPercentage !== undefined && (
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Paddock grazed</span>
+                  <span className="font-medium">{paddockGrazedPercentage}%</span>
                 </div>
               )}
           </div>

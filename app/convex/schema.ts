@@ -10,6 +10,11 @@ const polygonFeature = v.object({
   }),
 })
 
+const rawPolygon = v.object({
+  type: v.literal('Polygon'),
+  coordinates: v.array(v.array(v.array(v.number()))),
+})
+
 const paddockStatus = v.union(
   v.literal('ready'),
   v.literal('almost_ready'),
@@ -115,10 +120,12 @@ export default defineSchema({
     approvedAt: v.optional(v.string()),
     approvedBy: v.optional(v.string()),
     feedback: v.optional(v.string()),
-    sectionGeometry: v.optional(polygonFeature),
+    sectionGeometry: v.optional(rawPolygon),
     sectionAreaHectares: v.optional(v.number()),
     sectionCentroid: v.optional(v.array(v.number())),
     sectionAvgNdvi: v.optional(v.number()),
+    sectionJustification: v.optional(v.string()),
+    paddockGrazedPercentage: v.optional(v.number()),
     createdAt: v.string(),
     updatedAt: v.string(),
   })

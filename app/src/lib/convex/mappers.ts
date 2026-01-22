@@ -1,5 +1,5 @@
 import type { Feature, Polygon } from 'geojson'
-import type { Farm, FarmSettings, Paddock } from '@/lib/types'
+import type { Farm, FarmSettings, Paddock, Section } from '@/lib/types'
 
 export interface FarmDoc {
   _id: string
@@ -82,5 +82,31 @@ export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
     pushNotifications: doc.pushNotifications,
     virtualFenceProvider: doc.virtualFenceProvider,
     apiKey: doc.apiKey,
+  }
+}
+
+
+export interface SectionDoc {
+  id: string
+  paddockId: string
+  date: string
+  geometry: any
+  targetArea: number
+  reasoning: string[]
+}
+
+export function mapSectionDoc(doc: SectionDoc): Section {
+  console.log('[mapSectionDoc] Mapping section:', doc.id, 'paddockId:', doc.paddockId, 'geometry:', doc.geometry)
+  return {
+    id: doc.id,
+    paddockId: doc.paddockId,
+    date: doc.date,
+    geometry: {
+      type: 'Feature',
+      properties: {},
+      geometry: doc.geometry,
+    },
+    targetArea: doc.targetArea,
+    reasoning: doc.reasoning,
   }
 }

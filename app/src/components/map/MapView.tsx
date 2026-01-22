@@ -5,7 +5,8 @@ import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
 import { LayerToggles } from './LayerToggles'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
-import { todaysPlan } from '@/data/mock/plan'
+import { useTodayPlan } from '@/lib/convex/usePlan'
+import { useCurrentUser } from '@/lib/convex/useCurrentUser'
 import type { Paddock, Section, SectionAlternative } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 
@@ -19,6 +20,9 @@ interface MapSearchParams {
 export function MapView() {
   const search = useSearch({ from: '/map' }) as MapSearchParams
   
+  const { farmId } = useCurrentUser()
+  const { plan } = useTodayPlan(farmId || '')
+  
   const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [entityType, setEntityType] = useState<'paddock' | 'section'>('paddock')
@@ -27,7 +31,7 @@ export function MapView() {
   const [editSectionId, setEditSectionId] = useState<string | undefined>(undefined)
   const [initialPaddockId, setInitialPaddockId] = useState<string | undefined>(undefined)
   const mapRef = useRef<FarmMapHandle>(null)
-  const { getSectionById, getPaddockById, addPaddock } = useGeometry()
+  const { getSectionById, getPaddockById, addPaddock, sections } = useGeometry()
   
   const [layers, setLayers] = useState({
     satellite: false,
@@ -36,6 +40,33 @@ export function MapView() {
     labels: true,
     sections: true,
   })
+
+  // Extract today's section from plan or fallback to most recent section
+  const todaysSection = useMemo<Section | null>(() => {
+    console.log('[MapView] Computing todaysSection, plan:', plan ? { id: plan._id, hasSectionGeometry: !!plan.sectionGeometry } : null)
+    console.log('[MapView] sections from useGeometry:', sections.length, sections.map(s => ({ id: s.id, paddockId: s.paddockId })))
+    
+    if (plan?.sectionGeometry) {
+      const section = {
+        id: plan._id,
+        paddockId: plan.primaryPaddockExternalId || '',
+        date: plan.date,
+        geometry: {
+          type: 'Feature' as const,
+          properties: {},
+          geometry: plan.sectionGeometry,
+        },
+        targetArea: plan.sectionAreaHectares || 0,
+        reasoning: plan.reasoning || [],
+      }
+      console.log('[MapView] Created todaysSection from plan:', section.id, section.paddockId)
+      return section
+    }
+    // Fallback to most recent section from geometry context
+    const fallback = sections[0] ?? null
+    console.log('[MapView] Using fallback section:', fallback?.id)
+    return fallback
+  }, [plan, sections])
 
   // Initialize from URL search params on mount
   useEffect(() => {
@@ -53,14 +84,17 @@ export function MapView() {
   }, [search.edit, search.entityType, search.paddockId])
 
   const sectionFeature = useMemo<Section | SectionAlternative | null>(() => {
-    if (search.entityType !== 'section' || !search.sectionId) return null
+    if (search.entityType !== 'section' || !search.sectionId) {
+      // Return today's section when no specific section is requested
+      return todaysSection
+    }
     const section = getSectionById(search.sectionId)
     if (section) return section
-    if (todaysPlan.recommendedSection?.id === search.sectionId) {
-      return todaysPlan.recommendedSection
+    if (todaysSection?.id === search.sectionId) {
+      return todaysSection
     }
-    return todaysPlan.sectionAlternatives.find((alt) => alt.id === search.sectionId) ?? null
-  }, [getSectionById, search.entityType, search.sectionId])
+    return null
+  }, [getSectionById, search.entityType, search.sectionId, todaysSection])
 
   const sectionPaddockId = useMemo(() => {
     if (search.paddockId) return search.paddockId
@@ -81,7 +115,8 @@ export function MapView() {
     return clipped ?? sectionPaddock.geometry
   }, [sectionFeature, sectionPaddock])
 
-  const effectiveSectionGeometry = editSectionFeature ?? clippedSectionGeometry ?? null
+  const effectiveSectionGeometry = editSectionFeature ?? clippedSectionGeometry ?? 
+    (search.entityType !== 'section' && !search.sectionId && todaysSection ? todaysSection.geometry : null)
   const effectiveSectionId = editSectionId ?? sectionFeature?.id
 
   // Focus map on section bounds when available
@@ -134,6 +169,46 @@ export function MapView() {
       timers.forEach(clearTimeout)
     }
   }, [focusPaddockId, effectiveSectionGeometry])
+
+  // Focus map on today's section by default when navigating via sidebar
+  useEffect(() => {
+    console.log('[MapView] Focus effect running, todaysSection:', todaysSection?.id, 'search:', search)
+    if (search.edit || search.sectionId) {
+      console.log('[MapView] Skipping focus - edit mode or specific section requested')
+      return
+    }
+    if (!todaysSection) {
+      console.log('[MapView] Skipping focus - no todaysSection')
+      return
+    }
+    if (effectiveSectionGeometry) {
+      console.log('[MapView] Skipping focus - effectiveSectionGeometry already set')
+      return
+    }
+
+    const tryFocus = () => {
+      if (mapRef.current) {
+        console.log('[MapView] Focusing on todaysSection geometry')
+        mapRef.current.focusOnGeometry(todaysSection.geometry)
+        return true
+      }
+      return false
+    }
+
+    if (tryFocus()) return
+
+    const timeouts = [100, 300, 600, 1000]
+    const timers = timeouts.map((delay) =>
+      setTimeout(() => {
+        console.log('[MapView] Retry focus attempt')
+        tryFocus()
+      }, delay)
+    )
+
+    return () => {
+      timers.forEach(clearTimeout)
+    }
+  }, [search.edit, search.sectionId, todaysSection, effectiveSectionGeometry])
 
   const toggleLayer = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))

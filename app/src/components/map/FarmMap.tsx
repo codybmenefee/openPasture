@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHand
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
-import { todaysPlan } from '@/data/mock/plan'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import { useMapDraw, loadGeometriesToDraw, type DrawMode } from '@/lib/hooks'
@@ -238,65 +237,6 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
   }
 }
 
-function createInitialSectionState(): SectionRenderState {
-  const { recommendedSection, previousSections, sectionAlternatives, currentPaddockId } = todaysPlan
-
-  console.log('[Sections] Creating initial section state:', {
-    hasRecommended: !!recommendedSection,
-    previousCount: previousSections.length,
-    alternativesCount: sectionAlternatives.length,
-    currentPaddockId,
-  })
-
-  const current: SectionRenderItem[] = recommendedSection
-    ? [{
-        id: recommendedSection.id,
-        paddockId: recommendedSection.paddockId,
-        geometry: recommendedSection.geometry,
-        properties: {
-          id: recommendedSection.id,
-          area: recommendedSection.targetArea,
-          paddockId: recommendedSection.paddockId,
-        },
-      }]
-    : []
-
-  const grazed: SectionRenderItem[] = previousSections.map((section, index) => ({
-    id: section.id,
-    paddockId: section.paddockId,
-    geometry: section.geometry,
-    properties: {
-      id: section.id,
-      day: index + 1,
-      paddockId: section.paddockId,
-    },
-  }))
-
-  const alternatives: SectionRenderItem[] = sectionAlternatives.map((section, index) => {
-    const paddockId =
-      (section.geometry.properties as { paddockId?: string } | undefined)?.paddockId ?? currentPaddockId
-
-    return {
-      id: section.id,
-      paddockId,
-      geometry: section.geometry,
-      properties: {
-        id: section.id,
-        altIndex: index + 1,
-        paddockId,
-      },
-    }
-  })
-
-  console.log('[Sections] Render state:', {
-    currentCount: current.length,
-    grazedCount: grazed.length,
-    alternativesCount: alternatives.length,
-  })
-
-  return { current, grazed, alternatives }
-}
-
 export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap({ 
   onPaddockClick, 
   onEditPaddockSelect,
@@ -334,7 +274,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     lastGeometry?: Feature<Polygon> | null
   } | null>(null)
   const lastSelectedPaddockIdRef = useRef<string | null>(null)
-  const sectionStateRef = useRef<SectionRenderState>(createInitialSectionState())
+  const sectionStateRef = useRef<SectionRenderState>({ current: [], grazed: [], alternatives: [] })
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastLoadedPaddockKeyRef = useRef<string | null>(null)
 
@@ -517,8 +457,52 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         return [{ ...item, geometry: clipped }]
       })
     },
-    []
+    [],
   )
+
+  // Render initial section when not in edit mode
+  useEffect(() => {
+    if (!isMapReady() || editMode || !initialSectionFeature || !showSections) return
+
+    const sourceId = 'section-initial'
+    const sectionGeoJson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{
+        ...initialSectionFeature,
+        properties: {
+          ...(initialSectionFeature.properties || {}),
+          id: initialSectionId || 'initial-section',
+        },
+      }],
+    }
+
+    if (!mapInstance.getSource(sourceId)) {
+      mapInstance.addSource(sourceId, {
+        type: 'geojson',
+        data: sectionGeoJson,
+      })
+      mapInstance.addLayer({
+        id: `${sourceId}-fill`,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#22c55e',
+          'fill-opacity': 0.45,
+        },
+      })
+      mapInstance.addLayer({
+        id: `${sourceId}-outline`,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#22c55e',
+          'line-width': 3,
+        },
+      })
+    } else {
+      (mapInstance.getSource(sourceId) as maplibregl.GeoJSONSource).setData(sectionGeoJson)
+    }
+  }, [isMapReady, mapInstance, editMode, initialSectionFeature, initialSectionId, showSections])
 
   // Initialize map
   useEffect(() => {
@@ -601,7 +585,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           name: p.name,
           status: p.status,
           ndvi: p.ndvi,
-          isCurrentPaddock: p.id === todaysPlan.currentPaddockId,
         },
       })),
     }
@@ -630,11 +613,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             'grazed', statusColors.grazed,
             '#6b7280',
           ],
-          'fill-opacity': [
-            'case',
-            ['get', 'isCurrentPaddock'], 0.2,
-            0.4,
-          ],
+          'fill-opacity': 0.3,
         },
       })
 
@@ -645,23 +624,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         source: 'paddocks',
         paint: {
           'line-color': [
-            'case',
-            ['get', 'isCurrentPaddock'], '#22c55e',
-            [
-              'match',
-              ['get', 'status'],
-              'ready', statusColors.ready,
-              'almost_ready', statusColors.almost_ready,
-              'recovering', statusColors.recovering,
-              'grazed', statusColors.grazed,
-              '#6b7280',
-            ],
+            'match',
+            ['get', 'status'],
+            'ready', statusColors.ready,
+            'almost_ready', statusColors.almost_ready,
+            'recovering', statusColors.recovering,
+            'grazed', statusColors.grazed,
+            '#6b7280',
           ],
-          'line-width': [
-            'case',
-            ['get', 'isCurrentPaddock'], 3,
-            2,
-          ],
+          'line-width': 2,
         },
       })
 

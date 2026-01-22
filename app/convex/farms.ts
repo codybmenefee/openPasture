@@ -6,6 +6,8 @@ import {
   defaultFarmSettings,
   sampleFarm,
   samplePaddocks,
+  sampleGrazingEvents,
+  sampleObservations,
 } from './seedData'
 
 export const getFarm = query({
@@ -122,7 +124,7 @@ export const seedSampleFarm = mutation({
     if (args.seedSettings) {
       const existingSettings = await ctx.db
         .query('farmSettings')
-        .withIndex('by_farm', (q) => q.eq('farmExternalId', externalId))
+        .withIndex('by_farm', (q: any) => q.eq('farmExternalId', externalId))
         .first()
 
       if (!existingSettings) {
@@ -136,6 +138,49 @@ export const seedSampleFarm = mutation({
       }
     }
 
+    let grazingEventsSeeded = false
+    const existingGrazingEvents = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', externalId))
+      .collect()
+
+    if (existingGrazingEvents.length === 0) {
+      for (const event of sampleGrazingEvents) {
+        await ctx.db.insert('grazingEvents', {
+          farmExternalId: externalId,
+          paddockExternalId: event.paddockExternalId,
+          date: event.date,
+          durationDays: event.durationDays,
+          notes: event.notes,
+          createdAt: now,
+        })
+      }
+      grazingEventsSeeded = true
+    }
+
+    let observationsSeeded = false
+    const existingObservations = await ctx.db
+      .query('observations')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', externalId))
+      .collect()
+
+    if (existingObservations.length === 0) {
+      for (const obs of sampleObservations) {
+        await ctx.db.insert('observations', {
+          farmExternalId: externalId,
+          paddockExternalId: obs.paddockExternalId,
+          date: obs.date,
+          ndviMean: obs.ndviMean,
+          ndviMin: obs.ndviMin,
+          ndviMax: obs.ndviMax,
+          ndviStd: obs.ndviStd,
+          cloudFreePct: obs.cloudFreePct,
+          createdAt: now,
+        })
+      }
+      observationsSeeded = true
+    }
+
     return {
       farmId: farm._id,
       farmExternalId: externalId,
@@ -144,6 +189,8 @@ export const seedSampleFarm = mutation({
       seededPaddocks: paddocksSeeded,
       seededUser: userSeeded,
       seededSettings: settingsSeeded,
+      seededGrazingEvents: grazingEventsSeeded,
+      seededObservations: observationsSeeded,
     }
   },
 })
