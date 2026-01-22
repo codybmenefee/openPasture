@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { useSearch } from '@tanstack/react-router'
+import { useSearch, useNavigate } from '@tanstack/react-router'
 import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
@@ -19,6 +19,7 @@ interface MapSearchParams {
 
 export function MapView() {
   const search = useSearch({ from: '/map' }) as MapSearchParams
+  const navigate = useNavigate({ from: '/map' })
   
   const { farmId } = useCurrentUser()
   const { plan } = useTodayPlan(farmId || '')
@@ -70,6 +71,20 @@ export function MapView() {
 
   // Initialize from URL search params on mount
   useEffect(() => {
+    // If no search params but we have a plan with a section, redirect to edit mode
+    if (!search.edit && !search.entityType && plan?.sectionGeometry) {
+      navigate({
+        search: {
+          edit: true,
+          entityType: 'section',
+          paddockId: plan.primaryPaddockExternalId || '',
+          sectionId: plan._id,
+        },
+        replace: true,
+      })
+      return
+    }
+
     if (search.edit) {
       setEditMode(true)
       // When editing sections, show satellite imagery
