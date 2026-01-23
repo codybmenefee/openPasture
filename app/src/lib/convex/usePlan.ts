@@ -3,25 +3,37 @@ import { api } from '../../../convex/_generated/api'
 
 
 export function useTodayPlan(farmExternalId: string) {
-  const plan = useQuery(api.intelligence.getTodayPlan, {
-    farmExternalId,
-  })
+  const shouldSkip = !farmExternalId
+  const plan = useQuery(
+    api.intelligence.getTodayPlan,
+    shouldSkip
+      ? 'skip'
+      : {
+          farmExternalId,
+        }
+  )
 
   const generatePlan = useAction(api.intelligenceActions.generateDailyPlan)
   const approvePlan = useMutation(api.intelligence.approvePlan)
   const submitFeedback = useMutation(api.intelligence.submitFeedback)
   const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
 
-  const isLoading = plan === undefined
-  const isError = plan === null
+  const isLoading = shouldSkip || plan === undefined
+  const isError = !shouldSkip && plan === null
 
   return {
     plan,
     isLoading,
     isError,
     generatePlan: async () => {
+      if (!farmExternalId) {
+        throw new Error('Farm ID is unavailable.')
+      }
       const result = await generatePlan({ farmExternalId })
-      return result ?? undefined
+      if (!result) {
+        throw new Error('Plan generation did not produce a plan.')
+      }
+      return result
     },
     approvePlan: (planId: string, userId: string) =>
       approvePlan({ planId, userId } as { planId: string & { __tableName: 'plans' }, userId: string }),

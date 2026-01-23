@@ -339,10 +339,46 @@ export const createPlanWithSection = mutation({
     sectionAvgNdvi: v.optional(v.number()),
     sectionJustification: v.string(),
     paddockGrazedPercentage: v.optional(v.number()),
-    confidence: v.number(),
+    // LLM tool calls occasionally omit this field or embed it in sectionJustification.
+    // Keep this optional and recover it in the handler to avoid hard failures.
+    confidence: v.optional(v.number()),
     reasoning: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    const extractConfidenceFromJustification = (
+      justification: string
+    ): { confidence?: number; justification: string } => {
+      // Common failure mode: the model appends something like:
+      // </sectionJustification>\n<parameter name="confidence">0.55
+      const match = justification.match(/<parameter\s+name=["']confidence["']>\s*([0-9]*\.?[0-9]+)/i)
+      if (!match) {
+        return { justification }
+      }
+
+      const extracted = Number.parseFloat(match[1] ?? '')
+      const cleaned = justification
+        .replace(/<\/sectionJustification>/gi, '')
+        .replace(/<parameter\s+name=["']confidence["'][\s\S]*$/i, '')
+        .trim()
+
+      return {
+        confidence: Number.isFinite(extracted) ? extracted : undefined,
+        justification: cleaned,
+      }
+    }
+
+    const normalizeConfidenceScore = (value: number | undefined): number => {
+      // App currently treats confidence as a 0-100 score (e.g. LOW_CONFIDENCE_THRESHOLD = 70).
+      // The agent often produces 0-1 floats; convert to percent when appropriate.
+      if (value === undefined || !Number.isFinite(value)) return 50
+      if (value >= 0 && value <= 1) return Math.round(value * 100)
+      return value
+    }
+
+    const extracted = extractConfidenceFromJustification(args.sectionJustification)
+    const confidenceScore = normalizeConfidenceScore(args.confidence ?? extracted.confidence)
+    const sectionJustification = extracted.justification
+
     const today = new Date().toISOString().split('T')[0]
     const now = new Date().toISOString()
 
@@ -357,13 +393,13 @@ export const createPlanWithSection = mutation({
       console.log('[savePlan] Patching existing plan:', todayPlan._id, 'with sectionGeometry:', !!args.sectionGeometry)
       await ctx.db.patch(todayPlan._id, {
         primaryPaddockExternalId: args.targetPaddockId,
-        confidenceScore: args.confidence,
+        confidenceScore,
         reasoning: args.reasoning,
         sectionGeometry: args.sectionGeometry,
         sectionAreaHectares: args.sectionAreaHectares || 0,
         sectionCentroid: args.sectionCentroid,
         sectionAvgNdvi: args.sectionAvgNdvi,
-        sectionJustification: args.sectionJustification,
+        sectionJustification,
         paddockGrazedPercentage: args.paddockGrazedPercentage,
         updatedAt: now,
       })
@@ -376,7 +412,7 @@ export const createPlanWithSection = mutation({
       date: today,
       primaryPaddockExternalId: args.targetPaddockId,
       alternativePaddockExternalIds: [],
-      confidenceScore: args.confidence,
+      confidenceScore,
       reasoning: args.reasoning,
       status: 'pending',
       approvedAt: undefined,
@@ -386,7 +422,7 @@ export const createPlanWithSection = mutation({
       sectionAreaHectares: args.sectionAreaHectares || 0,
       sectionCentroid: args.sectionCentroid,
       sectionAvgNdvi: args.sectionAvgNdvi,
-      sectionJustification: args.sectionJustification,
+      sectionJustification,
       paddockGrazedPercentage: args.paddockGrazedPercentage,
       createdAt: now,
       updatedAt: now,

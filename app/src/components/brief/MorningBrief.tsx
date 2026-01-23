@@ -46,7 +46,7 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
   const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [animationComplete, setAnimationComplete] = useState(false)
+  const [generationError, setGenerationError] = useState<string | null>(null)
 
   useEffect(() => {
     if (plan) {
@@ -58,19 +58,21 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
   }, [plan])
 
   const handleGeneratePlan = async () => {
-    setAnimationComplete(false)
+    setGenerationError(null)
     setIsGenerating(true)
-    await generatePlan()
-    setIsGenerating(false)
-  }
-
-  const handleAnimationComplete = () => {
-    setAnimationComplete(true)
+    try {
+      await generatePlan()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to generate a plan.'
+      setGenerationError(message)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const handleResetPlan = async () => {
     setIsResetting(true)
-    setAnimationComplete(false)
+    setGenerationError(null)
     await deleteTodayPlan()
     setIsResetting(false)
   }
@@ -112,29 +114,29 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
     return <BriefSkeleton />
   }
 
-  if (isError || (!plan && !isGenerating)) {
+  // No plan for today yet (Convex returns null), show generation UI.
+  if (isError || !plan) {
     return (
       <div className="p-4 xl:p-6 2xl:p-8">
         <div className="mb-4 xl:mb-6">
           <h1 className="text-lg xl:text-xl font-semibold">Morning Brief</h1>
           <p className="text-xs xl:text-sm text-muted-foreground">{getFormattedDate()}</p>
         </div>
+        {generationError && (
+          <div className="mb-4 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
+            {generationError}
+          </div>
+        )}
         <NoPlanState
           isGenerating={isGenerating}
           onGenerate={handleGeneratePlan}
-          onAnimationComplete={handleAnimationComplete}
+          onAnimationComplete={() => {}}
         />
       </div>
     )
   }
 
-  if (isGenerating || (plan && !animationComplete)) {
-    return <BriefSkeleton />
-  }
-
-  if (!plan) {
-    return <BriefSkeleton />
-  }
+  // If a plan exists, render it immediately. Generation animations should not gate the dashboard.
 
   const recommendedPaddock = getPaddockById(plan.primaryPaddockExternalId || '')
 
