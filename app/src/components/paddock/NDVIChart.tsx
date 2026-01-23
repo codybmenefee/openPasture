@@ -31,9 +31,9 @@ export function NDVIChart({
         month: 'short', 
         day: 'numeric' 
       }),
-      ndvi: obs.ndvi,
-      evi: obs.evi,
-      ndwi: obs.ndwi,
+      ndvi: obs.ndviMean,
+      evi: obs.evi ?? obs.eviMean,
+      ndwi: obs.ndwi ?? obs.ndwiMean,
       fullDate: obs.date,
     }))
   }, [observations])

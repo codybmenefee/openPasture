@@ -463,6 +463,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   // Render initial section when not in edit mode
   useEffect(() => {
     if (!isMapReady() || editMode || !initialSectionFeature || !showSections) return
+    if (!mapInstance) return
 
     const sourceId = 'section-initial'
     const sectionGeoJson: GeoJSON.FeatureCollection = {

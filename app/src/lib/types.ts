@@ -2,7 +2,7 @@ import type { Feature, Polygon } from 'geojson'
 
 export type PaddockStatus = 'ready' | 'almost_ready' | 'recovering' | 'grazed'
 
-export type PlanStatus = 'pending' | 'approved' | 'modified'
+export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'executed' | 'modified'
 
 // Section: Ephemeral, AI-generated daily grazing polygon within a paddock
 export interface Section {

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { BriefCard } from './BriefCard'
-import { AlternativeCard } from './AlternativeCard'
 import { FarmOverview } from './FarmOverview'
 import { DataStatusCard } from './DataStatusCard'
 import { ApprovedState } from './ApprovedState'
@@ -14,9 +13,9 @@ import { useTodayPlan } from '@/lib/convex/usePlan'
 
 const LOW_CONFIDENCE_THRESHOLD = 70
 
-function planSectionToSection(plan: any): Section | null {
+function planSectionToSection(plan: any): Section | undefined {
   if (!plan?.sectionGeometry) {
-    return null
+    return undefined
   }
   
   // Convert raw Polygon to GeoJSON Feature

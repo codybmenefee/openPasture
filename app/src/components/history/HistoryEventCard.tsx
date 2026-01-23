@@ -28,6 +28,18 @@ const statusConfig = {
     badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
     label: 'Pending',
   },
+  rejected: {
+    icon: Clock,
+    color: 'bg-red-500',
+    badge: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    label: 'Rejected',
+  },
+  executed: {
+    icon: Check,
+    color: 'bg-purple-500',
+    badge: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
+    label: 'Executed',
+  },
 }
 
 export function HistoryEventCard({ entry, isLast, onClick }: HistoryEventCardProps) {

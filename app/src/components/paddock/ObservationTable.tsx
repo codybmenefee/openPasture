@@ -44,13 +44,13 @@ export function ObservationTable({
     return { text: 'Overcast', color: 'text-red-600' }
   }
 
-  const ndviStatus = getNdviStatus(observation.ndvi)
+  const ndviStatus = getNdviStatus(observation.ndviMean)
   const cloudStatus = getCloudStatus(cloudCoverage)
 
   const metrics: MetricRow[] = [
     {
       metric: 'NDVI',
-      value: observation.ndvi.toFixed(2),
+      value: observation.ndviMean.toFixed(2),
       status: ndviStatus.text,
       statusColor: ndviStatus.color,
       trend: `${ndviTrend >= 0 ? '+' : ''}${ndviTrend.toFixed(3)}/week`,

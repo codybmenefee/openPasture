@@ -24,13 +24,6 @@ interface PaddockData {
   } | null
 }
 
-interface PreviousSection {
-  id: string
-  date: string
-  area: number
-  geometry: any
-}
-
 interface SectionWithJustification {
   id: string
   date: string

@@ -24,9 +24,9 @@ export function useTodayPlan(farmExternalId: string) {
       return result ?? undefined
     },
     approvePlan: (planId: string, userId: string) =>
-      approvePlan({ planId, userId }),
+      approvePlan({ planId, userId } as { planId: string & { __tableName: 'plans' }, userId: string }),
     submitFeedback: (planId: string, feedback: string) =>
-      submitFeedback({ planId, feedback }),
+      submitFeedback({ planId, feedback } as { planId: string & { __tableName: 'plans' }, feedback: string }),
     deleteTodayPlan: () => deleteTodayPlan({ farmExternalId }),
   }
 }
@@ -46,7 +46,7 @@ export function usePlanHistory(farmExternalId: string, days: number = 30) {
 
 
 export function usePlan(planId: string) {
-  const plan = useQuery(api.intelligence.getPlanById, { planId })
+  const plan = useQuery(api.intelligence.getPlanById, { planId } as { planId: string & { __tableName: 'plans' } })
 
   return {
     plan,

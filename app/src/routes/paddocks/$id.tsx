@@ -104,7 +104,7 @@ function PaddockDetailPage() {
             <ObservationTable 
               observation={latestObservation} 
               ndviTrend={ndviTrend}
-              cloudCoverage={latestObservation.cloudCoverage}
+              cloudCoverage={100 - latestObservation.cloudFreePct}
             />
           )}
           
