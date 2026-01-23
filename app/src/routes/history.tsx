@@ -26,7 +26,7 @@ function HistoryPage() {
     })
   }, [dateRange])
   
-  const stats = useMemo(() => getHistoryStats(filteredEntries), [filteredEntries])
+  const stats = getHistoryStats()
 
   return (
     <div className="p-6 space-y-6">

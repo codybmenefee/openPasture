@@ -308,7 +308,7 @@ export const listAllPlansForFarm = query({
 export const deleteTodayPlan = mutation({
   args: { farmExternalId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const farmExternalId = args.farmExternalId ?? 'farm-1'
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
 
     const plans = await ctx.db
@@ -377,16 +377,32 @@ export const getAllSections = query({
   }[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
 
+    console.log('[getAllSections] START - farmExternalId:', farmExternalId)
+    const startTime = Date.now()
+
     const plans = await ctx.db
       .query('plans')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
+    console.log('[getAllSections] Found', plans.length, 'total plans for farm')
+
     const sections = []
+    let plansWithSections = 0
+    let plansWithoutSections = 0
 
     for (const plan of plans) {
-      console.log('[getAllSections] Checking plan:', plan._id, 'has sectionGeometry:', !!plan.sectionGeometry, 'date:', plan.date)
-      if (plan.sectionGeometry) {
+      const hasSection = !!plan.sectionGeometry
+      console.log('[getAllSections] Plan:', plan._id, {
+        date: plan.date,
+        paddockId: plan.primaryPaddockExternalId,
+        hasSectionGeometry: hasSection,
+        status: plan.status,
+        sectionArea: plan.sectionAreaHectares,
+      })
+      
+      if (hasSection) {
+        plansWithSections++
         sections.push({
           id: plan._id.toString(),
           paddockId: plan.primaryPaddockExternalId ?? '',
@@ -395,9 +411,22 @@ export const getAllSections = query({
           targetArea: plan.sectionAreaHectares ?? 0,
           reasoning: plan.reasoning ?? [],
         })
+      } else {
+        plansWithoutSections++
       }
     }
 
-    return sections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const sorted = sections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const duration = Date.now() - startTime
+    
+    console.log('[getAllSections] END - Returning', sorted.length, 'sections', {
+      plansWithSections,
+      plansWithoutSections,
+      duration: `${duration}ms`,
+      sectionDates: sorted.map(s => s.date),
+      sectionPaddocks: sorted.map(s => s.paddockId),
+    })
+
+    return sorted
   },
 })

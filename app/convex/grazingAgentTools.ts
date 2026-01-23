@@ -2,6 +2,9 @@ import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
 import area from '@turf/area'
+import intersect from '@turf/intersect'
+import { featureCollection, polygon as turfPolygon } from '@turf/helpers'
+import type { Feature, Polygon } from 'geojson'
 
 const HECTARES_PER_SQUARE_METER = 1 / 10000
 
@@ -238,7 +241,17 @@ export const getPaddockData = query({
       else if (diff < -0.02) ndviTrend = 'decreasing'
     }
 
-    const lastGrazed = mostRecentGrazingEvent?.date
+    // Get the most recent grazing event for THIS specific paddock
+    const mostRecentPaddockEvent = paddockGrazingEvents.length > 0
+      ? paddockGrazingEvents.reduce((latest: any, event: any) => {
+          if (!latest || new Date(event.date) > new Date(latest.date)) {
+            return event
+          }
+          return latest
+        }, null)
+      : null
+
+    const lastGrazed = mostRecentPaddockEvent?.date
     let restDays = 0
     if (lastGrazed && latestObservation) {
       try {
@@ -275,6 +288,7 @@ export const getPreviousSections = query({
   args: { farmExternalId: v.optional(v.string()), paddockId: v.optional(v.string()) },
   handler: async (ctx, args): Promise<SectionWithJustification[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+    const today = new Date().toISOString().split('T')[0]
     
     const plans = await ctx.db
       .query('plans')
@@ -286,7 +300,14 @@ export const getPreviousSections = query({
     const sectionsWithJustification: SectionWithJustification[] = []
 
     for (const plan of plans) {
-      if (plan.sectionGeometry && plan.primaryPaddockExternalId === targetPaddockId) {
+      // Only include sections from previous days (exclude today to avoid overlap with current plan being generated)
+      // Also exclude rejected plans as they weren't executed
+      if (
+        plan.sectionGeometry && 
+        plan.primaryPaddockExternalId === targetPaddockId &&
+        plan.date !== today &&
+        plan.status !== 'rejected'
+      ) {
         sectionsWithJustification.push({
           id: plan._id.toString(),
           date: plan.date,
@@ -345,6 +366,23 @@ export const createPlanWithSection = mutation({
     reasoning: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    const today = new Date().toISOString().split('T')[0]
+    const now = new Date().toISOString()
+    
+    console.log('[createPlanWithSection] START:', {
+      farmExternalId: args.farmExternalId,
+      targetPaddockId: args.targetPaddockId,
+      hasSectionGeometry: !!args.sectionGeometry,
+      sectionAreaHectares: args.sectionAreaHectares,
+      confidence: args.confidence,
+      today,
+    })
+    
+    // CRITICAL: Animals must eat somewhere - sectionGeometry is required
+    if (!args.sectionGeometry) {
+      throw new Error('sectionGeometry is REQUIRED. Animals must graze somewhere every day. The agent must always create a section, even if conditions are not ideal. Please ensure the agent creates a section geometry in the target paddock.')
+    }
+
     const extractConfidenceFromJustification = (
       justification: string
     ): { confidence?: number; justification: string } => {
@@ -379,8 +417,147 @@ export const createPlanWithSection = mutation({
     const confidenceScore = normalizeConfidenceScore(args.confidence ?? extracted.confidence)
     const sectionJustification = extracted.justification
 
-    const today = new Date().toISOString().split('T')[0]
-    const now = new Date().toISOString()
+    // Validate and clip section geometry if provided
+    let finalSectionGeometry = args.sectionGeometry
+    if (args.sectionGeometry) {
+      // Get paddock to validate section is within bounds
+      const farm = await ctx.db
+        .query('farms')
+        .withIndex('by_externalId', (q: any) => q.eq('externalId', args.farmExternalId))
+        .first()
+
+      if (!farm) {
+        throw new Error(`Farm not found: ${args.farmExternalId}`)
+      }
+
+      const paddock = await ctx.db
+        .query('paddocks')
+        .withIndex('by_farm_externalId', (q: any) => 
+          q.eq('farmId', farm._id).eq('externalId', args.targetPaddockId)
+        )
+        .first()
+
+      if (!paddock) {
+        throw new Error(`Paddock not found: ${args.targetPaddockId}`)
+      }
+
+      // Convert section geometry to Feature<Polygon>
+      const sectionFeature: Feature<Polygon> = {
+        type: 'Feature',
+        properties: {},
+        geometry: args.sectionGeometry,
+      }
+
+      // Convert paddock geometry to Feature<Polygon> (it's stored as Feature)
+      const paddockFeature = paddock.geometry as Feature<Polygon>
+
+      // Validate: Section must be within paddock bounds
+      // Check by intersecting section with paddock - if intersection area equals section area, it's fully within
+      const intersection = intersect(featureCollection([sectionFeature, paddockFeature]))
+      
+      // #region debug log
+      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:455',message:'Section validation start',data:{targetPaddockId:args.targetPaddockId,hasIntersection:!!intersection,sectionGeometryType:args.sectionGeometry?.type,paddockGeometryType:paddock.geometry?.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      
+      if (!intersection) {
+        // #region debug log
+        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:457',message:'Section completely outside paddock',data:{targetPaddockId:args.targetPaddockId,sectionCoords:JSON.stringify(args.sectionGeometry?.coordinates?.[0]).substring(0,200),paddockCoords:JSON.stringify((paddock.geometry as Feature<Polygon>)?.geometry?.coordinates?.[0]||[]).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        throw new Error(`Section geometry is completely outside paddock ${args.targetPaddockId} boundaries`)
+      }
+
+      const sectionArea = area(sectionFeature)
+      const intersectionArea = area(intersection as Feature<Polygon>)
+      const areaRatio = intersectionArea / sectionArea
+
+      // #region debug log
+      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:465',message:'Section containment check',data:{targetPaddockId:args.targetPaddockId,sectionArea,intersectionArea,areaRatio,areaRatioPercent:Math.round(areaRatio*100),requiredPercent:99},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+
+      // If section extends outside paddock, clip it to paddock boundary
+      // This handles LLM imprecision in coordinate generation
+      if (areaRatio < 0.99) {
+        // #region debug log
+        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:470',message:'Section extends outside - clipping to paddock',data:{targetPaddockId:args.targetPaddockId,areaRatio,areaRatioPercent:Math.round(areaRatio*100),originalArea:sectionArea,intersectionType:intersection?.type,intersectionGeometryType:intersection?.geometry?.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        
+        // Use intersection as the clipped geometry
+        // intersection is guaranteed to exist here (we checked at line 462)
+        // Since we can calculate intersectionArea, the intersection must have valid geometry
+        const intersectionFeature = intersection as Feature<Polygon>
+        const intersectionGeometry = intersectionFeature?.geometry
+        
+        if (intersectionGeometry && intersectionGeometry.coordinates && intersectionGeometry.coordinates.length > 0) {
+          // Use the intersection geometry as the clipped section
+          // Cast to Polygon since we know it's the intersection of two polygons
+          finalSectionGeometry = intersectionGeometry as Polygon
+          const clippedArea = area(intersectionFeature)
+          
+          // #region debug log
+          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:477',message:'Section clipped successfully',data:{targetPaddockId:args.targetPaddockId,originalArea:sectionArea,clippedArea,areaReduction:((sectionArea-clippedArea)/sectionArea*100).toFixed(1)+'%',geometryType:intersectionGeometry.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          
+          console.log(`[createPlanWithSection] Clipped section geometry: ${Math.round(areaRatio * 100)}% was within paddock, using intersection (type: ${intersectionGeometry.type})`)
+        } else {
+          // #region debug log
+          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentTools.ts:482',message:'Cannot clip - invalid intersection geometry',data:{targetPaddockId:args.targetPaddockId,areaRatio,intersectionType:intersection?.type,intersectionGeometryType:(intersection as any)?.geometry?.type,hasIntersection:!!intersection,hasGeometry:!!(intersection as any)?.geometry,intersectionKeys:intersection ? Object.keys(intersection) : [],intersectionString:JSON.stringify(intersection).substring(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          throw new Error(`Section geometry extends outside paddock ${args.targetPaddockId} boundaries (${Math.round(areaRatio * 100)}% within paddock) and cannot be clipped - intersection has no valid geometry`)
+        }
+      }
+
+      // Validate: Section must not overlap with previous sections
+      // Fetch previous sections directly (can't call query from mutation)
+      const allPlans = await ctx.db
+        .query('plans')
+        .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+        .collect()
+
+      const previousSections = allPlans
+        .filter((plan: any) => 
+          plan.sectionGeometry && 
+          plan.primaryPaddockExternalId === args.targetPaddockId &&
+          plan.date !== today &&
+          plan.status !== 'rejected'
+        )
+        .map((plan: any) => ({
+          date: plan.date,
+          geometry: plan.sectionGeometry,
+        }))
+
+      // Use finalSectionGeometry (clipped version) for overlap checking
+      const finalSectionFeature: Feature<Polygon> = {
+        type: 'Feature',
+        properties: {},
+        geometry: finalSectionGeometry,
+      }
+
+      for (const prevSection of previousSections) {
+        const prevFeature: Feature<Polygon> = {
+          type: 'Feature',
+          properties: {},
+          geometry: prevSection.geometry,
+        }
+
+        const overlap = intersect(featureCollection([finalSectionFeature, prevFeature]))
+        if (overlap) {
+          const overlapArea = area(overlap as Feature<Polygon>)
+          const finalSectionArea = area(finalSectionFeature)
+          const overlapPercent = (overlapArea / finalSectionArea) * 100
+          
+          // Allow very small overlaps due to floating point precision (< 1%)
+          if (overlapPercent >= 1) {
+            throw new Error(`Section geometry overlaps with previous section from ${prevSection.date} (${Math.round(overlapPercent)}% overlap)`)
+          }
+        }
+      }
+
+      console.log('[createPlanWithSection] Section validation passed:', {
+        withinPaddock: true,
+        noOverlaps: true,
+        previousSectionsCount: previousSections.length,
+      })
+    }
 
     const existingPlan = await ctx.db
       .query('plans')
@@ -390,24 +567,56 @@ export const createPlanWithSection = mutation({
     const todayPlan = existingPlan.find((p: any) => p.date === today)
 
     if (todayPlan) {
-      console.log('[savePlan] Patching existing plan:', todayPlan._id, 'with sectionGeometry:', !!args.sectionGeometry)
-      await ctx.db.patch(todayPlan._id, {
+      console.log('[createPlanWithSection] Patching existing plan:', {
+        planId: todayPlan._id.toString(),
+        date: todayPlan.date,
+        currentStatus: todayPlan.status,
+        hasSectionGeometry: !!args.sectionGeometry,
+        targetPaddockId: args.targetPaddockId,
+        confidenceScore,
+      })
+      
+      // Build patch object, only including optional fields when they have values
+      const patchData: any = {
         primaryPaddockExternalId: args.targetPaddockId,
         confidenceScore,
         reasoning: args.reasoning,
-        sectionGeometry: args.sectionGeometry,
         sectionAreaHectares: args.sectionAreaHectares || 0,
-        sectionCentroid: args.sectionCentroid,
-        sectionAvgNdvi: args.sectionAvgNdvi,
-        sectionJustification,
-        paddockGrazedPercentage: args.paddockGrazedPercentage,
         updatedAt: now,
-      })
+      }
+      
+      // Only include sectionGeometry if it's defined (not null/undefined)
+      // Use finalSectionGeometry (may be clipped version)
+      if (finalSectionGeometry) {
+        patchData.sectionGeometry = finalSectionGeometry
+      }
+      if (args.sectionCentroid) {
+        patchData.sectionCentroid = args.sectionCentroid
+      }
+      if (args.sectionAvgNdvi !== undefined && args.sectionAvgNdvi !== null) {
+        patchData.sectionAvgNdvi = args.sectionAvgNdvi
+      }
+      if (sectionJustification) {
+        patchData.sectionJustification = sectionJustification
+      }
+      if (args.paddockGrazedPercentage !== undefined && args.paddockGrazedPercentage !== null) {
+        patchData.paddockGrazedPercentage = args.paddockGrazedPercentage
+      }
+      
+      await ctx.db.patch(todayPlan._id, patchData)
+      console.log('[createPlanWithSection] Plan patched successfully:', todayPlan._id.toString())
       return todayPlan._id
     }
 
-    console.log('[savePlan] Creating NEW plan with sectionGeometry:', !!args.sectionGeometry)
-    return await ctx.db.insert('plans', {
+    console.log('[createPlanWithSection] Creating NEW plan:', {
+      hasSectionGeometry: !!args.sectionGeometry,
+      targetPaddockId: args.targetPaddockId,
+      confidenceScore,
+      sectionAreaHectares: args.sectionAreaHectares,
+    })
+    
+    // Build insert object, only including optional fields when they have values
+    const insertData: any = {
       farmExternalId: args.farmExternalId,
       date: today,
       primaryPaddockExternalId: args.targetPaddockId,
@@ -415,18 +624,37 @@ export const createPlanWithSection = mutation({
       confidenceScore,
       reasoning: args.reasoning,
       status: 'pending',
-      approvedAt: undefined,
-      approvedBy: undefined,
-      feedback: undefined,
-      sectionGeometry: args.sectionGeometry,
       sectionAreaHectares: args.sectionAreaHectares || 0,
-      sectionCentroid: args.sectionCentroid,
-      sectionAvgNdvi: args.sectionAvgNdvi,
-      sectionJustification,
-      paddockGrazedPercentage: args.paddockGrazedPercentage,
       createdAt: now,
       updatedAt: now,
+    }
+    
+    // Only include optional fields if they have values (not null/undefined)
+    // Use finalSectionGeometry (may be clipped version)
+    if (finalSectionGeometry) {
+      insertData.sectionGeometry = finalSectionGeometry
+    }
+    if (args.sectionCentroid) {
+      insertData.sectionCentroid = args.sectionCentroid
+    }
+    if (args.sectionAvgNdvi !== undefined && args.sectionAvgNdvi !== null) {
+      insertData.sectionAvgNdvi = args.sectionAvgNdvi
+    }
+    if (sectionJustification) {
+      insertData.sectionJustification = sectionJustification
+    }
+    if (args.paddockGrazedPercentage !== undefined && args.paddockGrazedPercentage !== null) {
+      insertData.paddockGrazedPercentage = args.paddockGrazedPercentage
+    }
+    
+    const newPlanId = await ctx.db.insert('plans', insertData)
+    console.log('[createPlanWithSection] Plan created successfully:', {
+      planId: newPlanId.toString(),
+      date: today,
+      hasSectionGeometry: !!args.sectionGeometry,
+      targetPaddockId: args.targetPaddockId,
     })
+    return newPlanId
   },
 })
 
@@ -489,6 +717,7 @@ export const calculatePaddockGrazedPercentage = query({
     const paddockArea = paddock.area || calculateAreaHectares(paddock.geometry)
     if (paddockArea === 0) return 0
 
+    const today = new Date().toISOString().split('T')[0]
     const plans = await ctx.db
       .query('plans')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
@@ -496,9 +725,12 @@ export const calculatePaddockGrazedPercentage = query({
 
     let totalGrazedArea = 0
     for (const plan of plans) {
+      // Only count sections from previous days (exclude today's plan which may be regenerated)
+      // Also exclude rejected plans as they weren't executed
       if (
         plan.primaryPaddockExternalId === args.paddockId &&
         plan.sectionGeometry &&
+        plan.date !== today &&
         plan.status !== 'rejected'
       ) {
         totalGrazedArea += plan.sectionAreaHectares || calculateAreaHectares(plan.sectionGeometry)

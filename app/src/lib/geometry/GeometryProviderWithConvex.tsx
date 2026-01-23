@@ -51,8 +51,18 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
   const paddocks = useMemo(() => (paddockDocs ?? []).map(mapPaddockDoc), [paddockDocs])
   const farm = farmDoc ? mapFarmDoc(farmDoc) : null
   const sections = useMemo(() => {
-    console.log('[Sections] sectionDocs from Convex:', sectionDocs?.length, sectionDocs?.map(d => ({ id: d.id, paddockId: d.paddockId })))
-    return (sectionDocs ?? []).map(mapSectionDoc)
+    console.log('[GeometryProvider] Processing sections:', {
+      sectionDocsCount: sectionDocs?.length ?? 0,
+      sectionDocs: sectionDocs?.map(d => ({ 
+        id: d.id, 
+        paddockId: d.paddockId, 
+        date: d.date,
+        hasGeometry: !!d.geometry,
+      })),
+    })
+    const mapped = (sectionDocs ?? []).map(mapSectionDoc)
+    console.log('[GeometryProvider] Mapped sections:', mapped.length, 'sections ready')
+    return mapped
   }, [sectionDocs])
 
   const handleGeometryChange = useCallback(

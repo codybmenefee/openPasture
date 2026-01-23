@@ -1,16 +1,34 @@
 /**
- * Convex functions for the agent gateway.
+ * Agent Gateway - Primary Entry Point for Agent Invocations
  *
- * Provides queries and mutations for the agent gateway to:
- * - Fetch context data for agent prompts
- * - Execute agent actions (create plans, update settings)
- * - Support agent tool implementations
+ * This is the ONLY public entry point for agent operations.
+ * All agent calls should route through this gateway.
+ *
+ * The gateway:
+ * - Fetches farm context and assembles data
+ * - Routes to appropriate agent implementation (currently uses runGrazingAgent internally)
+ * - Handles trigger-specific logic (morning_brief, observation_refresh, plan_execution)
+ * - Provides unified error handling and response format
+ * - TODO: Add Braintrust logging for observability
+ *
+ * Usage:
+ *   await ctx.runAction(api.grazingAgentGateway.agentGateway, {
+ *     trigger: 'morning_brief',
+ *     farmId: farm._id,
+ *     farmExternalId: 'farm-1',
+ *     userId: 'user-123',
+ *   })
+ *
+ * NOTE: runGrazingAgent in grazingAgentDirect.ts is legacy/internal implementation.
+ * It should only be called by this gateway, not directly.
  */
 
 import { query, mutation, action } from './_generated/server'
 import { v } from 'convex/values'
 import { api } from './_generated/api'
 import type { ActionCtx } from './_generated/server'
+// Internal: Legacy agent implementation - only used by this gateway
+import { runGrazingAgent } from './grazingAgentDirect'
 
 /**
  * Get complete farm context for agent prompts.
@@ -82,8 +100,20 @@ export const getRecentPlans = query({
 })
 
 /**
- * HTTP action for agent gateway.
- * This can be called from external systems or via HTTP.
+ * PRIMARY ENTRY POINT: Agent Gateway Action
+ * 
+ * This is the public API for all agent operations.
+ * All external code should call this, not runGrazingAgent directly.
+ * 
+ * For plan generation (morning_brief trigger), this gateway:
+ * 1. Fetches farm context via getFarmContext query
+ * 2. Gets plan generation data to determine active paddock
+ * 3. Delegates to runGrazingAgent (internal/legacy implementation)
+ * 4. Returns standardized result format
+ * 
+ * TODO: Add Braintrust logging for observability
+ * TODO: Use trigger-specific prompts from lib/agent/triggers.ts
+ * TODO: Migrate runGrazingAgent logic fully into gateway for better control
  */
 export const agentGateway = action({
   args: {
@@ -100,14 +130,8 @@ export const agentGateway = action({
   handler: async (ctx: ActionCtx, args): Promise<{
     success: boolean
     trigger: 'morning_brief' | 'observation_refresh' | 'plan_execution'
-    context: {
-      farm: any
-      settings: any
-      paddocks: any[]
-      observations: any[]
-      farmerObservations: any[]
-      plans: any[]
-    }
+    planId?: string
+    error?: string
     message: string
   }> => {
     // Fetch farm context
@@ -115,19 +139,101 @@ export const agentGateway = action({
       farmId: args.farmId,
     })
 
-    // For now, return the context
-    // In a full implementation, this would:
-    // 1. Assemble prompt using triggers
-    // 2. Call Anthropic API with tools
-    // 3. Log to Braintrust
-    // 4. Execute tool calls
-    // 5. Return agent response
+    // For morning_brief trigger, generate a daily plan
+    if (args.trigger === 'morning_brief') {
+      // Get plan generation data to determine active paddock
+      const today = new Date().toISOString().split('T')[0]
+      const planData = await ctx.runQuery(api.intelligence.getPlanGenerationData as any, {
+        farmExternalId: args.farmExternalId,
+        date: today,
+      }) as any
 
+      if (planData.existingPlanId) {
+        return {
+          success: true,
+          trigger: args.trigger,
+          planId: planData.existingPlanId.toString(),
+          message: 'Plan already exists for today',
+        }
+      }
+
+      if (!planData.paddocks || planData.paddocks.length === 0) {
+        return {
+          success: false,
+          trigger: args.trigger,
+          error: 'No paddocks found for farm',
+          message: 'Cannot generate plan: farm has no paddocks',
+        }
+      }
+
+      const activePaddockId = planData.mostRecentGrazingEvent?.paddockExternalId || 
+        (planData.paddocks && planData.paddocks.length > 0 ? planData.paddocks[0].externalId : null)
+
+      const settings = planData.settings || {
+        minNDVIThreshold: 0.40,
+        minRestPeriod: 21,
+      }
+
+      console.log('[agentGateway] Calling runGrazingAgent with:', {
+        farmExternalId: args.farmExternalId,
+        farmName: context.farm?.name || args.farmExternalId,
+        activePaddockId,
+        settings,
+        today,
+      })
+
+      // Call the grazing agent through the gateway
+      const result = await runGrazingAgent(
+        ctx,
+        args.farmExternalId,
+        context.farm?.name || args.farmExternalId,
+        activePaddockId,
+        settings
+      )
+
+      console.log('[agentGateway] runGrazingAgent result:', {
+        success: result.success,
+        planCreated: result.planCreated,
+        planId: result.planId,
+        error: result.error,
+      })
+
+      if (!result.success) {
+        return {
+          success: false,
+          trigger: args.trigger,
+          error: result.error || 'Agent execution failed',
+          message: 'Failed to generate plan',
+        }
+      }
+
+      if (!result.planCreated) {
+        return {
+          success: false,
+          trigger: args.trigger,
+          error: 'Agent did not create a plan',
+          message: 'Plan generation completed but no plan was created',
+        }
+      }
+
+      // Fetch the created plan
+      const todayPlan = await ctx.runQuery(api.intelligence.getTodayPlan as any, { 
+        farmExternalId: args.farmExternalId 
+      }) as any
+
+      return {
+        success: true,
+        trigger: args.trigger,
+        planId: todayPlan?._id?.toString(),
+        message: 'Plan generated successfully',
+      }
+    }
+
+    // For other triggers, return context (to be implemented)
     return {
       success: true,
       trigger: args.trigger,
-      context,
-      message: 'Agent gateway endpoint ready (full implementation pending)',
+      message: `Trigger ${args.trigger} not yet fully implemented - returning context only`,
     }
   },
 })
