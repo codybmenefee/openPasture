@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import confetti from 'canvas-confetti'
 
 const WORDS = [
@@ -18,10 +18,14 @@ interface WordCascadeProps {
 }
 
 export function WordCascade({ isGenerating, onGenerate, onAnimationComplete }: WordCascadeProps) {
+  // Single-layer word swap (fade out -> swap -> fade in) to avoid any chance of
+  // two overlapping layers fighting each other and producing flicker.
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [isFadingOut, setIsFadingOut] = useState(false)
   const [showButton, setShowButton] = useState(true)
   const [showReady, setShowReady] = useState(false)
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  const cycleTimeoutRef = useRef<number | null>(null)
+  const swapTimeoutRef = useRef<number | null>(null)
 
   const triggerConfetti = useCallback(() => {
     confetti({
@@ -41,18 +45,36 @@ export function WordCascade({ isGenerating, onGenerate, onAnimationComplete }: W
   useEffect(() => {
     if (!isGenerating || showReady) return
 
-    const interval = setInterval(() => {
-      setIsTransitioning(true)
-      setTimeout(() => {
-        setCurrentIndex((prev) => {
-          const next = (prev + 1) % WORDS.length
-          return next
-        })
-        setIsTransitioning(false)
-      }, 300)
-    }, 1500)
+    const CYCLE_MS = 1500
+    const FADE_MS = 220
 
-    return () => clearInterval(interval)
+    const clearTimers = () => {
+      if (cycleTimeoutRef.current) window.clearTimeout(cycleTimeoutRef.current)
+      if (swapTimeoutRef.current) window.clearTimeout(swapTimeoutRef.current)
+      cycleTimeoutRef.current = null
+      swapTimeoutRef.current = null
+    }
+
+    // Defensive cleanup (handles rapid toggles + dev StrictMode effect replay).
+    clearTimers()
+
+    const scheduleNext = () => {
+      cycleTimeoutRef.current = window.setTimeout(() => {
+        setIsFadingOut(true)
+
+        swapTimeoutRef.current = window.setTimeout(() => {
+          setCurrentIndex((prev) => (prev + 1) % WORDS.length)
+          setIsFadingOut(false)
+          scheduleNext()
+        }, FADE_MS)
+      }, CYCLE_MS)
+    }
+
+    scheduleNext()
+
+    return () => {
+      clearTimers()
+    }
   }, [isGenerating, showReady])
 
   useEffect(() => {
@@ -102,18 +124,11 @@ export function WordCascade({ isGenerating, onGenerate, onAnimationComplete }: W
     <div className="flex flex-col items-center justify-center min-h-[200px]">
       <div className="w-[480px] text-center h-8 relative">
         <span
-          className={`absolute inset-0 flex items-center justify-center text-base text-neutral-700 transition-all duration-300 ${
-            isTransitioning ? 'opacity-0 translate-y-3' : 'opacity-100 translate-y-0'
+          className={`absolute inset-0 flex items-center justify-center text-base text-neutral-700 transition-opacity duration-200 ${
+            isFadingOut ? 'opacity-0' : 'opacity-100'
           }`}
         >
           {WORDS[currentIndex]}
-        </span>
-        <span
-          className={`absolute inset-0 flex items-center justify-center text-base text-neutral-700 transition-all duration-300 ${
-            isTransitioning ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3'
-          }`}
-        >
-          {WORDS[(currentIndex + 1) % WORDS.length]}
         </span>
       </div>
     </div>
