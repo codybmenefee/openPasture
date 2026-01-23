@@ -45,6 +45,8 @@ export default defineSchema({
     waterAccess: v.string(),
     lastGrazed: v.string(),
     geometry: polygonFeature,
+    overrideMinNDVIThreshold: v.optional(v.number()),
+    overrideMinRestPeriodDays: v.optional(v.number()),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
@@ -131,4 +133,38 @@ export default defineSchema({
   })
     .index('by_farm_date', ['farmExternalId', 'date'])
     .index('by_farm', ['farmExternalId']),
+  farmerObservations: defineTable({
+    farmId: v.id('farms'),
+    authorId: v.string(),
+    level: v.union(v.literal('farm'), v.literal('paddock'), v.literal('zone')),
+    targetId: v.string(),
+    content: v.string(),
+    tags: v.optional(v.array(v.string())),
+    createdAt: v.string(),
+  })
+    .index('by_farm', ['farmId'])
+    .index('by_target', ['level', 'targetId']),
+  zones: defineTable({
+    paddockId: v.id('paddocks'),
+    name: v.string(),
+    type: v.union(
+      v.literal('water'),
+      v.literal('shade'),
+      v.literal('feeding'),
+      v.literal('mineral'),
+      v.literal('other')
+    ),
+    geometry: polygonFeature,
+    metadata: v.optional(v.any()),
+  }).index('by_paddock', ['paddockId']),
+  weatherHistory: defineTable({
+    farmId: v.id('farms'),
+    date: v.string(),
+    temperature: v.number(),
+    precipitation: v.number(),
+    humidity: v.optional(v.number()),
+    windSpeed: v.optional(v.number()),
+    windDirection: v.optional(v.number()),
+    createdAt: v.string(),
+  }).index('by_farm_date', ['farmId', 'date']),
 })

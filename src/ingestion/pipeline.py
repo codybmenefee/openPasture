@@ -34,6 +34,7 @@ from composite import (
     compute_ndwi,
 )
 from zonal_stats import compute_zonal_stats
+from writer import write_observations_to_convex
 
 
 logging.basicConfig(
@@ -285,11 +286,17 @@ def run_pipeline_for_farm(
     logger.info(f"  Valid observations: {valid_count}/{len(observations)}")
 
     # Step 8: Write to Convex if configured
-    if convex_writer and pipeline_config.write_to_convex:
+    if pipeline_config.write_to_convex:
         logger.info("Writing observations to Convex...")
         try:
-            result = convex_writer(observations)
-            logger.info(f"  Wrote {len(observations)} observations")
+            if convex_writer:
+                # Use provided writer function
+                result = convex_writer(observations)
+                logger.info(f"  Wrote {result} observations")
+            else:
+                # Use default writer
+                result = write_observations_to_convex(observations)
+                logger.info(f"  Wrote {result} observations")
         except Exception as e:
             logger.error(f"  Error writing to Convex: {e}")
 

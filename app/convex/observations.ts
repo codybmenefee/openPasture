@@ -127,6 +127,22 @@ export const refreshObservations = mutation({
   },
 })
 
+/**
+ * Batch create observations (for pipeline writer).
+ * This is an alias for refreshObservations to maintain API compatibility.
+ */
+export const createBatch = mutation({
+  args: {
+    observations: v.array(v.object(observationShape)),
+  },
+  handler: async (ctx, args) => {
+    const result = await ctx.runMutation('observations:refreshObservations', {
+      observations: args.observations,
+    })
+    return { count: result.inserted + result.updated }
+  },
+})
+
 export const deleteObservations = mutation({
   args: {
     farmId: v.string(),

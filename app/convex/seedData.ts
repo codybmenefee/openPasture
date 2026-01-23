@@ -203,6 +203,36 @@ export const sampleGrazingEvents = [
   },
 ]
 
+export const sampleFarmerObservations = [
+  {
+    farmId: '' as any, // Will be set during seeding
+    authorId: DEFAULT_USER_EXTERNAL_ID,
+    level: 'farm' as const,
+    targetId: DEFAULT_FARM_EXTERNAL_ID,
+    content: 'Noticed some areas recovering slower than expected after the recent rain. May need to adjust rotation timing.',
+    tags: ['recovery', 'weather'],
+    createdAt: new Date('2026-01-20T08:00:00Z').toISOString(),
+  },
+  {
+    farmId: '' as any,
+    authorId: DEFAULT_USER_EXTERNAL_ID,
+    level: 'paddock' as const,
+    targetId: 'p4',
+    content: 'East Ridge looking excellent. Good grass cover, ready for grazing soon.',
+    tags: ['ready', 'positive'],
+    createdAt: new Date('2026-01-19T14:30:00Z').toISOString(),
+  },
+  {
+    farmId: '' as any,
+    authorId: DEFAULT_USER_EXTERNAL_ID,
+    level: 'paddock' as const,
+    targetId: 'p1',
+    content: 'South Valley still showing signs of overgrazing from last rotation. Needs more rest time.',
+    tags: ['recovery', 'concern'],
+    createdAt: new Date('2026-01-18T10:15:00Z').toISOString(),
+  },
+]
+
 export const sampleObservations = [
   {
     farmExternalId: DEFAULT_FARM_EXTERNAL_ID,

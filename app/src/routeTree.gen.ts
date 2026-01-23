@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as MarketingRouteImport } from './routes/marketing'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -25,6 +26,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketingRoute = MarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MapRoute = MapRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/map': typeof MapRoute
+  '/marketing': typeof MarketingRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/paddocks/$id': typeof PaddocksIdRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/map': typeof MapRoute
+  '/marketing': typeof MarketingRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/paddocks/$id': typeof PaddocksIdRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/map': typeof MapRoute
+  '/marketing': typeof MarketingRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/paddocks/$id': typeof PaddocksIdRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/history'
     | '/map'
+    | '/marketing'
     | '/onboarding'
     | '/settings'
     | '/paddocks/$id'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/history'
     | '/map'
+    | '/marketing'
     | '/onboarding'
     | '/settings'
     | '/paddocks/$id'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/history'
     | '/map'
+    | '/marketing'
     | '/onboarding'
     | '/settings'
     | '/paddocks/$id'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   HistoryRoute: typeof HistoryRoute
   MapRoute: typeof MapRoute
+  MarketingRoute: typeof MarketingRoute
   OnboardingRoute: typeof OnboardingRoute
   SettingsRoute: typeof SettingsRoute
   PaddocksIdRoute: typeof PaddocksIdRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketing': {
+      id: '/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof MarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/map': {
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   HistoryRoute: HistoryRoute,
   MapRoute: MapRoute,
+  MarketingRoute: MarketingRoute,
   OnboardingRoute: OnboardingRoute,
   SettingsRoute: SettingsRoute,
   PaddocksIdRoute: PaddocksIdRoute,
