@@ -1,9 +1,21 @@
-import { Search, HelpCircle } from 'lucide-react'
+import { Search, HelpCircle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFarm } from '@/lib/convex/useFarm'
+import { useTodayPlan } from '@/lib/convex/usePlan'
+import { useState } from 'react'
 
 export function Header() {
   const { farm } = useFarm()
+  const farmExternalId = farm?.id
+  const { deleteTodayPlan } = useTodayPlan(farmExternalId ?? 'farm-1')
+  const [isResetting, setIsResetting] = useState(false)
+
+  const handleResetPlan = async () => {
+    setIsResetting(true)
+    await deleteTodayPlan()
+    setIsResetting(false)
+  }
+
   return (
     <header className="flex h-10 items-center justify-between border-b border-border bg-background px-4">
       {/* Search placeholder */}
@@ -20,7 +32,23 @@ export function Header() {
         <span className="text-xs text-muted-foreground">
           {farm?.name ?? 'Loading farm...'}
         </span>
-        
+
+        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
+          demo
+        </span>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5"
+          onClick={handleResetPlan}
+          disabled={isResetting}
+          title="Reset daily plan"
+        >
+          <RotateCcw className={`h-3.5 w-3.5 ${isResetting ? 'animate-spin' : ''}`} />
+          <span className="text-xs">reset</span>
+        </Button>
+
         <Button variant="ghost" size="icon" className="h-7 w-7">
           <HelpCircle className="h-3.5 w-3.5" />
         </Button>
