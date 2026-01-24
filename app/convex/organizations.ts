@@ -116,6 +116,91 @@ export const setActiveFarm = mutation({
 })
 
 /**
+ * Delete a farm and all associated data.
+ * Called after deleting the Clerk organization.
+ */
+export const deleteFarm = mutation({
+  args: { farmExternalId: v.string() },
+  handler: async (ctx, args) => {
+    // Find the farm
+    const farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    if (!farm) {
+      // Farm may not exist yet if org was just created
+      return { deleted: false, reason: 'not_found' }
+    }
+
+    // Delete all paddocks
+    const paddocks = await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
+      .collect()
+
+    for (const paddock of paddocks) {
+      await ctx.db.delete(paddock._id)
+    }
+
+    // Delete all observations
+    const observations = await ctx.db
+      .query('observations')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    for (const obs of observations) {
+      await ctx.db.delete(obs._id)
+    }
+
+    // Delete all grazing events
+    const grazingEvents = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    for (const event of grazingEvents) {
+      await ctx.db.delete(event._id)
+    }
+
+    // Delete all plans
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    for (const plan of plans) {
+      await ctx.db.delete(plan._id)
+    }
+
+    // Delete farm settings
+    const settings = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .first()
+
+    if (settings) {
+      await ctx.db.delete(settings._id)
+    }
+
+    // Delete farmer observations
+    const farmerObs = await ctx.db
+      .query('farmerObservations')
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
+      .collect()
+
+    for (const obs of farmerObs) {
+      await ctx.db.delete(obs._id)
+    }
+
+    // Finally delete the farm
+    await ctx.db.delete(farm._id)
+
+    return { deleted: true }
+  },
+})
+
+/**
  * Get farms that match either Clerk org IDs or legacy farm IDs.
  * This helps during the migration period where we support both ID formats.
  */

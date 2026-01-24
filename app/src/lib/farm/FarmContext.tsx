@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { useAppAuth } from '@/lib/auth'
@@ -27,7 +27,11 @@ export function FarmProvider({ children }: { children: ReactNode }) {
     organizationList,
     isOrgLoaded,
     setActiveOrganization,
+    isDevAuth,
   } = useAppAuth()
+
+  // Track which orgs we've already tried to create farms for
+  const createdFarmsRef = useRef<Set<string>>(new Set())
 
   // Get all farm records for the user's organizations
   const orgIds = useMemo(() => organizationList.map(org => org.id), [organizationList])
@@ -44,22 +48,35 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   ) as FarmDoc | null | undefined
 
   const setActiveFarmMutation = useMutation(api.organizations.setActiveFarm)
+  const createFarmFromOrg = useMutation(api.organizations.createFarmFromOrg)
 
-  // Build available farms list by merging Clerk org info with farm data
-  const availableFarms = useMemo<FarmInfo[]>(() => {
-    // Use farm data if available, otherwise fall back to org list
-    if (farmsData && farmsData.length > 0) {
-      return farmsData.map(farm => ({
-        id: farm.externalId,
-        name: farm.name,
-      }))
+  // Auto-create farm records for Clerk organizations that don't have one
+  useEffect(() => {
+    if (isDevAuth || !farmsData || !organizationList.length) return
+
+    // Find orgs that don't have a corresponding farm
+    const existingFarmIds = new Set(farmsData.map(f => f.externalId))
+
+    for (const org of organizationList) {
+      if (!existingFarmIds.has(org.id) && !createdFarmsRef.current.has(org.id)) {
+        createdFarmsRef.current.add(org.id)
+        // Create a blank farm for this org
+        void createFarmFromOrg({
+          clerkOrgId: org.id,
+          name: org.name,
+        })
+      }
     }
-    // Fall back to Clerk org names if no farm data yet
+  }, [isDevAuth, farmsData, organizationList, createFarmFromOrg])
+
+  // Build available farms list from Clerk organizations
+  // Always use Clerk org name (source of truth) for the dropdown
+  const availableFarms = useMemo<FarmInfo[]>(() => {
     return organizationList.map(org => ({
       id: org.id,
       name: org.name,
     }))
-  }, [farmsData, organizationList])
+  }, [organizationList])
 
   // Map active farm to domain type
   const activeFarm = useMemo<Farm | null>(() => {

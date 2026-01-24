@@ -25,6 +25,9 @@ export function useCurrentUser(): UseCurrentUserResult {
     authReady && effectiveUserId ? { externalId: effectiveUserId } : 'skip'
   ) as UserDoc | null | undefined
 
+  // Create user mutation for Clerk users (without demo data)
+  const createUser = useMutation(api.users.createUser)
+
   useEffect(() => {
     if (!authReady || !effectiveUserId) return
     if (userDoc !== null) return
@@ -32,13 +35,23 @@ export function useCurrentUser(): UseCurrentUserResult {
 
     seedRequestedRef.current = true
     setIsSeeding(true)
-    void seedSampleFarm({
-      farmId: DEFAULT_FARM_ID,
-      seedUser: true,
-      seedSettings: true,
-      userExternalId: effectiveUserId,
-    }).finally(() => setIsSeeding(false))
-  }, [authReady, effectiveUserId, seedSampleFarm, userDoc])
+
+    if (isDevAuth) {
+      // Dev mode: seed sample farm with demo data
+      void seedSampleFarm({
+        farmId: DEFAULT_FARM_ID,
+        seedUser: true,
+        seedSettings: true,
+        userExternalId: effectiveUserId,
+      }).finally(() => setIsSeeding(false))
+    } else {
+      // Clerk auth: just create the user record, farms come from orgs
+      void createUser({
+        externalId: effectiveUserId,
+        farmExternalId: organizationId ?? '',
+      }).finally(() => setIsSeeding(false))
+    }
+  }, [authReady, effectiveUserId, seedSampleFarm, createUser, userDoc, isDevAuth, organizationId])
 
   const isLoading = !authReady || (effectiveUserId ? userDoc === undefined : false) || isSeeding
 
