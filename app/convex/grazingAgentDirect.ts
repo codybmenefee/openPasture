@@ -21,6 +21,7 @@ import type { ActionCtx } from "./_generated/server"
 import type { Id } from "./_generated/dataModel"
 import { z } from "zod"
 import { sanitizeForBraintrust } from "../lib/braintrustSanitize"
+import { logLLMCall, logToolCall } from "../lib/braintrust"
 
 // OTel Tracer type - using any to avoid importing @opentelemetry/api in non-node context
 type OTelTracer = any
@@ -394,11 +395,36 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
 
     const finalText = result.text
     const toolCalls = (result as any).toolCalls || []
+    const usage = (result as any).usage || (result as any).experimental_providerMetadata?.anthropic?.usage
 
     console.log('[runGrazingAgent] LLM response received:', {
       textLength: finalText?.length,
       toolCallsCount: toolCalls.length,
       toolNames: toolCalls.map((tc: any) => tc.toolName),
+      usage: usage,
+    })
+
+    // Log LLM call to Braintrust and capture span ID for tool call nesting
+    const llmEndTime = Date.now()
+    const llmSpanId = logLLMCall({
+      model: GRAZING_AGENT_MODEL,
+      prompt: prompt,
+      systemPrompt: GRAZING_SYSTEM_PROMPT,
+      response: finalText || '',
+      toolCalls: toolCalls,
+      usage: usage ? {
+        promptTokens: usage.promptTokens || usage.input_tokens,
+        completionTokens: usage.completionTokens || usage.output_tokens,
+        totalTokens: usage.totalTokens || (usage.input_tokens + usage.output_tokens),
+      } : undefined,
+      durationMs: llmEndTime - dataFetchStart, // Approximate, includes data fetch
+      metadata: {
+        farmExternalId,
+        farmName,
+        activePaddockId: activePaddockId || 'none',
+        targetPaddockId: targetPaddock?.externalId,
+        promptVersion: PROMPT_VERSION,
+      },
     })
 
     let planCreated = false
@@ -422,26 +448,47 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
         fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:322',message:'LLM generated section geometry',data:{targetPaddockId:args.targetPaddockId,hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?.type,sectionCoordinatesPreview:args.sectionGeometry?.coordinates?JSON.stringify(args.sectionGeometry.coordinates[0]).substring(0,200):'null',coordinateCount:args.sectionGeometry?.coordinates?.[0]?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
         // #endregion
         
+        const toolStartTime = Date.now()
         try {
             if (toolCall.toolName === "createPlanWithSection") {
           // #region debug log
           fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:288',message:'Tool call validation',data:{hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?typeof args.sectionGeometry:'null',targetPaddockId:args.targetPaddockId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
-          
+
           // Validate that sectionGeometry is provided
           if (!args.sectionGeometry) {
             // #region debug log
             fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:293',message:'Validation failed: no sectionGeometry',data:{args:JSON.stringify(args).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
             // #endregion
+
+            // Log tool call error to Braintrust
+            logToolCall({
+              parentSpanId: llmSpanId,
+              toolName: toolCall.toolName,
+              input: args,
+              error: 'sectionGeometry is required - animals must eat somewhere',
+              durationMs: Date.now() - toolStartTime,
+            })
+
             throw new Error('sectionGeometry is required - animals must eat somewhere. The agent must always create a section, even if conditions are not ideal.')
           }
-          
+
           // #region debug log
           fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:299',message:'Calling createPlanWithSection mutation',data:{hasSectionGeometry:true,targetPaddockId:args.targetPaddockId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
-          
+
               const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
               createdPlanId = planId
+
+              // Log successful tool call to Braintrust
+              logToolCall({
+                parentSpanId: llmSpanId,
+                toolName: toolCall.toolName,
+                input: args,
+                output: { planId: planId.toString() },
+                durationMs: Date.now() - toolStartTime,
+              })
+
               console.log('[runGrazingAgent] createPlanWithSection SUCCESS - PlanId created:', {
                 planId: planId.toString(),
                 planIdType: typeof planId,
@@ -451,19 +498,40 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
               })
               planCreated = true
             } else if (toolCall.toolName === "finalizePlan") {
-              const result = await ctx.runMutation(api.grazingAgentTools.finalizePlan, { 
-                farmExternalId: (args.farmExternalId as string) ?? farmExternalId 
+              const result = await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
+                farmExternalId: (args.farmExternalId as string) ?? farmExternalId
               })
+
+              // Log successful tool call to Braintrust
+              logToolCall({
+                parentSpanId: llmSpanId,
+                toolName: toolCall.toolName,
+                input: { farmExternalId: (args.farmExternalId as string) ?? farmExternalId },
+                output: result,
+                durationMs: Date.now() - toolStartTime,
+              })
+
               console.log('[runGrazingAgent] finalizePlan SUCCESS:', result)
               planFinalized = true
             }
           } catch (toolError: any) {
+            // Log tool call error to Braintrust (if not already logged above)
+            if (toolCall.toolName !== "createPlanWithSection" || args.sectionGeometry) {
+              logToolCall({
+                parentSpanId: llmSpanId,
+                toolName: toolCall.toolName,
+                input: args,
+                error: toolError.message || String(toolError),
+                durationMs: Date.now() - toolStartTime,
+              })
+            }
+
             console.error('[runGrazingAgent] Tool execution ERROR:', {
               toolName: toolCall.toolName,
               error: toolError,
               args: JSON.stringify(args).substring(0, 200),
             })
-            
+
             throw toolError
           }
       }
@@ -543,5 +611,5 @@ export async function runGrazingAgent(
     })
 
     return result
-  })
+  }, { name: 'Grazing Agent', metadata: { farmExternalId, farmName, activePaddockId } })
 }

@@ -31,11 +31,21 @@ import { api } from './_generated/api'
 import type { ActionCtx } from './_generated/server'
 // Internal: Legacy agent implementation - only used by this gateway
 import { runGrazingAgent } from './grazingAgentDirect'
-import { getLogger } from '../lib/braintrust'
+import { getLogger, flushLogs } from '../lib/braintrust'
 import { sanitizeForBraintrust } from '../lib/braintrustSanitize'
-import { initOTelOnce, getTracer } from '../lib/otel'
+import { initOTelOnce, getTracer, flushOTel } from '../lib/otel'
 
 // Note: initOTelOnce is called in handler since it's async
+
+// Helper to flush all telemetry before returning
+async function flushAllTelemetry(): Promise<void> {
+  console.log('[agentGateway] Flushing all telemetry...')
+  await Promise.all([
+    flushLogs(),
+    flushOTel(),
+  ])
+  console.log('[agentGateway] All telemetry flushed')
+}
 
 /**
  * Type definition for morning_brief trigger additional context
@@ -95,22 +105,38 @@ export const agentGateway = action({
     await initOTelOnce()
 
     const logger = getLogger()
-    
-    return await logger.traced(async (rootSpan: any) => {
-      // Log gateway invocation (sanitize to remove Convex internal fields)
-      rootSpan.log({
-        input: sanitizeForBraintrust({
-          trigger: args.trigger,
-          farmId: String(args.farmId), // Convert Convex ID to string
-          farmExternalId: args.farmExternalId,
-          userId: args.userId,
-        }),
-        metadata: sanitizeForBraintrust({
-          hasAdditionalContext: !!args.additionalContext,
-        }),
-      })
+    const tracer = getTracer()
 
-      console.log('[agentGateway] START:', {
+    console.log('[agentGateway] Telemetry status:', {
+      hasLogger: !!logger,
+      loggerType: typeof logger,
+      hasTracer: !!tracer,
+      tracerType: typeof tracer,
+    })
+
+    // Use try/finally to ensure telemetry is flushed before returning
+    try {
+      return await logger.traced(async (rootSpan: any) => {
+        console.log('[agentGateway] Inside logger.traced, rootSpan:', {
+          hasRootSpan: !!rootSpan,
+          rootSpanType: typeof rootSpan,
+          rootSpanMethods: rootSpan ? Object.keys(rootSpan) : 'null',
+        })
+
+        // Log gateway invocation (sanitize to remove Convex internal fields)
+        rootSpan.log({
+          input: sanitizeForBraintrust({
+            trigger: args.trigger,
+            farmId: String(args.farmId), // Convert Convex ID to string
+            farmExternalId: args.farmExternalId,
+            userId: args.userId,
+          }),
+          metadata: sanitizeForBraintrust({
+            hasAdditionalContext: !!args.additionalContext,
+          }),
+        })
+
+        console.log('[agentGateway] START:', {
         trigger: args.trigger,
         farmId: args.farmId.toString(),
         farmExternalId: args.farmExternalId,
@@ -210,6 +236,11 @@ export const agentGateway = action({
       const logger = getLogger()
 
       // Call the grazing agent through the gateway with Braintrust logging
+      console.log('[agentGateway] Calling runGrazingAgent with tracer:', {
+        hasTracer: !!tracer,
+        tracerType: typeof tracer,
+      })
+
       const result = await runGrazingAgent(
         ctx,
         args.farmExternalId,
@@ -218,7 +249,7 @@ export const agentGateway = action({
         settings,
         logger,
         null, // wrappedAnthropic not supported with @ai-sdk/anthropic
-        getTracer() // OTel tracer for experimental_telemetry
+        tracer // OTel tracer for experimental_telemetry
       )
 
       console.log('[agentGateway] runGrazingAgent result received:', {
@@ -312,6 +343,10 @@ export const agentGateway = action({
     })
 
     return otherTriggerResult
-    })
+      }, { name: 'Agent Gateway', metadata: { trigger: args.trigger, farmExternalId: args.farmExternalId, userId: args.userId } })
+    } finally {
+      // Always flush telemetry before the action completes
+      await flushAllTelemetry()
+    }
   },
 })

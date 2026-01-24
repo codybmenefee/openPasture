@@ -17,14 +17,22 @@ type PlanGenerationData = {
 }
 
 export const generateDailyPlan = action({
-  args: { farmExternalId: v.optional(v.string()) },
+  args: {
+    farmExternalId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<Id<'plans'> | null> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
     const today = new Date().toISOString().split('T')[0]
 
-    console.log('[generateDailyPlan] START:', { 
-      farmExternalId, 
+    // Get user identity from auth context, or use provided userId (for dev mode)
+    const identity = await ctx.auth.getUserIdentity()
+    const userId = args.userId || identity?.subject || identity?.tokenIdentifier || 'anonymous'
+
+    console.log('[generateDailyPlan] START:', {
+      farmExternalId,
       today,
+      userId,
       note: 'This function will fetch planGenerationData and pass it to gateway to avoid duplicate queries',
     })
 
@@ -88,7 +96,7 @@ export const generateDailyPlan = action({
       trigger: 'morning_brief',
       farmId: data.farm._id,
       farmExternalId: farmExternalId,
-      userId: 'system', // TODO: Get from auth context
+      userId,
       additionalContext: {
         planGenerationData: data,
         farmName: data.farm.name || farmExternalId,
@@ -153,7 +161,7 @@ export const runDailyBriefGeneration = action({
           trigger: 'morning_brief',
           farmId: farm._id,
           farmExternalId: farm.externalId,
-          userId: 'system', // TODO: Get from auth context
+          userId: 'cron-scheduler', // Batch job - no user context
           additionalContext: {
             planGenerationData: data,
             farmName: data.farm?.name || farm.externalId,
