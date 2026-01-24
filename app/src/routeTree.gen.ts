@@ -9,18 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TechnologyRouteImport } from './routes/technology'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResearchRouteImport } from './routes/research'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as MarketingRouteImport } from './routes/marketing'
 import { Route as MapRouteImport } from './routes/map'
+import { Route as InvestorsRouteImport } from './routes/investors'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DocsIndexRouteImport } from './routes/docs/index'
 import { Route as PaddocksIdRouteImport } from './routes/paddocks/$id'
+import { Route as DocsCategoryArticleRouteImport } from './routes/docs/$category.$article'
 
+const TechnologyRoute = TechnologyRouteImport.update({
+  id: '/technology',
+  path: '/technology',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResearchRoute = ResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -38,9 +54,19 @@ const MapRoute = MapRouteImport.update({
   path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvestorsRoute = InvestorsRouteImport.update({
+  id: '/investors',
+  path: '/investors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -53,94 +79,156 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsIndexRoute = DocsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DocsRoute,
+} as any)
 const PaddocksIdRoute = PaddocksIdRouteImport.update({
   id: '/paddocks/$id',
   path: '/paddocks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsCategoryArticleRoute = DocsCategoryArticleRouteImport.update({
+  id: '/$category/$article',
+  path: '/$category/$article',
+  getParentRoute: () => DocsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/docs': typeof DocsRouteWithChildren
   '/history': typeof HistoryRoute
+  '/investors': typeof InvestorsRoute
   '/map': typeof MapRoute
   '/marketing': typeof MarketingRoute
   '/onboarding': typeof OnboardingRoute
+  '/research': typeof ResearchRoute
   '/settings': typeof SettingsRoute
+  '/technology': typeof TechnologyRoute
   '/paddocks/$id': typeof PaddocksIdRoute
+  '/docs/': typeof DocsIndexRoute
+  '/docs/$category/$article': typeof DocsCategoryArticleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
+  '/investors': typeof InvestorsRoute
   '/map': typeof MapRoute
   '/marketing': typeof MarketingRoute
   '/onboarding': typeof OnboardingRoute
+  '/research': typeof ResearchRoute
   '/settings': typeof SettingsRoute
+  '/technology': typeof TechnologyRoute
   '/paddocks/$id': typeof PaddocksIdRoute
+  '/docs': typeof DocsIndexRoute
+  '/docs/$category/$article': typeof DocsCategoryArticleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/docs': typeof DocsRouteWithChildren
   '/history': typeof HistoryRoute
+  '/investors': typeof InvestorsRoute
   '/map': typeof MapRoute
   '/marketing': typeof MarketingRoute
   '/onboarding': typeof OnboardingRoute
+  '/research': typeof ResearchRoute
   '/settings': typeof SettingsRoute
+  '/technology': typeof TechnologyRoute
   '/paddocks/$id': typeof PaddocksIdRoute
+  '/docs/': typeof DocsIndexRoute
+  '/docs/$category/$article': typeof DocsCategoryArticleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/analytics'
+    | '/docs'
     | '/history'
+    | '/investors'
     | '/map'
     | '/marketing'
     | '/onboarding'
+    | '/research'
     | '/settings'
+    | '/technology'
     | '/paddocks/$id'
+    | '/docs/'
+    | '/docs/$category/$article'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/analytics'
     | '/history'
+    | '/investors'
     | '/map'
     | '/marketing'
     | '/onboarding'
+    | '/research'
     | '/settings'
+    | '/technology'
     | '/paddocks/$id'
+    | '/docs'
+    | '/docs/$category/$article'
   id:
     | '__root__'
     | '/'
     | '/analytics'
+    | '/docs'
     | '/history'
+    | '/investors'
     | '/map'
     | '/marketing'
     | '/onboarding'
+    | '/research'
     | '/settings'
+    | '/technology'
     | '/paddocks/$id'
+    | '/docs/'
+    | '/docs/$category/$article'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  DocsRoute: typeof DocsRouteWithChildren
   HistoryRoute: typeof HistoryRoute
+  InvestorsRoute: typeof InvestorsRoute
   MapRoute: typeof MapRoute
   MarketingRoute: typeof MarketingRoute
   OnboardingRoute: typeof OnboardingRoute
+  ResearchRoute: typeof ResearchRoute
   SettingsRoute: typeof SettingsRoute
+  TechnologyRoute: typeof TechnologyRoute
   PaddocksIdRoute: typeof PaddocksIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/technology': {
+      id: '/technology'
+      path: '/technology'
+      fullPath: '/technology'
+      preLoaderRoute: typeof TechnologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research': {
+      id: '/research'
+      path: '/research'
+      fullPath: '/research'
+      preLoaderRoute: typeof ResearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -164,11 +252,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/investors': {
+      id: '/investors'
+      path: '/investors'
+      fullPath: '/investors'
+      preLoaderRoute: typeof InvestorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/history': {
       id: '/history'
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -185,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/': {
+      id: '/docs/'
+      path: '/'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/paddocks/$id': {
       id: '/paddocks/$id'
       path: '/paddocks/$id'
@@ -192,17 +301,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaddocksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/$category/$article': {
+      id: '/docs/$category/$article'
+      path: '/$category/$article'
+      fullPath: '/docs/$category/$article'
+      preLoaderRoute: typeof DocsCategoryArticleRouteImport
+      parentRoute: typeof DocsRoute
+    }
   }
 }
+
+interface DocsRouteChildren {
+  DocsIndexRoute: typeof DocsIndexRoute
+  DocsCategoryArticleRoute: typeof DocsCategoryArticleRoute
+}
+
+const DocsRouteChildren: DocsRouteChildren = {
+  DocsIndexRoute: DocsIndexRoute,
+  DocsCategoryArticleRoute: DocsCategoryArticleRoute,
+}
+
+const DocsRouteWithChildren = DocsRoute._addFileChildren(DocsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  DocsRoute: DocsRouteWithChildren,
   HistoryRoute: HistoryRoute,
+  InvestorsRoute: InvestorsRoute,
   MapRoute: MapRoute,
   MarketingRoute: MarketingRoute,
   OnboardingRoute: OnboardingRoute,
+  ResearchRoute: ResearchRoute,
   SettingsRoute: SettingsRoute,
+  TechnologyRoute: TechnologyRoute,
   PaddocksIdRoute: PaddocksIdRoute,
 }
 export const routeTree = rootRouteImport

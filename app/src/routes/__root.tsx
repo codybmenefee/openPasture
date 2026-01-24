@@ -8,10 +8,12 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const router = useRouterState()
-  const isMarketingPage = router.location.pathname === '/marketing'
+  const isFullPageLayout =
+    router.location.pathname === '/marketing' ||
+    router.location.pathname.startsWith('/docs')
 
-  // Marketing page uses its own full-page layout
-  if (isMarketingPage) {
+  // Marketing and docs pages use their own full-page layout
+  if (isFullPageLayout) {
     return <Outlet />
   }
 
