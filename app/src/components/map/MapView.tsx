@@ -230,21 +230,6 @@ export function MapView() {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
   }
 
-  const toggleEditMode = () => {
-    setEditMode((prev) => !prev)
-    // Clear selection when entering edit mode
-    if (!editMode) {
-      setSelectedPaddock(null)
-    } else {
-      // Reset entity type when exiting edit mode
-      setEntityType('paddock')
-      setFocusPaddockId(undefined)
-      setEditSectionFeature(null)
-      setEditSectionId(undefined)
-      setInitialPaddockId(undefined)
-    }
-  }
-
   const handleEditRequest = useCallback((request: {
     entityType: 'paddock' | 'section'
     paddockId?: string
@@ -341,12 +326,9 @@ export function MapView() {
         
         {/* Layer toggles */}
         <div className="absolute bottom-4 left-4 z-10">
-          <LayerToggles 
-            layers={layers} 
+          <LayerToggles
+            layers={layers}
             onToggle={toggleLayer}
-            editMode={editMode}
-            onEditModeToggle={toggleEditMode}
-            showEditToggle={true}
           />
         </div>
       </div>

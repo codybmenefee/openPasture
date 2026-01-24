@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
 interface LayerTogglesProps {
@@ -11,37 +10,12 @@ interface LayerTogglesProps {
     sections: boolean
   }
   onToggle: (layer: keyof LayerTogglesProps['layers']) => void
-  editMode?: boolean
-  onEditModeToggle?: () => void
   showEditToggle?: boolean
 }
 
-function EditIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M12 20h9" />
-      <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z" />
-    </svg>
-  )
-}
-
-export function LayerToggles({ 
-  layers, 
-  onToggle, 
-  editMode = false,
-  onEditModeToggle,
-  showEditToggle = true,
+export function LayerToggles({
+  layers,
+  onToggle,
 }: LayerTogglesProps) {
   const buttons = [
     { key: 'satellite' as const, label: 'Satellite' },
@@ -67,24 +41,6 @@ export function LayerToggles({
           {btn.label}
         </Button>
       ))}
-      
-      {showEditToggle && onEditModeToggle && (
-        <>
-          <Separator orientation="vertical" className="h-6 mx-0.5 my-0.5" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onEditModeToggle}
-            className={cn(
-              'h-7 px-3 text-xs gap-1.5',
-              editMode && 'bg-primary text-primary-foreground hover:bg-primary/90'
-            )}
-          >
-            <EditIcon />
-            Edit
-          </Button>
-        </>
-      )}
     </div>
   )
 }

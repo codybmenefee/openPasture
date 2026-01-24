@@ -1,5 +1,5 @@
 import { Link, useLocation } from '@tanstack/react-router'
-import { LayoutDashboard, Map, History, Settings, BarChart3 } from 'lucide-react'
+import { Map, History, Settings, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 import { Separator } from '@/components/ui/separator'
@@ -17,8 +17,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { label: 'Map', icon: Map, href: '/map' },
+  { label: 'GIS View', icon: Map, href: '/' },
   { label: 'History', icon: History, href: '/history' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
 ]

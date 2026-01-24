@@ -1,15 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { MapView } from '@/components/map/MapView'
-import { z } from 'zod'
+import { createFileRoute, Navigate } from '@tanstack/react-router'
 
-const mapSearchSchema = z.object({
-  edit: z.boolean().optional(),
-  paddockId: z.string().optional(),
-  sectionId: z.string().optional(),
-  entityType: z.enum(['paddock', 'section']).optional(),
-})
+// Map functionality is now integrated into the main GIS view at /
+// This route redirects for backwards compatibility
+function MapRedirect() {
+  return <Navigate to="/" replace />
+}
 
 export const Route = createFileRoute('/_app/map')({
-  component: MapView,
-  validateSearch: mapSearchSchema,
+  component: MapRedirect,
 })

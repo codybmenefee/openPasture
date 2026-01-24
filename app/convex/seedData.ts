@@ -233,16 +233,9 @@ export const sampleFarmerObservations = [
   },
 ]
 
-// Helper to generate EVI from NDVI (simplified approximation)
-function estimateEvi(ndvi: number): number {
-  return Math.round(ndvi * 0.85 * 100) / 100
-}
-
-// Helper to generate NDWI from NDVI (simplified approximation)
-function estimateNdwi(ndvi: number): number {
-  return Math.round((ndvi * 0.6 - 0.1) * 100) / 100
-}
-
+// Pre-computed values to avoid function call issues in Convex bundler
+// eviMean = Math.round(ndvi * 0.85 * 100) / 100
+// ndwiMean = Math.round((ndvi * 0.6 - 0.1) * 100) / 100
 export const sampleObservations = [
   {
     farmExternalId: DEFAULT_FARM_EXTERNAL_ID,
@@ -252,8 +245,8 @@ export const sampleObservations = [
     ndviMin: 0.18,
     ndviMax: 0.42,
     ndviStd: 0.06,
-    eviMean: estimateEvi(0.31),
-    ndwiMean: estimateNdwi(0.31),
+    eviMean: 0.26,
+    ndwiMean: 0.09,
     cloudFreePct: 95,
     pixelCount: 1250,
     isValid: true,
@@ -268,8 +261,8 @@ export const sampleObservations = [
     ndviMin: 0.35,
     ndviMax: 0.58,
     ndviStd: 0.05,
-    eviMean: estimateEvi(0.48),
-    ndwiMean: estimateNdwi(0.48),
+    eviMean: 0.41,
+    ndwiMean: 0.19,
     cloudFreePct: 92,
     pixelCount: 1180,
     isValid: true,
@@ -284,8 +277,8 @@ export const sampleObservations = [
     ndviMin: 0.25,
     ndviMax: 0.51,
     ndviStd: 0.06,
-    eviMean: estimateEvi(0.39),
-    ndwiMean: estimateNdwi(0.39),
+    eviMean: 0.33,
+    ndwiMean: 0.13,
     cloudFreePct: 98,
     pixelCount: 980,
     isValid: true,
@@ -300,8 +293,8 @@ export const sampleObservations = [
     ndviMin: 0.38,
     ndviMax: 0.64,
     ndviStd: 0.05,
-    eviMean: estimateEvi(0.52),
-    ndwiMean: estimateNdwi(0.52),
+    eviMean: 0.44,
+    ndwiMean: 0.21,
     cloudFreePct: 90,
     pixelCount: 1100,
     isValid: true,
@@ -316,8 +309,8 @@ export const sampleObservations = [
     ndviMin: 0.12,
     ndviMax: 0.32,
     ndviStd: 0.05,
-    eviMean: estimateEvi(0.22),
-    ndwiMean: estimateNdwi(0.22),
+    eviMean: 0.19,
+    ndwiMean: 0.03,
     cloudFreePct: 88,
     pixelCount: 1050,
     isValid: true,
@@ -332,8 +325,8 @@ export const sampleObservations = [
     ndviMin: 0.22,
     ndviMax: 0.46,
     ndviStd: 0.06,
-    eviMean: estimateEvi(0.35),
-    ndwiMean: estimateNdwi(0.35),
+    eviMean: 0.30,
+    ndwiMean: 0.11,
     cloudFreePct: 94,
     pixelCount: 1150,
     isValid: true,
@@ -348,8 +341,8 @@ export const sampleObservations = [
     ndviMin: 0.30,
     ndviMax: 0.56,
     ndviStd: 0.05,
-    eviMean: estimateEvi(0.44),
-    ndwiMean: estimateNdwi(0.44),
+    eviMean: 0.37,
+    ndwiMean: 0.16,
     cloudFreePct: 91,
     pixelCount: 1320,
     isValid: true,
@@ -364,8 +357,8 @@ export const sampleObservations = [
     ndviMin: 0.08,
     ndviMax: 0.28,
     ndviStd: 0.05,
-    eviMean: estimateEvi(0.19),
-    ndwiMean: estimateNdwi(0.19),
+    eviMean: 0.16,
+    ndwiMean: 0.01,
     cloudFreePct: 87,
     pixelCount: 1400,
     isValid: true,

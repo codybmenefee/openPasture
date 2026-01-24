@@ -71,7 +71,12 @@ export function GeometryProvider({
     return normalizeSections(source)
   })
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
+  const [isSaving, setIsSaving] = useState(false)
 
+  const hasUnsavedChanges = useMemo(
+    () => pendingChanges.some((c) => !c.synced),
+    [pendingChanges]
+  )
 
   const recordChange = useCallback(
     (change: GeometryChange) => {
@@ -80,22 +85,29 @@ export function GeometryProvider({
         : change
       const pendingChange: PendingChange = { ...normalizedChange, synced: false }
       setPendingChanges((prev) => [...prev, pendingChange])
-
-      // If there's a backend hook, call it
-      if (onGeometryChange) {
-        onGeometryChange([normalizedChange])
-          .then(() => {
-            setPendingChanges((prev) =>
-              prev.map((pc) => (pc.id === change.id && pc.timestamp === change.timestamp ? { ...pc, synced: true } : pc))
-            )
-          })
-          .catch(() => {
-            // Keep pending change unsynced if backend fails
-          })
-      }
+      // Changes are now queued for manual save - no auto-sync
     },
-    [onGeometryChange]
+    []
   )
+
+  const saveChanges = useCallback(async () => {
+    const unsyncedChanges = pendingChanges.filter((c) => !c.synced)
+    if (unsyncedChanges.length === 0 || !onGeometryChange) return
+
+    setIsSaving(true)
+    try {
+      await onGeometryChange(unsyncedChanges)
+      setPendingChanges((prev) =>
+        prev.map((pc) =>
+          unsyncedChanges.some((uc) => uc.id === pc.id && uc.timestamp === pc.timestamp)
+            ? { ...pc, synced: true }
+            : pc
+        )
+      )
+    } finally {
+      setIsSaving(false)
+    }
+  }, [pendingChanges, onGeometryChange])
 
   // Paddock operations
   const addPaddock = useCallback(
@@ -279,6 +291,8 @@ export function GeometryProvider({
       paddocks,
       sections,
       pendingChanges,
+      hasUnsavedChanges,
+      isSaving,
       addPaddock,
       updatePaddock,
       updatePaddockMetadata,
@@ -289,6 +303,7 @@ export function GeometryProvider({
       getPaddockById,
       getSectionById,
       getSectionsByPaddockId,
+      saveChanges,
       onGeometryChange,
       onPaddockMetadataChange,
       resetToInitial,
@@ -297,6 +312,8 @@ export function GeometryProvider({
       paddocks,
       sections,
       pendingChanges,
+      hasUnsavedChanges,
+      isSaving,
       addPaddock,
       updatePaddock,
       updatePaddockMetadata,
@@ -307,6 +324,7 @@ export function GeometryProvider({
       getPaddockById,
       getSectionById,
       getSectionsByPaddockId,
+      saveChanges,
       onGeometryChange,
       onPaddockMetadataChange,
       resetToInitial,

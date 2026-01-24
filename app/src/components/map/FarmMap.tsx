@@ -708,7 +708,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         if (paddockId) {
           const paddock = getPaddockById(paddockId)
           if (paddock) {
-            handlePaddockClick(paddock)
+            // In edit mode, single-click opens the edit drawer
+            if (isEditActive) {
+              onEditRequest?.({ entityType: 'paddock', paddockId })
+            } else {
+              handlePaddockClick(paddock)
+            }
           }
         }
       }

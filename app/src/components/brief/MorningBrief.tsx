@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { X, ChevronDown, ChevronUp } from 'lucide-react'
 import { BriefCard } from './BriefCard'
 import { FarmOverview } from './FarmOverview'
 import { DataStatusCard } from './DataStatusCard'
@@ -11,8 +12,16 @@ import type { PlanStatus, Section } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { NoPlanState } from './NoPlanState'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const LOW_CONFIDENCE_THRESHOLD = 70
+
+interface MorningBriefProps {
+  farmExternalId: string
+  compact?: boolean
+  onClose?: () => void
+}
 
 function planSectionToSection(plan: any): Section | undefined {
   if (!plan?.sectionGeometry) {
@@ -36,7 +45,7 @@ function planSectionToSection(plan: any): Section | undefined {
   }
 }
 
-export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
+export function MorningBrief({ farmExternalId, compact = false, onClose }: MorningBriefProps) {
   const { getPaddockById } = useGeometry()
   const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback, deleteTodayPlan } = useTodayPlan(farmExternalId)
 
@@ -47,6 +56,14 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
   const [isResetting, setIsResetting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const [expandedSections, setExpandedSections] = useState({
+    farmOverview: !compact,
+    dataStatus: !compact,
+  })
+
+  const toggleSection = (section: 'farmOverview' | 'dataStatus') => {
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
+  }
 
   useEffect(() => {
     if (plan) {
@@ -111,16 +128,28 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
   }
 
   if (isLoading) {
-    return <BriefSkeleton />
+    return (
+      <div className={cn(compact && 'h-full')}>
+        <BriefSkeleton />
+      </div>
+    )
   }
 
   // No plan for today yet (Convex returns null), show generation UI.
   if (isError || !plan) {
     return (
-      <div className="p-4 xl:p-6 2xl:p-8">
-        <div className="mb-4 xl:mb-6">
-          <h1 className="text-lg xl:text-xl font-semibold">Morning Brief</h1>
-          <p className="text-xs xl:text-sm text-muted-foreground">{getFormattedDate()}</p>
+      <div className={cn('h-full flex flex-col', compact ? 'p-3' : 'p-4 xl:p-6 2xl:p-8')}>
+        {/* Header */}
+        <div className={cn('flex items-start justify-between', compact ? 'mb-3' : 'mb-4 xl:mb-6')}>
+          <div>
+            <h1 className={cn('font-semibold', compact ? 'text-base' : 'text-lg xl:text-xl')}>Morning Brief</h1>
+            <p className="text-xs text-muted-foreground">{getFormattedDate()}</p>
+          </div>
+          {compact && onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mt-1 -mr-1">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         {generationError && (
           <div className="mb-4 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
@@ -163,6 +192,124 @@ export function MorningBrief({ farmExternalId }: { farmExternalId: string }) {
     ? `Based on satellite analysis, we recommend ${plan.primaryPaddockExternalId || 'the current paddock'} today. ${plan.reasoning[0]}`
     : 'Analyzing pasture conditions for today\'s grazing recommendation.'
 
+  // Compact layout for drawer
+  if (compact) {
+    return (
+      <div className="h-full flex flex-col">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b bg-background p-3">
+          <div>
+            <h1 className="text-base font-semibold">Morning Brief</h1>
+            <p className="text-xs text-muted-foreground">{getFormattedDate()}</p>
+          </div>
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mt-1 -mr-1">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {showLowConfidenceWarning && (
+            <LowConfidenceWarning
+              cloudCover={65}
+              cloudCoverThreshold={50}
+              lastClearImage="5 days ago"
+              confidence={plan.confidenceScore || 0}
+              onProceed={handleProceedWithLowConfidence}
+              onWait={() => setShowLowConfidenceWarning(false)}
+            />
+          )}
+
+          <div className="rounded-md border border-border bg-card p-3">
+            <p className="text-sm leading-relaxed">
+              {briefNarrative}
+            </p>
+          </div>
+
+          {recommendedPaddock && (
+            <BriefCard
+              currentPaddockId={plan.primaryPaddockExternalId || ''}
+              paddock={recommendedPaddock}
+              confidence={plan.confidenceScore || 0}
+              reasoning={plan.reasoning || []}
+              onApprove={handleApprove}
+              onModify={handleModify}
+              section={planSectionToSection(plan)}
+              daysInCurrentPaddock={2}
+              totalDaysPlanned={4}
+              isPaddockTransition={false}
+              previousSections={[]}
+              sectionAlternatives={[]}
+              sectionJustification={plan.sectionJustification}
+              paddockGrazedPercentage={plan.paddockGrazedPercentage}
+            />
+          )}
+
+          {/* Collapsible Farm Overview */}
+          <div className="rounded-md border border-border bg-card">
+            <button
+              onClick={() => toggleSection('farmOverview')}
+              className="flex w-full items-center justify-between p-3 text-left"
+            >
+              <span className="text-sm font-medium">Farm Overview</span>
+              {expandedSections.farmOverview ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {expandedSections.farmOverview && (
+              <div className="border-t px-3 pb-3">
+                <FarmOverview />
+              </div>
+            )}
+          </div>
+
+          {/* Collapsible Data Status */}
+          <div className="rounded-md border border-border bg-card">
+            <button
+              onClick={() => toggleSection('dataStatus')}
+              className="flex w-full items-center justify-between p-3 text-left"
+            >
+              <span className="text-sm font-medium">Data Status</span>
+              {expandedSections.dataStatus ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {expandedSections.dataStatus && (
+              <div className="border-t px-3 pb-3">
+                <DataStatusCard />
+              </div>
+            )}
+          </div>
+
+          {/* Debug: Reset plan button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleResetPlan}
+              disabled={isResetting}
+              className="text-xs text-muted-foreground hover:text-foreground underline disabled:opacity-50"
+            >
+              {isResetting ? 'Resetting...' : 'Reset plan (debug)'}
+            </button>
+          </div>
+        </div>
+
+        <FeedbackModal
+          open={feedbackOpen}
+          onOpenChange={setFeedbackOpen}
+          alternatives={[]}
+          onSubmit={handleFeedbackSubmit}
+        />
+      </div>
+    )
+  }
+
+  // Full layout (original)
   return (
     <div className="p-4 xl:p-6 2xl:p-8">
       <div className="mb-4 xl:mb-6">
