@@ -96,14 +96,20 @@ export function GeometryProvider({
   const [waterSources, setWaterSources] = useState<WaterSource[]>(() => initialWaterSources ?? [])
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [resetCounter, setResetCounter] = useState(0)
 
   // Sync paddocks state with initialPaddocks prop changes
   // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
   // IMPORTANT: Respect pending delete changes (don't restore deleted paddocks)
   useEffect(() => {
-    console.log('[GeometryContext] Sync effect, initialPaddocks:', initialPaddocks?.length ?? 'undefined')
+    console.log('[GeometryContext] Sync effect triggered, initialPaddocks:', initialPaddocks?.length ?? 'undefined', 'pendingChanges:', pendingChanges.length)
     if (initialPaddocks && initialPaddocks.length > 0) {
       setPaddocks((currentPaddocks) => {
+        console.log('[GeometryContext] Sync effect currentPaddocks:', currentPaddocks.map(p => ({
+          id: p.id,
+          name: p.name,
+          firstCoord: p.geometry.geometry.coordinates[0]?.[0],
+        })))
         // Check if there are pending geometry changes for any paddock
         const pendingGeometryIds = new Set(
           pendingChanges
@@ -606,11 +612,18 @@ export function GeometryProvider({
   )
 
   const resetToInitial = useCallback(() => {
-    setPaddocks(normalizePaddocks(initialPaddocks ?? mockPaddocks))
+    const resetPaddocks = normalizePaddocks(initialPaddocks ?? mockPaddocks)
+    console.log('[GeometryContext] resetToInitial called, resetting to:', resetPaddocks.map(p => ({
+      id: p.id,
+      name: p.name,
+      firstCoord: p.geometry.geometry.coordinates[0]?.[0],
+    })))
+    setPaddocks(resetPaddocks)
     setSections(normalizeSections(initialSections ?? []))
     setNoGrazeZones(initialNoGrazeZones ?? [])
     setWaterSources(initialWaterSources ?? [])
     setPendingChanges([])
+    setResetCounter((c) => c + 1)
   }, [initialPaddocks, initialSections, initialNoGrazeZones, initialWaterSources])
 
   const value = useMemo<GeometryContextValue>(
@@ -622,6 +635,7 @@ export function GeometryProvider({
       pendingChanges,
       hasUnsavedChanges,
       isSaving,
+      resetCounter,
       addPaddock,
       updatePaddock,
       updatePaddockMetadata,
@@ -655,6 +669,7 @@ export function GeometryProvider({
       pendingChanges,
       hasUnsavedChanges,
       isSaving,
+      resetCounter,
       addPaddock,
       updatePaddock,
       updatePaddockMetadata,

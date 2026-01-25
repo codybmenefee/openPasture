@@ -32,6 +32,7 @@ export interface GeometryContextValue {
   pendingChanges: PendingChange[]
   hasUnsavedChanges: boolean
   isSaving: boolean
+  resetCounter: number
 
   // Paddock operations
   addPaddock: (geometry: Feature<Polygon>, metadata?: Partial<Omit<Paddock, 'id' | 'geometry'>>) => string

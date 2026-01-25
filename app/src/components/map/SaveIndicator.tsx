@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Save, Check, Loader2 } from 'lucide-react'
+import { Save, Check, Loader2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useGeometry } from '@/lib/geometry'
@@ -10,7 +10,7 @@ interface SaveIndicatorProps {
 }
 
 export function SaveIndicator({ className }: SaveIndicatorProps) {
-  const { hasUnsavedChanges, isSaving, saveChanges, pendingChanges } = useGeometry()
+  const { hasUnsavedChanges, isSaving, saveChanges, pendingChanges, resetToInitial } = useGeometry()
   const [showSuccess, setShowSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,6 +85,16 @@ export function SaveIndicator({ className }: SaveIndicatorProps) {
                 Save
               </>
             )}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={resetToInitial}
+            disabled={isSaving}
+            className="h-7 gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset
           </Button>
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {navigator.platform.includes('Mac') ? '⌘S' : 'Ctrl+S'}

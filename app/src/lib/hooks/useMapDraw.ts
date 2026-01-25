@@ -376,13 +376,25 @@ export function loadGeometriesToDraw(
 ): void {
   if (!draw) return
 
-  // Clear existing features first
-  draw.deleteAll()
+  console.log('[loadGeometriesToDraw] Called with', features.length, 'features')
+  console.log('[loadGeometriesToDraw] Before set, draw has', draw.getAll().features.length, 'features')
+  console.log('[loadGeometriesToDraw] Features to load:', features.map(f => ({
+    id: f.id,
+    coordCount: f.geometry.coordinates[0]?.length,
+    firstCoord: f.geometry.coordinates[0]?.[0],
+  })))
 
-  // Add each feature
-  features.forEach((feature) => {
-    if (feature.id) {
-      draw.add(feature as unknown as FeatureCollection)
-    }
-  })
+  // Use draw.set() to replace all features at once - more reliable than deleteAll + add
+  const featureCollection: FeatureCollection = {
+    type: 'FeatureCollection',
+    features: features.filter(f => f.id) as Feature[],
+  }
+  draw.set(featureCollection)
+
+  console.log('[loadGeometriesToDraw] After set, draw has', draw.getAll().features.length, 'features')
+  console.log('[loadGeometriesToDraw] Features in draw:', draw.getAll().features.map(f => ({
+    id: f.id,
+    coordCount: (f.geometry as any).coordinates?.[0]?.length,
+    firstCoord: (f.geometry as any).coordinates?.[0]?.[0],
+  })))
 }

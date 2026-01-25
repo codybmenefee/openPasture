@@ -5,6 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
+import { createNoGrazeStripePattern } from '@/lib/map/patterns'
 import { useMapDraw, loadGeometriesToDraw, type DrawMode } from '@/lib/hooks'
 import { DrawingToolbar } from './DrawingToolbar'
 import type { Feature, Polygon } from 'geojson'
@@ -252,6 +253,12 @@ function ensureNoGrazeZoneLayers(mapInstance: maplibregl.Map) {
     features: [],
   }
 
+  // Add stripe pattern image if not already added
+  if (!mapInstance.hasImage('no-graze-stripes')) {
+    const patternData = createNoGrazeStripePattern()
+    mapInstance.addImage('no-graze-stripes', patternData, { sdf: false })
+  }
+
   if (!mapInstance.getSource('no-graze-zones')) {
     mapInstance.addSource('no-graze-zones', {
       type: 'geojson',
@@ -265,8 +272,8 @@ function ensureNoGrazeZoneLayers(mapInstance: maplibregl.Map) {
       type: 'fill',
       source: 'no-graze-zones',
       paint: {
-        'fill-color': '#ef4444',
-        'fill-opacity': 0.25,
+        'fill-pattern': 'no-graze-stripes',
+        'fill-opacity': 1,
       },
     })
   }
@@ -388,9 +395,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const sectionStateRef = useRef<SectionRenderState>({ current: [], grazed: [], alternatives: [] })
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastLoadedPaddockKeyRef = useRef<string | null>(null)
+  const lastResetCounterRef = useRef<number>(0)
   const sectionEditInitializedRef = useRef<boolean>(false)
 
-  const { paddocks, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource } = useGeometry()
+  const { paddocks, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource, resetCounter } = useGeometry()
   const { farm, isLoading: isFarmLoading } = useFarm()
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
@@ -1371,8 +1379,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Update no-graze zone layer data
   useEffect(() => {
-    if (!isMapReady()) return
-    const map = mapInstance!
+    if (!mapInstance || !isMapLoaded) return
+    const map = mapInstance
+
+    // Ensure layers exist
+    ensureNoGrazeZoneLayers(map)
 
     const source = map.getSource('no-graze-zones') as maplibregl.GeoJSONSource | undefined
     if (!source) return
@@ -1389,12 +1400,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       })),
     }
     source.setData(geojson)
-  }, [mapInstance, isMapLoaded, noGrazeZones, isMapReady])
+  }, [mapInstance, isMapLoaded, noGrazeZones])
 
   // Update water source layer data
   useEffect(() => {
-    if (!isMapReady()) return
-    const map = mapInstance!
+    if (!mapInstance || !isMapLoaded) return
+    const map = mapInstance
+
+    // Ensure layers exist
+    ensureWaterSourceLayers(map)
 
     const polygonSource = map.getSource('water-source-polygons') as maplibregl.GeoJSONSource | undefined
     const pointSource = map.getSource('water-source-points') as maplibregl.GeoJSONSource | undefined
@@ -1432,7 +1446,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     polygonSource.setData(polygonGeojson)
     pointSource.setData(pointGeojson)
-  }, [mapInstance, isMapLoaded, waterSources, isMapReady])
+  }, [mapInstance, isMapLoaded, waterSources])
 
   // Farm boundary visualization layer
   useEffect(() => {
@@ -1622,7 +1636,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, draw, isEditActive, isDrawing, entityType])
 
-  // Load paddock geometries into draw when edit mode is activated
+  // Load paddock geometries into draw when edit mode is activated or reset
   useEffect(() => {
     if (!draw || !isEditActive || entityType !== 'paddock') {
       if (!isEditActive || entityType !== 'paddock') {
@@ -1631,12 +1645,25 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       return
     }
 
+    // Force reload if resetCounter changed (user clicked Reset)
+    const forceReload = resetCounter !== lastResetCounterRef.current
+    if (forceReload) {
+      console.log('[Paddocks] Reset detected, forcing reload. resetCounter:', resetCounter, 'previous:', lastResetCounterRef.current)
+      console.log('[Paddocks] Paddocks to load:', paddocks.map(p => ({
+        id: p.id,
+        name: p.name,
+        firstCoord: p.geometry.geometry.coordinates[0]?.[0],
+      })))
+      lastResetCounterRef.current = resetCounter
+      lastLoadedPaddockKeyRef.current = null // Clear key to force reload
+    }
+
     // Load existing paddock geometries into the draw plugin
     const features = paddocks.map((p) => ({
       ...p.geometry,
       id: p.id,
     }))
-    // Include geometry hashes in the key to detect geometry changes, not just ID changes
+    // Include geometry hashes in the key to detect geometry changes
     const nextKey = paddocks.map((p) => {
       const coords = p.geometry.geometry.coordinates[0]
       const coordHash = coords.length + ':' + (coords[0]?.[0]?.toFixed(6) || '') + ',' + (coords[0]?.[1]?.toFixed(6) || '')
@@ -1650,17 +1677,28 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       // Draw instance is in invalid state (being cleaned up), skip this update
       return
     }
-    if (lastLoadedPaddockKeyRef.current === nextKey && drawFeatureCount > 0) {
+    if (lastLoadedPaddockKeyRef.current === nextKey && drawFeatureCount > 0 && !forceReload) {
       return
     }
-    console.log('[Paddocks] Loading geometries into draw, key changed:', lastLoadedPaddockKeyRef.current !== nextKey)
+    console.log('[Paddocks] Loading geometries into draw, key changed:', lastLoadedPaddockKeyRef.current !== nextKey, 'forceReload:', forceReload)
+    console.log('[Paddocks] Features being loaded:', features.map(f => ({
+      id: f.id,
+      coordCount: f.geometry.coordinates[0]?.length,
+      firstCoord: f.geometry.coordinates[0]?.[0],
+    })))
     lastLoadedPaddockKeyRef.current = nextKey
     try {
       loadGeometriesToDraw(draw, features)
-    } catch {
+      console.log('[Paddocks] Draw control reloaded, verifying:', draw.getAll().features.map(f => ({
+        id: f.id,
+        coordCount: (f.geometry as any).coordinates?.[0]?.length,
+        firstCoord: (f.geometry as any).coordinates?.[0]?.[0],
+      })))
+    } catch (err) {
       // Draw instance is in invalid state, skip loading
+      console.log('[Paddocks] Draw reload failed:', err)
     }
-  }, [draw, isEditActive, entityType, paddocks])
+  }, [draw, isEditActive, entityType, paddocks, resetCounter])
 
   // Select a newly created paddock when entering edit mode
   // Note: We depend on paddocks to ensure this runs after paddocks are loaded into draw
