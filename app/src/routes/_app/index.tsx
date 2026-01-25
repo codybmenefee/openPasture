@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
-import { Calendar, Focus } from 'lucide-react'
+import { Calendar, Focus, Save } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
@@ -115,6 +115,13 @@ function GISRoute() {
     labels: true,
     sections: true,
   })
+
+  // Plan modify mode state
+  const [planModifyMode, setPlanModifyMode] = useState<{
+    active: boolean
+    sectionGeometry: Feature<Polygon>
+    paddockId: string
+  } | null>(null)
 
   // Extract today's section from plan
   const todaysSection = useMemo<Section | null>(() => {
@@ -323,6 +330,29 @@ function GISRoute() {
     }
   }, [])
 
+  // Plan modify mode callbacks
+  const handleEnterModifyMode = useCallback((geometry: Geometry, paddockId: string) => {
+    // Zoom to section
+    handleZoomToSection(geometry)
+    // Enable modify mode
+    if (geometry.type === 'Polygon') {
+      setPlanModifyMode({
+        active: true,
+        sectionGeometry: { type: 'Feature', properties: {}, geometry } as Feature<Polygon>,
+        paddockId,
+      })
+    }
+  }, [handleZoomToSection])
+
+  const handleSaveModification = useCallback(async (_feedback: string) => {
+    // Submit feedback via existing mechanism (future: integrate with submitFeedback)
+    setPlanModifyMode(null)
+  }, [])
+
+  const handleCancelModify = useCallback(() => {
+    setPlanModifyMode(null)
+  }, [])
+
   // Get the selected paddock for the edit drawer
   const selectedPaddock: Paddock | undefined = useMemo(() => {
     if (editDrawerState.entityType === 'paddock' && editDrawerState.paddockId) {
@@ -407,6 +437,19 @@ function GISRoute() {
         className="top-14"
       />
 
+      {/* Floating Save Button when in plan modify mode */}
+      {planModifyMode?.active && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20">
+          <Button
+            onClick={() => handleSaveModification('Section adjusted')}
+            className="shadow-lg gap-2"
+          >
+            <Save className="h-4 w-4" />
+            Save Changes
+          </Button>
+        </div>
+      )}
+
       {/* Daily Plan Floating Panel */}
       <FloatingPanel
         open={briefOpen}
@@ -433,7 +476,16 @@ function GISRoute() {
         minHeight={300}
         initialPosition={{ x: 64, y: 64 }}
       >
-        <MorningBrief farmExternalId={activeFarmId} compact onClose={() => setBriefOpen(false)} onZoomToSection={handleZoomToSection} />
+        <MorningBrief
+          farmExternalId={activeFarmId}
+          compact
+          onClose={() => setBriefOpen(false)}
+          onZoomToSection={handleZoomToSection}
+          onEnterModifyMode={handleEnterModifyMode}
+          modifyModeActive={planModifyMode?.active ?? false}
+          onSaveModification={handleSaveModification}
+          onCancelModify={handleCancelModify}
+        />
       </FloatingPanel>
 
       {/* Toggle button when panel is closed */}

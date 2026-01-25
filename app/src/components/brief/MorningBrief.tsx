@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import type { Geometry } from 'geojson'
-import { X, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { BriefCard } from './BriefCard'
 import { FarmOverview } from './FarmOverview'
 import { DataStatusCard } from './DataStatusCard'
 import { ApprovedState } from './ApprovedState'
 import { FeedbackModal } from './FeedbackModal'
+import { PlanModifyView } from './PlanModifyView'
 import { BriefSkeleton } from '@/components/ui/loading'
 import { LowConfidenceWarning } from '@/components/ui/error'
 import { getFormattedDate } from '@/data/mock/plan'
@@ -23,6 +24,10 @@ interface MorningBriefProps {
   compact?: boolean
   onClose?: () => void
   onZoomToSection?: (geometry: Geometry) => void
+  onEnterModifyMode?: (geometry: Geometry, paddockId: string) => void
+  modifyModeActive?: boolean
+  onSaveModification?: (feedback: string) => void
+  onCancelModify?: () => void
 }
 
 function planSectionToSection(plan: any): Section | undefined {
@@ -47,7 +52,16 @@ function planSectionToSection(plan: any): Section | undefined {
   }
 }
 
-export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomToSection }: MorningBriefProps) {
+export function MorningBrief({
+  farmExternalId,
+  compact = false,
+  onClose: _onClose,
+  onZoomToSection,
+  onEnterModifyMode,
+  modifyModeActive = false,
+  onSaveModification,
+  onCancelModify,
+}: MorningBriefProps) {
   const { getPaddockById } = useGeometry()
   const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback, deleteTodayPlan } = useTodayPlan(farmExternalId)
 
@@ -109,7 +123,11 @@ export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomT
   }
 
   const handleModify = () => {
-    setFeedbackOpen(true)
+    if (onEnterModifyMode && plan?.sectionGeometry) {
+      onEnterModifyMode(plan.sectionGeometry, plan.primaryPaddockExternalId || '')
+    } else {
+      setFeedbackOpen(true) // fallback
+    }
   }
 
   const handleFeedbackSubmit = async (feedback: string) => {
@@ -141,18 +159,15 @@ export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomT
   if (isError || !plan) {
     return (
       <div className={cn('h-full flex flex-col', compact ? 'p-3' : 'p-4 xl:p-6 2xl:p-8')}>
-        {/* Header */}
-        <div className={cn('flex items-start justify-between', compact ? 'mb-3' : 'mb-4 xl:mb-6')}>
-          <div>
-            <h1 className={cn('font-semibold', compact ? 'text-base' : 'text-lg xl:text-xl')}>Morning Brief</h1>
-            <p className="text-xs text-muted-foreground">{getFormattedDate()}</p>
+        {/* Header - only show in non-compact mode (compact mode has parent widget header) */}
+        {!compact && (
+          <div className="flex items-start justify-between mb-4 xl:mb-6">
+            <div>
+              <h1 className="text-lg xl:text-xl font-semibold">Morning Brief</h1>
+              <p className="text-xs text-muted-foreground">{getFormattedDate()}</p>
+            </div>
           </div>
-          {compact && onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mt-1 -mr-1">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        )}
         {generationError && (
           <div className="mb-4 rounded-md border border-border bg-card p-3 text-sm text-muted-foreground">
             {generationError}
@@ -196,6 +211,17 @@ export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomT
 
   // Compact layout for drawer
   if (compact) {
+    // Show modify view when in modify mode
+    if (modifyModeActive && onSaveModification && onCancelModify) {
+      return (
+        <PlanModifyView
+          paddockName={recommendedPaddock?.name ?? 'Unknown'}
+          onSave={onSaveModification}
+          onCancel={onCancelModify}
+        />
+      )
+    }
+
     return (
       <div className="h-full flex flex-col">
         {/* Scrollable Content */}
