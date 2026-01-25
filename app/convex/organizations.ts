@@ -207,6 +207,87 @@ export const deleteFarm = mutation({
 })
 
 /**
+ * Setup a farm during onboarding.
+ * Creates or updates the farm record with full details.
+ */
+export const setupFarmFromOnboarding = mutation({
+  args: {
+    orgId: v.string(),
+    name: v.string(),
+    location: v.string(),
+    coordinates: v.array(v.number()),
+    totalArea: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const [lng, lat] = args.coordinates
+
+    // Create a simple bounding box geometry around the center point
+    // This will be refined as paddocks are added
+    const sizeMeters = Math.sqrt(args.totalArea * 10000)
+    const latDelta = sizeMeters / 111000 / 2
+    const lngDelta = sizeMeters / (111000 * Math.cos(lat * Math.PI / 180)) / 2
+
+    const geometry = {
+      type: 'Feature' as const,
+      properties: {},
+      geometry: {
+        type: 'Polygon' as const,
+        coordinates: [[
+          [lng - lngDelta, lat - latDelta],
+          [lng + lngDelta, lat - latDelta],
+          [lng + lngDelta, lat + latDelta],
+          [lng - lngDelta, lat + latDelta],
+          [lng - lngDelta, lat - latDelta],
+        ]],
+      },
+    }
+
+    // Check if farm already exists
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.orgId))
+      .first()
+
+    // Also check legacy ID
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', args.orgId))
+        .first()
+    }
+
+    if (farm) {
+      // Update existing farm with onboarding data
+      await ctx.db.patch(farm._id, {
+        name: args.name,
+        location: args.location,
+        coordinates: args.coordinates,
+        totalArea: args.totalArea,
+        geometry,
+        updatedAt: now,
+      })
+      return { farmId: farm._id, created: false }
+    }
+
+    // Create new farm
+    const farmId = await ctx.db.insert('farms', {
+      externalId: args.orgId,
+      name: args.name,
+      location: args.location,
+      totalArea: args.totalArea,
+      paddockCount: 0,
+      coordinates: args.coordinates,
+      geometry,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    return { farmId, created: true }
+  },
+})
+
+/**
  * Get farms that match either Clerk org IDs or legacy farm IDs.
  * This helps during the migration period where we support both ID formats.
  */

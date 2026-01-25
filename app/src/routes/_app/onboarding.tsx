@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useAction } from 'convex/react'
+import { useAction, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import type { Feature, Polygon } from 'geojson'
 import {
   OnboardingContainer,
   WelcomeStep,
   FarmSetupForm,
 } from '@/components/onboarding'
-import { useGeometry } from '@/lib/geometry'
+import { useAppAuth } from '@/lib/auth'
 
 export const Route = createFileRoute('/_app/onboarding')({
   component: OnboardingPage,
@@ -55,7 +54,9 @@ function createDefaultPaddockGeometry(
 function OnboardingPage() {
   const navigate = useNavigate()
   const { addPaddock, saveChanges } = useGeometry()
+  const { organizationId } = useAppAuth()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
+  const setupFarm = useMutation(api.organizations.setupFarmFromOnboarding)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [farmData, setFarmData] = useState<FarmData>({
@@ -79,6 +80,12 @@ function OnboardingPage() {
     setError(null)
     setIsSubmitting(true)
 
+    if (!organizationId) {
+      setError('No organization found. Please sign in again.')
+      setIsSubmitting(false)
+      return
+    }
+
     try {
       // Step 1: Geocode the address
       const geocodeResult = await geocodeAddress({ address: data.location.trim() })
@@ -89,8 +96,17 @@ function OnboardingPage() {
         return
       }
 
-      // Step 2: Create a default paddock at the geocoded location
+      // Step 2: Create/update the farm organization in Convex
       const paddockSize = data.area ? Math.min(parseFloat(data.area), 50) : 10
+      await setupFarm({
+        orgId: organizationId,
+        name: data.name.trim(),
+        location: data.location.trim(),
+        coordinates: geocodeResult.coordinates,
+        totalArea: paddockSize,
+      })
+
+      // Step 3: Create a default paddock at the geocoded location
       const paddockGeometry = createDefaultPaddockGeometry(
         geocodeResult.coordinates,
         paddockSize
@@ -104,10 +120,10 @@ function OnboardingPage() {
         waterAccess: 'None',
       })
 
-      // Step 3: Save the changes
+      // Step 4: Save the paddock changes
       await saveChanges()
 
-      // Step 4: Navigate to main map with onboarded flag
+      // Step 5: Navigate to main map with onboarded flag
       navigate({ to: '/', search: { onboarded: 'true' } })
     } catch (err) {
       console.error('Onboarding error:', err)

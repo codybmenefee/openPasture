@@ -1,4 +1,4 @@
-import { Search, HelpCircle, RotateCcw } from 'lucide-react'
+import { HelpCircle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FarmSelector } from './FarmSelector'
 import { useAppAuth } from '@/lib/auth'
@@ -8,17 +8,7 @@ export function Header() {
   const { isDevAuth } = useAppAuth()
 
   return (
-    <header className="flex h-10 items-center justify-between border-b border-border bg-background px-4">
-      {/* Search placeholder */}
-      <button className="flex h-7 w-56 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
-        <Search className="h-3.5 w-3.5" />
-        <span>Search or jump to...</span>
-        <kbd className="ml-auto pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-border bg-muted px-1 font-mono text-[9px] font-medium text-muted-foreground">
-          <span className="text-[9px]">Cmd</span>K
-        </kbd>
-      </button>
-
-      {/* Right section */}
+    <header className="flex h-10 items-center justify-end border-b border-border bg-background px-4">
       <div className="flex items-center gap-3">
         <FarmSelector />
 
