@@ -53,6 +53,7 @@ function GISRoute() {
   const {
     getPaddockById,
     addPaddock,
+    saveChanges,
     getNoGrazeZoneById,
     getWaterSourceById,
     updateNoGrazeZoneMetadata,
@@ -63,8 +64,17 @@ function GISRoute() {
   const { startDraw, cancelDraw, isDrawingBoundary } = useFarmBoundary()
 
   const mapRef = useRef<FarmMapHandle>(null)
-  const [briefOpen, setBriefOpen] = useState(true)
+  // Close daily plan modal by default during onboarding/boundary edit flow
+  const [briefOpen, setBriefOpen] = useState(() =>
+    search.onboarded !== 'true' && search.editBoundary !== 'true'
+  )
   const [mapInstance, setMapInstance] = useState<ReturnType<FarmMapHandle['getMap']>>(null)
+
+  // Track when we need to save after creating a paddock during onboarding
+  const [pendingOnboardingSave, setPendingOnboardingSave] = useState<{
+    paddockId: string
+    geometry: Feature<Polygon>
+  } | null>(null)
 
   // Update map instance when ref changes
   useEffect(() => {
@@ -79,6 +89,13 @@ function GISRoute() {
     return () => clearInterval(interval)
   }, [])
 
+  // State declarations - must come before callbacks that use them
+  const [editDrawerState, setEditDrawerState] = useState<EditDrawerState>({
+    open: false,
+    entityType: 'paddock',
+  })
+  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
+
   // Handle ?editBoundary=true query param
   const editBoundaryParam = search.editBoundary === 'true'
   useEffect(() => {
@@ -87,31 +104,135 @@ function GISRoute() {
     }
   }, [editBoundaryParam, isDrawingBoundary, startDraw])
 
-  // Handle ?onboarded=true query param - show welcome toast
+  // Track if we've already processed the onboarding boundary save
+  const onboardingProcessedRef = useRef(false)
+
+  // Effect to save paddock after it's been added during onboarding
+  // This ensures saveChanges has access to the updated pendingChanges
   useEffect(() => {
-    if (search.onboarded === 'true') {
-      toast.success('Welcome! Your farm is set up.', {
-        description: 'Edit your paddock or add more from the map.',
-      })
-      // Clear the param from URL
-      navigate({ to: '/', search: {} })
+    if (!pendingOnboardingSave) return
+
+    const { paddockId, geometry } = pendingOnboardingSave
+
+    const doSave = async () => {
+      console.log('[Onboarding Save Effect] Saving paddock:', paddockId)
+      try {
+        await saveChanges()
+        console.log('[Onboarding Save Effect] Save completed successfully')
+
+        // Focus on the new paddock
+        mapRef.current?.focusOnGeometry(geometry, 100)
+
+        // Keep the daily plan closed during paddock editing
+        setBriefOpen(false)
+
+        // Open the paddock edit drawer so user can customize
+        setEditDrawerState({
+          open: true,
+          entityType: 'paddock',
+          paddockId,
+          geometry,
+        })
+        setDrawEntityType('paddock')
+
+        toast.success('Farm boundary saved!', {
+          description: 'We created a starter paddock for you. Resize and rename it below.',
+        })
+      } catch (err) {
+        console.error('[Onboarding Save Effect] Error saving paddock:', err)
+        toast.error('Failed to save paddock')
+      } finally {
+        setPendingOnboardingSave(null)
+      }
     }
-  }, [search.onboarded, navigate])
+
+    doSave()
+  }, [pendingOnboardingSave, saveChanges])
 
   const handleBoundaryComplete = useCallback(() => {
-    // Remove the query param
+    // Stop the drawing mode and remove the query param
+    cancelDraw()
     navigate({ to: '/', search: {} })
-  }, [navigate])
+  }, [cancelDraw, navigate])
+
+  const handleBoundarySaved = useCallback(async (_geometry: Feature<Polygon>) => {
+    console.log('[handleBoundarySaved] Called, onboarded:', search.onboarded, 'processed:', onboardingProcessedRef.current)
+
+    // If this is post-onboarding, create a centered paddock
+    if (search.onboarded === 'true' && !onboardingProcessedRef.current) {
+      onboardingProcessedRef.current = true
+
+      const map = mapRef.current?.getMap()
+      console.log('[handleBoundarySaved] Map instance:', !!map)
+      if (!map) {
+        console.error('[handleBoundarySaved] No map instance available!')
+        toast.error('Could not create paddock - map not ready')
+        return
+      }
+
+      // Create a 100px × 100px paddock centered on screen
+      const container = map.getContainer()
+      const centerX = container.clientWidth / 2
+      const centerY = container.clientHeight / 2
+      const halfSize = 50 // 100px / 2
+
+      console.log('[handleBoundarySaved] Screen dimensions:', {
+        width: container.clientWidth,
+        height: container.clientHeight,
+        centerX,
+        centerY
+      })
+
+      // Convert screen coordinates to geographic coordinates
+      const topLeft = map.unproject([centerX - halfSize, centerY - halfSize])
+      const bottomRight = map.unproject([centerX + halfSize, centerY + halfSize])
+
+      console.log('[handleBoundarySaved] Geographic bounds:', {
+        topLeft: { lng: topLeft.lng, lat: topLeft.lat },
+        bottomRight: { lng: bottomRight.lng, lat: bottomRight.lat }
+      })
+
+      const paddockGeometry: Feature<Polygon> = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [topLeft.lng, topLeft.lat],
+            [bottomRight.lng, topLeft.lat],
+            [bottomRight.lng, bottomRight.lat],
+            [topLeft.lng, bottomRight.lat],
+            [topLeft.lng, topLeft.lat],
+          ]],
+        },
+      }
+
+      console.log('[handleBoundarySaved] Paddock geometry created:', JSON.stringify(paddockGeometry.geometry.coordinates))
+
+      try {
+        const paddockId = addPaddock(paddockGeometry, {
+          name: 'Main Paddock',
+          status: 'recovering',
+          ndvi: 0.35,
+          restDays: 0,
+          waterAccess: 'None',
+        })
+
+        console.log('[handleBoundarySaved] Created paddock with ID:', paddockId)
+
+        // Trigger save via effect - this ensures saveChanges has updated pendingChanges
+        setPendingOnboardingSave({ paddockId, geometry: paddockGeometry })
+      } catch (err) {
+        console.error('[handleBoundarySaved] Error creating paddock:', err)
+        toast.error('Failed to create paddock')
+      }
+    }
+  }, [search.onboarded, addPaddock])
 
   const handleBoundaryCancel = useCallback(() => {
     cancelDraw()
     navigate({ to: '/', search: {} })
   }, [cancelDraw, navigate])
-  const [editDrawerState, setEditDrawerState] = useState<EditDrawerState>({
-    open: false,
-    entityType: 'paddock',
-  })
-  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
   const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
   const [dragState, setDragState] = useState<{
@@ -427,6 +548,8 @@ function GISRoute() {
           map={mapInstance}
           onComplete={handleBoundaryComplete}
           onCancel={handleBoundaryCancel}
+          isPostOnboarding={search.onboarded === 'true'}
+          onBoundarySaved={handleBoundarySaved}
         />
       )}
 

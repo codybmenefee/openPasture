@@ -28,11 +28,6 @@ export function Sidebar() {
   return (
     <TooltipProvider delayDuration={0}>
       <aside className="flex h-screen w-12 flex-col items-center border-r border-sidebar-border bg-sidebar py-2">
-        {/* Logo */}
-        <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
-          P
-        </div>
-
         {/* Navigation */}
         <nav className="flex flex-1 flex-col items-center gap-1">
           {navItems.map((item) => {

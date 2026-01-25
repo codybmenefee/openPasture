@@ -10,6 +10,10 @@ interface FarmBoundaryDrawerProps {
   map: MapLibreMap | null
   onComplete?: () => void
   onCancel?: () => void
+  /** When true, shows detailed post-onboarding instructions */
+  isPostOnboarding?: boolean
+  /** Callback with the saved geometry when boundary is confirmed */
+  onBoundarySaved?: (geometry: Feature<Polygon>) => void
 }
 
 const PREVIEW_SOURCE_ID = 'boundary-preview'
@@ -20,6 +24,8 @@ export function FarmBoundaryDrawer({
   map,
   onComplete,
   onCancel,
+  isPostOnboarding = false,
+  onBoundarySaved,
 }: FarmBoundaryDrawerProps) {
   const { saveBoundary, isSaving, error: saveError } = useFarmBoundary()
   const [step, setStep] = useState<'instructions' | 'drawing' | 'confirm'>('instructions')
@@ -189,12 +195,21 @@ export function FarmBoundaryDrawer({
   }, [updatePreview, onCancel])
 
   const handleConfirm = useCallback(async () => {
+    console.log('[FarmBoundaryDrawer] handleConfirm called, drawnGeometry:', !!drawnGeometry)
     if (!drawnGeometry) return
 
     await saveBoundary(drawnGeometry)
     updatePreview(null)
+    console.log('[FarmBoundaryDrawer] Calling onBoundarySaved, callback exists:', !!onBoundarySaved)
+    // Await the callback to ensure paddock is created before navigation
+    if (onBoundarySaved) {
+      await onBoundarySaved(drawnGeometry)
+    }
+    // Small delay to allow the map to stabilize before navigation
+    await new Promise(resolve => setTimeout(resolve, 100))
+    console.log('[FarmBoundaryDrawer] Calling onComplete')
     onComplete?.()
-  }, [drawnGeometry, saveBoundary, updatePreview, onComplete])
+  }, [drawnGeometry, saveBoundary, updatePreview, onBoundarySaved, onComplete])
 
   const handleRedraw = useCallback(() => {
     setStartPoint(null)
@@ -207,18 +222,29 @@ export function FarmBoundaryDrawer({
     <Card className="absolute top-3 left-1/2 -translate-x-1/2 z-20 shadow-lg">
       <CardContent className="p-4">
         {step === 'instructions' && (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <MousePointer2 className="h-4 w-4 text-muted-foreground" />
-              <span>Click two opposite corners to define your farm boundary</span>
-            </div>
+          <div className="flex flex-col gap-3">
+            {isPostOnboarding ? (
+              <div className="flex items-start gap-2 text-sm max-w-md">
+                <MousePointer2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <span>
+                  Draw your farm boundary below. This is a rough selection of where your entire farm is located — make sure to capture all your land. This boundary determines which areas we refresh with satellite data.
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm">
+                <MousePointer2 className="h-4 w-4 text-muted-foreground" />
+                <span>Click two opposite corners to define your farm boundary</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleStartDrawing}>
                 Start Drawing
               </Button>
-              <Button size="sm" variant="ghost" onClick={handleCancel}>
-                <X className="h-4 w-4" />
-              </Button>
+              {!isPostOnboarding && (
+                <Button size="sm" variant="ghost" onClick={handleCancel}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         )}

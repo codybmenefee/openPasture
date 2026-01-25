@@ -595,8 +595,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       // For polygon types, create a default square
       const sizes: Record<Exclude<EntityDropType, 'waterPoint'>, number> = {
         paddock: 100,
-        noGrazeZone: 80,
-        waterPolygon: 60,
+        noGrazeZone: 100,
+        waterPolygon: 100,
       }
       const sizePx = sizes[type as Exclude<EntityDropType, 'waterPoint'>]
       const draft = createDraftSquare(lngLat, sizePx)
@@ -842,6 +842,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
     const map = mapInstance
 
+    // Safety check - ensure map style is still valid
+    try {
+      if (!map.getStyle()) {
+        console.log('[Paddocks] Map style not available, skipping')
+        return
+      }
+    } catch {
+      console.log('[Paddocks] Map is being destroyed, skipping')
+      return
+    }
+
     console.log('[Paddocks] Creating/updating paddock layers, count:', paddocks.length)
 
     // Create GeoJSON feature collection for paddocks
@@ -882,14 +893,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     // Add or update paddocks source
-    if (map.getSource('paddocks')) {
-      console.log('[Paddocks] Updating existing source')
-      ;(map.getSource('paddocks') as maplibregl.GeoJSONSource).setData(paddocksGeojson)
-    } else {
-      map.addSource('paddocks', {
-        type: 'geojson',
-        data: paddocksGeojson,
-      })
+    try {
+      if (map.getSource('paddocks')) {
+        console.log('[Paddocks] Updating existing source')
+        ;(map.getSource('paddocks') as maplibregl.GeoJSONSource).setData(paddocksGeojson)
+      } else {
+        map.addSource('paddocks', {
+          type: 'geojson',
+          data: paddocksGeojson,
+        })
 
       // Add fill layer
       map.addLayer({
@@ -990,16 +1002,21 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
       })
 
-  // Add sections source and layers
-  ensureSectionLayers(map)
+      // Add sections source and layers
+      ensureSectionLayers(map)
 
-  // Push section data to sources after layers are created
-  pushSectionData(map, sectionStateRef.current)
+      // Push section data to sources after layers are created
+      pushSectionData(map, sectionStateRef.current)
 
-  // Add no-graze zone and water source layers
-  ensureNoGrazeZoneLayers(map)
-  ensureWaterSourceLayers(map)
-}
+      // Add no-graze zone and water source layers
+      ensureNoGrazeZoneLayers(map)
+      ensureWaterSourceLayers(map)
+    }
+    } catch (err) {
+      // Map may have been destroyed during component unmount - ignore
+      console.log('[Paddocks] Map operation failed (likely unmounting):', err)
+      return
+    }
 
     const filterExistingLayers = (layerIds: string[]) =>
       layerIds.filter((layerId) => map.getLayer(layerId))
@@ -1697,6 +1714,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
     const map = mapInstance
 
+    // Safety check - ensure map style is available (may be destroyed during navigation)
+    try {
+      if (!map.getStyle()) {
+        console.log('[Paddocks] Visibility effect: map style not available, skipping')
+        return
+      }
+    } catch {
+      console.log('[Paddocks] Visibility effect: map is being destroyed, skipping')
+      return
+    }
+
     const paddockLayers = ['paddocks-fill', 'paddocks-outline']
     // Always show native paddock layers - Draw's inactive polygons are transparent
     // so native layers show through with proper status colors
@@ -1710,13 +1738,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       status: p.status,
     })))
 
-    paddockLayers.forEach(layerId => {
-      const layerExists = !!map.getLayer(layerId)
-      console.log('[Paddocks] Layer', layerId, 'exists:', layerExists)
-      if (layerExists) {
-        map.setLayoutProperty(layerId, 'visibility', visibility)
-      }
-    })
+    try {
+      paddockLayers.forEach(layerId => {
+        const layerExists = !!map.getLayer(layerId)
+        console.log('[Paddocks] Layer', layerId, 'exists:', layerExists)
+        if (layerExists) {
+          map.setLayoutProperty(layerId, 'visibility', visibility)
+        }
+      })
+    } catch (err) {
+      console.log('[Paddocks] Visibility effect: error accessing map layers, likely destroyed', err)
+    }
   }, [mapInstance, isMapLoaded, showPaddocks, paddocks])
 
   // Update selected paddock highlight
