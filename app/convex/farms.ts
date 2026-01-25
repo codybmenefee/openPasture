@@ -1,5 +1,6 @@
 import { mutationGeneric as mutation, queryGeneric as query } from 'convex/server'
 import { v } from 'convex/values'
+import area from '@turf/area'
 import {
   DEFAULT_FARM_EXTERNAL_ID,
   DEFAULT_USER_EXTERNAL_ID,
@@ -9,6 +10,17 @@ import {
   sampleGrazingEvents,
   sampleObservations,
 } from './seedData'
+
+const polygonFeature = v.object({
+  type: v.literal('Feature'),
+  properties: v.optional(v.any()),
+  geometry: v.object({
+    type: v.literal('Polygon'),
+    coordinates: v.array(v.array(v.array(v.number()))),
+  }),
+})
+
+const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 export const getFarm = query({
   args: { farmId: v.optional(v.string()) },
@@ -206,6 +218,78 @@ export const seedSampleFarm = mutation({
       seededSettings: settingsSeeded,
       seededGrazingEvents: grazingEventsSeeded,
       seededObservations: observationsSeeded,
+    }
+  },
+})
+
+/**
+ * Update the farm boundary geometry.
+ * Recalculates the center coordinates and total area based on the new boundary.
+ */
+export const updateFarmBoundary = mutation({
+  args: {
+    farmExternalId: v.string(),
+    geometry: polygonFeature,
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+
+    // Find farm by externalId
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    // Also check legacyExternalId for migration support
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', args.farmExternalId))
+        .first()
+    }
+
+    if (!farm) {
+      throw new Error(`Farm not found: ${args.farmExternalId}`)
+    }
+
+    // Calculate center from polygon bounds
+    const coords = args.geometry.geometry.coordinates[0]
+    let minLng = Infinity
+    let minLat = Infinity
+    let maxLng = -Infinity
+    let maxLat = -Infinity
+
+    coords.forEach(([lng, lat]) => {
+      minLng = Math.min(minLng, lng)
+      maxLng = Math.max(maxLng, lng)
+      minLat = Math.min(minLat, lat)
+      maxLat = Math.max(maxLat, lat)
+    })
+
+    const centerLng = (minLng + maxLng) / 2
+    const centerLat = (minLat + maxLat) / 2
+
+    // Calculate area in hectares
+    // Cast to Feature type for turf compatibility
+    const geometryFeature = {
+      ...args.geometry,
+      properties: args.geometry.properties ?? {},
+    } as GeoJSON.Feature<GeoJSON.Polygon>
+    const squareMeters = area(geometryFeature)
+    const hectares = Math.round(squareMeters * HECTARES_PER_SQUARE_METER * 10) / 10
+
+    // Update farm with new geometry, coordinates, and area
+    await ctx.db.patch(farm._id, {
+      geometry: args.geometry,
+      coordinates: [centerLng, centerLat],
+      totalArea: hectares,
+      updatedAt: now,
+    })
+
+    return {
+      success: true,
+      coordinates: [centerLng, centerLat],
+      totalArea: hectares,
     }
   },
 })

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
 import maplibregl from 'maplibre-gl'
+import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import type { Paddock, PaddockStatus } from '@/lib/types'
@@ -51,6 +52,7 @@ interface FarmMapProps {
 
 export interface FarmMapHandle {
   getMap: () => maplibregl.Map | null
+  getDraw: () => MapboxDraw | null
   setDrawMode: (mode: DrawMode) => void
   deleteSelected: () => void
   cancelDrawing: () => void
@@ -283,6 +285,31 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
   const farmLat = farm?.coordinates?.[1] ?? null
+  const farmGeometry = farm?.geometry ?? null
+
+  // Check if farm has a valid boundary (not the default tiny polygon)
+  const hasValidBoundary = useCallback(() => {
+    if (!farmGeometry) return false
+    const coords = farmGeometry.geometry.coordinates[0]
+    if (!coords || coords.length < 4) return false
+
+    let minLng = Infinity
+    let minLat = Infinity
+    let maxLng = -Infinity
+    let maxLat = -Infinity
+
+    coords.forEach(([lng, lat]) => {
+      minLng = Math.min(minLng, lng)
+      maxLng = Math.max(maxLng, lng)
+      minLat = Math.min(minLat, lat)
+      maxLat = Math.max(maxLat, lat)
+    })
+
+    // If the bounding box is smaller than ~50m, it's likely the default
+    const lngSpan = maxLng - minLng
+    const latSpan = maxLat - minLat
+    return lngSpan > 0.0005 && latSpan > 0.0005
+  }, [farmGeometry])
 
   const isEditActive = editable && editMode
 
@@ -349,6 +376,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   useImperativeHandle(ref, () => ({
     getMap: () => mapInstance,
+    getDraw: () => draw,
     setDrawMode: setMode,
     deleteSelected,
     cancelDrawing,
@@ -381,7 +409,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         mapInstance.once('load', doFocus)
       }
     },
-  }), [mapInstance, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds])
+  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds])
 
   // Handle paddock click wrapper
   const handlePaddockClick = useCallback((paddock: Paddock) => {
@@ -490,6 +518,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         },
       }],
     }
+    console.log('[Section] Rendering initial section:', {
+      id: initialSectionId,
+      coordCount: initialSectionFeature.geometry.coordinates[0]?.length,
+      firstCoord: initialSectionFeature.geometry.coordinates[0]?.[0],
+    })
 
     if (!mapInstance.getSource(sourceId)) {
       mapInstance.addSource(sourceId, {
@@ -581,6 +614,25 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     map.on('load', () => {
       setMapInstance(map)
       setIsMapLoaded(true)
+
+      // Fit to farm boundary if valid, otherwise use center/zoom (already set above)
+      if (hasValidBoundary() && farmGeometry) {
+        const coords = farmGeometry.geometry.coordinates[0]
+        let minLng = Infinity
+        let minLat = Infinity
+        let maxLng = -Infinity
+        let maxLat = -Infinity
+
+        coords.forEach(([lng, lat]) => {
+          minLng = Math.min(minLng, lng)
+          maxLng = Math.max(maxLng, lng)
+          minLat = Math.min(minLat, lat)
+          maxLat = Math.max(maxLat, lat)
+        })
+
+        const bounds = new maplibregl.LngLatBounds([minLng, minLat], [maxLng, maxLat])
+        map.fitBounds(bounds, { padding: 50, duration: 0 })
+      }
     })
 
     return () => {
@@ -589,13 +641,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(null)
       setIsMapLoaded(false)
     }
-  }, [farmId, farmLng, farmLat])
+  }, [farmId, farmLng, farmLat, hasValidBoundary, farmGeometry])
 
   // Add paddock and section layers once map is loaded
   useEffect(() => {
-    if (!isMapReady()) return
-    const map = mapInstance!
-    if (!map) return
+    if (!mapInstance || !isMapLoaded) {
+      console.log('[Paddocks] Map not ready, skipping layer creation', { hasMapInstance: !!mapInstance, isMapLoaded })
+      return
+    }
+    const map = mapInstance
+
+    console.log('[Paddocks] Creating/updating paddock layers, count:', paddocks.length)
 
     // Create GeoJSON feature collection for paddocks
     const paddocksGeojson: GeoJSON.FeatureCollection = {
@@ -611,9 +667,33 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       })),
     }
 
+    // Log detailed paddock info for debugging
+    console.log('[Paddocks] Source data:', paddocks.map((p) => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      coordCount: p.geometry.geometry.coordinates[0]?.length,
+      firstCoord: p.geometry.geometry.coordinates[0]?.[0],
+    })))
+
+    // Check for duplicate IDs
+    const ids = paddocks.map(p => p.id)
+    const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i)
+    if (duplicates.length > 0) {
+      console.warn('[Paddocks] DUPLICATE IDS DETECTED:', duplicates)
+    }
+
+    // Check for paddocks with same name (might indicate accidental duplicates)
+    const names = paddocks.map(p => p.name)
+    const dupNames = names.filter((name, i) => names.indexOf(name) !== i)
+    if (dupNames.length > 0) {
+      console.log('[Paddocks] Paddocks with same name:', dupNames)
+    }
+
     // Add or update paddocks source
     if (map.getSource('paddocks')) {
-      (map.getSource('paddocks') as maplibregl.GeoJSONSource).setData(paddocksGeojson)
+      console.log('[Paddocks] Updating existing source')
+      ;(map.getSource('paddocks') as maplibregl.GeoJSONSource).setData(paddocksGeojson)
     } else {
       map.addSource('paddocks', {
         type: 'geojson',
@@ -625,6 +705,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         id: 'paddocks-fill',
         type: 'fill',
         source: 'paddocks',
+        layout: {
+          visibility: 'visible',
+        },
         paint: {
           'fill-color': [
             'match',
@@ -644,6 +727,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         id: 'paddocks-outline',
         type: 'line',
         source: 'paddocks',
+        layout: {
+          visibility: 'visible',
+        },
         paint: {
           'line-color': [
             'match',
@@ -981,6 +1067,54 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
   }, [mapInstance, isMapLoaded, paddocks, updateSectionListForPaddock])
 
+  // Farm boundary visualization layer
+  useEffect(() => {
+    if (!isMapReady() || !farmGeometry) return
+    const map = mapInstance!
+
+    const sourceId = 'farm-boundary'
+    const outlineLayerId = 'farm-boundary-outline'
+    const fillLayerId = 'farm-boundary-fill'
+
+    const boundaryGeoJson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [farmGeometry],
+    }
+
+    // Add or update boundary source
+    if (map.getSource(sourceId)) {
+      (map.getSource(sourceId) as maplibregl.GeoJSONSource).setData(boundaryGeoJson)
+    } else {
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: boundaryGeoJson,
+      })
+
+      // Add fill layer (subtle, semi-transparent)
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': '#f59e0b',
+          'fill-opacity': 0.05,
+        },
+      }, 'paddocks-fill') // Insert below paddocks
+
+      // Add outline layer (dashed amber line)
+      map.addLayer({
+        id: outlineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': '#f59e0b',
+          'line-width': 2,
+          'line-dasharray': [4, 2],
+        },
+      }, 'paddocks-fill') // Insert below paddocks
+    }
+  }, [mapInstance, isMapLoaded, farmGeometry, isMapReady])
+
   // Click-to-edit and drag-to-move behavior in edit mode
   useEffect(() => {
     if (!mapInstance || !isMapLoaded || !draw || !isEditActive) return
@@ -1124,11 +1258,17 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       ...p.geometry,
       id: p.id,
     }))
-    const nextKey = paddocks.map((p) => p.id).sort().join('|')
+    // Include geometry hashes in the key to detect geometry changes, not just ID changes
+    const nextKey = paddocks.map((p) => {
+      const coords = p.geometry.geometry.coordinates[0]
+      const coordHash = coords.length + ':' + (coords[0]?.[0]?.toFixed(6) || '') + ',' + (coords[0]?.[1]?.toFixed(6) || '')
+      return `${p.id}:${coordHash}`
+    }).sort().join('|')
     const drawFeatureCount = draw.getAll().features.length
     if (lastLoadedPaddockKeyRef.current === nextKey && drawFeatureCount > 0) {
       return
     }
+    console.log('[Paddocks] Loading geometries into draw, key changed:', lastLoadedPaddockKeyRef.current !== nextKey)
     lastLoadedPaddockKeyRef.current = nextKey
     loadGeometriesToDraw(draw, features)
   }, [draw, isEditActive, entityType, paddocks])
@@ -1165,20 +1305,33 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Hide native paddock layers when editing paddocks (Draw will render them)
   useEffect(() => {
-    if (!isMapReady()) return
-    const map = mapInstance!
-    if (!map) return
+    if (!mapInstance || !isMapLoaded) {
+      console.log('[Paddocks] Visibility effect: map not ready')
+      return
+    }
+    const map = mapInstance
 
     const paddockLayers = ['paddocks-fill', 'paddocks-outline']
-    const shouldHide = isEditActive && entityType === 'paddock' && !!draw
-    const visibility = shouldHide ? 'none' : (showPaddocks ? 'visible' : 'none')
-    
+    // Always show native paddock layers - Draw's inactive polygons are transparent
+    // so native layers show through with proper status colors
+    const visibility = showPaddocks ? 'visible' : 'none'
+    console.log('[Paddocks] Setting visibility:', { showPaddocks, visibility, isEditActive, hasDraw: !!draw })
+
+    // Log all paddocks for debugging
+    console.log('[Paddocks] Current paddocks:', paddocks.map(p => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+    })))
+
     paddockLayers.forEach(layerId => {
-      if (map.getLayer(layerId)) {
+      const layerExists = !!map.getLayer(layerId)
+      console.log('[Paddocks] Layer', layerId, 'exists:', layerExists)
+      if (layerExists) {
         map.setLayoutProperty(layerId, 'visibility', visibility)
       }
     })
-  }, [mapInstance, isMapLoaded, isEditActive, entityType, showPaddocks, draw])
+  }, [mapInstance, isMapLoaded, showPaddocks, paddocks])
 
   // Update selected paddock highlight
   useEffect(() => {

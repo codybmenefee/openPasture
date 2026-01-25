@@ -10,6 +10,7 @@
 
 import type * as farmerObservations from "../farmerObservations.js";
 import type * as farms from "../farms.js";
+import type * as geocoding from "../geocoding.js";
 import type * as grazingAgentDirect from "../grazingAgentDirect.js";
 import type * as grazingAgentGateway from "../grazingAgentGateway.js";
 import type * as grazingAgentTools from "../grazingAgentTools.js";
@@ -33,6 +34,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   farmerObservations: typeof farmerObservations;
   farms: typeof farms;
+  geocoding: typeof geocoding;
   grazingAgentDirect: typeof grazingAgentDirect;
   grazingAgentGateway: typeof grazingAgentGateway;
   grazingAgentTools: typeof grazingAgentTools;
