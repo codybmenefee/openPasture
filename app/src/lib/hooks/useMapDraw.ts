@@ -52,14 +52,14 @@ const drawStyles = [
       'line-dasharray': [2, 2],
     },
   },
-  // Inactive polygon (selected but not being edited)
+  // Inactive polygon - transparent so native layers show through with status colors
   {
     id: 'gl-draw-polygon-fill-inactive',
     type: 'fill',
     filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon']],
     paint: {
-      'fill-color': '#3b82f6',
-      'fill-opacity': 0.15,
+      'fill-color': '#000000',
+      'fill-opacity': 0,
     },
   },
   {
@@ -67,7 +67,8 @@ const drawStyles = [
     type: 'line',
     filter: ['all', ['==', 'active', 'false'], ['==', '$type', 'Polygon']],
     paint: {
-      'line-color': '#3b82f6',
+      'line-color': '#000000',
+      'line-opacity': 0,
       'line-width': 2,
     },
   },

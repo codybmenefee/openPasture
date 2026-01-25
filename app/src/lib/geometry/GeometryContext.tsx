@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 import type {
@@ -72,6 +72,91 @@ export function GeometryProvider({
   })
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
   const [isSaving, setIsSaving] = useState(false)
+
+  // Sync paddocks state with initialPaddocks prop changes
+  // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
+  useEffect(() => {
+    console.log('[GeometryContext] Sync effect, initialPaddocks:', initialPaddocks?.length ?? 'undefined')
+    if (initialPaddocks && initialPaddocks.length > 0) {
+      setPaddocks((currentPaddocks) => {
+        // Check if there are pending geometry changes for any paddock
+        const pendingGeometryIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'paddock' && c.geometry)
+            .map((c) => c.id)
+        )
+
+        if (pendingGeometryIds.size > 0) {
+          console.log('[GeometryContext] Preserving local geometry for paddocks with pending changes:',
+            Array.from(pendingGeometryIds))
+
+          // Create a map of current paddock geometries for those with pending changes
+          const localGeometries = new Map<string, typeof currentPaddocks[0]['geometry']>()
+          currentPaddocks.forEach((p) => {
+            if (pendingGeometryIds.has(p.id)) {
+              localGeometries.set(p.id, p.geometry)
+            }
+          })
+
+          // Merge: use Convex metadata but preserve local geometry for changed paddocks
+          const merged = normalizePaddocks(initialPaddocks).map((p) => {
+            if (localGeometries.has(p.id)) {
+              const localGeo = localGeometries.get(p.id)!
+              return { ...p, geometry: localGeo, area: calculateAreaHectares(localGeo) }
+            }
+            return p
+          })
+
+          console.log('[GeometryContext] Merged paddocks, preserving', localGeometries.size, 'local geometries')
+          return merged
+        }
+
+        console.log('[GeometryContext] Updating paddocks state with', initialPaddocks.length, 'paddocks (no pending geometry changes)')
+        return normalizePaddocks(initialPaddocks)
+      })
+    }
+  }, [initialPaddocks, pendingChanges])
+
+  // Sync sections state with initialSections prop changes
+  // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
+  useEffect(() => {
+    if (initialSections) {
+      setSections((currentSections) => {
+        // Check if there are pending geometry changes for any section
+        const pendingSectionIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'section' && c.geometry)
+            .map((c) => c.id)
+        )
+
+        if (pendingSectionIds.size > 0) {
+          console.log('[GeometryContext] Preserving local geometry for sections with pending changes:',
+            Array.from(pendingSectionIds))
+
+          // Create a map of current section geometries for those with pending changes
+          const localGeometries = new Map<string, typeof currentSections[0]['geometry']>()
+          currentSections.forEach((s) => {
+            if (pendingSectionIds.has(s.id)) {
+              localGeometries.set(s.id, s.geometry)
+            }
+          })
+
+          // Merge: use Convex data but preserve local geometry for changed sections
+          const merged = normalizeSections(initialSections).map((s) => {
+            if (localGeometries.has(s.id)) {
+              const localGeo = localGeometries.get(s.id)!
+              return { ...s, geometry: localGeo, targetArea: calculateAreaHectares(localGeo) }
+            }
+            return s
+          })
+
+          return merged
+        }
+
+        return normalizeSections(initialSections)
+      })
+    }
+  }, [initialSections, pendingChanges])
 
   const hasUnsavedChanges = useMemo(
     () => pendingChanges.some((c) => !c.synced),

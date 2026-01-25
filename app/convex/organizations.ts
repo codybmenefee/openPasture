@@ -45,6 +45,8 @@ export const createFarmFromOrg = mutation({
     clerkOrgId: v.string(),
     name: v.string(),
     slug: v.optional(v.string()),
+    location: v.optional(v.string()),
+    coordinates: v.optional(v.array(v.number())),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString()
@@ -59,22 +61,26 @@ export const createFarmFromOrg = mutation({
       return { farmId: existingFarm._id, created: false }
     }
 
-    // Create a new farm with default values
-    // In a real implementation, you'd want to collect more info from the user
+    // Use provided coordinates or default to [0, 0]
+    const coords = args.coordinates && args.coordinates.length === 2
+      ? args.coordinates
+      : [0, 0]
+
+    // Create a new farm with provided or default values
     const farmId = await ctx.db.insert('farms', {
       externalId: args.clerkOrgId,
       clerkOrgSlug: args.slug,
       name: args.name,
-      location: 'Not specified',
+      location: args.location ?? 'Not specified',
       totalArea: 0,
       paddockCount: 0,
-      coordinates: [0, 0], // Default coordinates
+      coordinates: coords,
       geometry: {
         type: 'Feature',
         properties: {},
         geometry: {
           type: 'Polygon',
-          coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]],
+          coordinates: [[[coords[0], coords[1]], [coords[0], coords[1] + 0.01], [coords[0] + 0.01, coords[1] + 0.01], [coords[0] + 0.01, coords[1]], [coords[0], coords[1]]]],
         },
       },
       createdAt: now,

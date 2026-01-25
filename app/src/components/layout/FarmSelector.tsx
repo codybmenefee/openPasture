@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Building2, Plus, Trash2 } from 'lucide-react'
-import { CreateOrganization, useOrganization } from '@clerk/clerk-react'
+import { useOrganization } from '@clerk/clerk-react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { CreateFarmForm } from './CreateFarmForm'
 import {
   Select,
   SelectContent,
@@ -124,9 +125,9 @@ export function FarmSelector() {
               Switch to Clerk authentication to create farms.
             </div>
           ) : (
-            <CreateOrganization
-              afterCreateOrganizationUrl="/"
-              skipInvitationScreen
+            <CreateFarmForm
+              onSuccess={() => setShowCreateDialog(false)}
+              onCancel={() => setShowCreateDialog(false)}
             />
           )}
         </DialogContent>
