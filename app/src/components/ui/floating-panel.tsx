@@ -8,6 +8,7 @@ interface FloatingPanelProps {
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
   title?: string
+  subtitle?: string
   headerActions?: React.ReactNode
   defaultWidth?: number
   defaultHeight?: number
@@ -36,6 +37,8 @@ export function FloatingPanel({
   onOpenChange,
   children,
   title,
+  subtitle,
+  headerActions,
   defaultWidth = 400,
   defaultHeight = 600,
   minWidth = 320,
@@ -205,20 +208,26 @@ export function FloatingPanel({
       >
         <div className="flex items-center gap-2">
           <GripVerticalIcon className="h-4 w-4 text-muted-foreground" />
-          {title && <span className="font-semibold text-sm">{title}</span>}
+          <div>
+            {title && <span className="font-semibold text-sm">{title}</span>}
+            {subtitle && <span className="text-xs text-muted-foreground ml-1">• {subtitle}</span>}
+          </div>
         </div>
-        <button
-          data-close-button
-          onClick={() => onOpenChange(false)}
-          className={cn(
-            "rounded-sm p-1 opacity-70 transition-opacity",
-            "hover:opacity-100 hover:bg-muted",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          )}
-        >
-          <XIcon className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {headerActions}
+          <button
+            data-close-button
+            onClick={() => onOpenChange(false)}
+            className={cn(
+              "rounded-sm p-1 opacity-70 transition-opacity",
+              "hover:opacity-100 hover:bg-muted",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            )}
+          >
+            <XIcon className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </button>
+        </div>
       </div>
 
       {/* Content */}

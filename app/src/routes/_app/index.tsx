@@ -2,12 +2,17 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
-import { Calendar } from 'lucide-react'
+import { Calendar, Focus } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
+import { MapAddMenu } from '@/components/map/MapAddMenu'
+import { NoGrazeEditPanel } from '@/components/map/NoGrazeEditPanel'
+import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
+import type { NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
+import { getFormattedDate } from '@/data/mock/plan'
 import { PaddockEditDrawer } from '@/components/map/PaddockEditDrawer'
 import { SectionEditDrawer } from '@/components/map/SectionEditDrawer'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
@@ -26,6 +31,8 @@ const searchSchema = z.object({
   editBoundary: z.string().optional(),
 })
 
+type DrawEntityType = 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+
 interface EditDrawerState {
   open: boolean
   entityType: 'paddock' | 'section'
@@ -40,7 +47,18 @@ function GISRoute() {
   const search = useSearch({ from: '/_app/' })
   const { activeFarmId, isLoading } = useFarmContext()
   const { plan } = useTodayPlan(activeFarmId || '')
-  const { getPaddockById, addPaddock } = useGeometry()
+  const {
+    getPaddockById,
+    addPaddock,
+    noGrazeZones,
+    waterSources,
+    getNoGrazeZoneById,
+    getWaterSourceById,
+    updateNoGrazeZoneMetadata,
+    deleteNoGrazeZone,
+    updateWaterSourceMetadata,
+    deleteWaterSource,
+  } = useGeometry()
   const { startDraw, cancelDraw, isDrawingBoundary } = useFarmBoundary()
 
   const mapRef = useRef<FarmMapHandle>(null)
@@ -81,6 +99,9 @@ function GISRoute() {
     open: false,
     entityType: 'paddock',
   })
+  const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
+  const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
+  const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
 
   const [layers, setLayers] = useState({
     satellite: true,
@@ -162,6 +183,64 @@ function GISRoute() {
     })
   }, [])
 
+  const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
+    const zone = getNoGrazeZoneById(zoneId)
+    if (zone) {
+      setSelectedNoGrazeZone(zone)
+      setSelectedWaterSource(null)
+    }
+  }, [getNoGrazeZoneById])
+
+  const handleWaterSourceClick = useCallback((sourceId: string) => {
+    const source = getWaterSourceById(sourceId)
+    if (source) {
+      setSelectedWaterSource(source)
+      setSelectedNoGrazeZone(null)
+    }
+  }, [getWaterSourceById])
+
+  const handleNoGrazeZoneSave = useCallback((id: string, name: string) => {
+    updateNoGrazeZoneMetadata(id, { name })
+    setSelectedNoGrazeZone(null)
+  }, [updateNoGrazeZoneMetadata])
+
+  const handleNoGrazeZoneDelete = useCallback((id: string) => {
+    deleteNoGrazeZone(id)
+    setSelectedNoGrazeZone(null)
+  }, [deleteNoGrazeZone])
+
+  const handleWaterSourceSave = useCallback((id: string, updates: { name?: string; type?: WaterSourceType }) => {
+    updateWaterSourceMetadata(id, updates)
+    setSelectedWaterSource(null)
+  }, [updateWaterSourceMetadata])
+
+  const handleWaterSourceDelete = useCallback((id: string) => {
+    deleteWaterSource(id)
+    setSelectedWaterSource(null)
+  }, [deleteWaterSource])
+
+  const handleAddPaddock = useCallback(() => {
+    setDrawEntityType('paddock')
+    // Start drawing polygon after a short delay to ensure state is updated
+    setTimeout(() => {
+      mapRef.current?.setDrawMode('draw_polygon')
+    }, 50)
+  }, [])
+
+  const handleAddNoGrazeZone = useCallback(() => {
+    setDrawEntityType('noGrazeZone')
+    setTimeout(() => {
+      mapRef.current?.setDrawMode('draw_polygon')
+    }, 50)
+  }, [])
+
+  const handleAddWaterSource = useCallback((geometryType: 'point' | 'polygon') => {
+    setDrawEntityType(geometryType === 'point' ? 'waterPoint' : 'waterPolygon')
+    setTimeout(() => {
+      mapRef.current?.setDrawMode(geometryType === 'point' ? 'draw_point' : 'draw_polygon')
+    }, 50)
+  }, [])
+
   const handleZoomToSection = useCallback((geometry: Geometry) => {
     if (geometry.type === 'Polygon') {
       const feature: Feature<Polygon> = {
@@ -206,6 +285,8 @@ function GISRoute() {
       <FarmMap
         ref={mapRef}
         onEditRequest={handleEditRequest}
+        onNoGrazeZoneClick={handleNoGrazeZoneClick}
+        onWaterSourceClick={handleWaterSourceClick}
         showSatellite={layers.satellite}
         showNdviHeat={layers.ndviHeat}
         showPaddocks={layers.paddocks}
@@ -213,7 +294,7 @@ function GISRoute() {
         showSections={layers.sections}
         editable={true}
         editMode={true}
-        entityType={editDrawerState.entityType}
+        entityType={drawEntityType}
         parentPaddockId={editDrawerState.entityType === 'section' ? editDrawerState.paddockId : undefined}
         initialSectionFeature={clippedSectionGeometry ?? undefined}
         initialSectionId={todaysSection?.id}
@@ -246,11 +327,33 @@ function GISRoute() {
         <SaveIndicator />
       </div>
 
+      {/* Add menu - below save indicator */}
+      <MapAddMenu
+        onAddPaddock={handleAddPaddock}
+        onAddNoGrazeZone={handleAddNoGrazeZone}
+        onAddWaterSource={handleAddWaterSource}
+        className="top-14"
+      />
+
       {/* Daily Plan Floating Panel */}
       <FloatingPanel
         open={briefOpen}
         onOpenChange={setBriefOpen}
         title="Daily Plan"
+        subtitle={getFormattedDate()}
+        headerActions={
+          todaysSection && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleZoomToSection(todaysSection.geometry.geometry)}
+              className="gap-1.5"
+            >
+              <Focus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">View Section</span>
+            </Button>
+          )
+        }
         defaultWidth={600}
         defaultHeight={600}
         minWidth={320}
@@ -299,6 +402,26 @@ function GISRoute() {
           ) : null}
         </DrawerContent>
       </Drawer>
+
+      {/* No-graze zone edit panel */}
+      {selectedNoGrazeZone && (
+        <NoGrazeEditPanel
+          zone={selectedNoGrazeZone}
+          onSave={handleNoGrazeZoneSave}
+          onDelete={handleNoGrazeZoneDelete}
+          onClose={() => setSelectedNoGrazeZone(null)}
+        />
+      )}
+
+      {/* Water source edit panel */}
+      {selectedWaterSource && (
+        <WaterSourceEditPanel
+          source={selectedWaterSource}
+          onSave={handleWaterSourceSave}
+          onDelete={handleWaterSourceDelete}
+          onClose={() => setSelectedWaterSource(null)}
+        />
+      )}
     </div>
   )
 }

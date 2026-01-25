@@ -18,6 +18,8 @@ npm run build        # TypeScript check + Vite production build
 npm run lint         # ESLint
 ```
 
+**Important:** Do NOT run `npm run dev` yourself. The dev server is already running and managed by the user.
+
 ## Architecture
 
 **Stack:** React 19 + TypeScript, TanStack Router (file-based), Tailwind CSS v4, Convex (serverless backend), Claude AI via @ai-sdk/anthropic

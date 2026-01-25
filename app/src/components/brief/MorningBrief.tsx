@@ -198,19 +198,6 @@ export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomT
   if (compact) {
     return (
       <div className="h-full flex flex-col">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-10 flex items-start justify-between border-b bg-background p-3">
-          <div>
-            <h1 className="text-base font-semibold">Morning Brief</h1>
-            <p className="text-xs text-muted-foreground">{getFormattedDate()}</p>
-          </div>
-          {onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mt-1 -mr-1">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {showLowConfidenceWarning && (
@@ -246,7 +233,7 @@ export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomT
               sectionAlternatives={[]}
               sectionJustification={plan.sectionJustification}
               paddockGrazedPercentage={plan.paddockGrazedPercentage}
-              onZoomToSection={onZoomToSection}
+              hideActions={true}
             />
           )}
 
@@ -299,6 +286,18 @@ export function MorningBrief({ farmExternalId, compact = false, onClose, onZoomT
             >
               {isResetting ? 'Resetting...' : 'Reset plan (debug)'}
             </button>
+          </div>
+        </div>
+
+        {/* Sticky Footer with Action Buttons */}
+        <div className="sticky bottom-0 z-10 border-t bg-background p-3">
+          <div className="flex gap-2">
+            <Button onClick={handleApprove} className="flex-1 h-9 text-sm">
+              Approve Section
+            </Button>
+            <Button variant="outline" onClick={handleModify} className="flex-1 h-9 text-sm">
+              Modify
+            </Button>
           </div>
         </div>
 

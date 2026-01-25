@@ -27,6 +27,8 @@ interface BriefCardProps {
   paddockGrazedPercentage?: number
   // Zoom to section on main map
   onZoomToSection?: (geometry: GeoJSON.Geometry) => void
+  // Hide action buttons (for sticky footer pattern)
+  hideActions?: boolean
 }
 
 export function BriefCard({
@@ -45,6 +47,7 @@ export function BriefCard({
   sectionJustification,
   paddockGrazedPercentage,
   onZoomToSection,
+  hideActions = false,
 }: BriefCardProps) {
   const { getPaddockById } = useGeometry()
   const currentPaddock = getPaddockById(currentPaddockId)
@@ -266,14 +269,16 @@ export function BriefCard({
         )}
 
         {/* Actions */}
-        <div className="flex gap-2 xl:gap-3 pt-1">
-          <Button onClick={onApprove} className="flex-1 h-8 xl:h-10 text-xs xl:text-sm">
-            {isPaddockTransition ? 'Approve Transition' : selectedAlternative ? 'Approve Alternative' : 'Approve Section'}
-          </Button>
-          <Button variant="outline" onClick={onModify} className="flex-1 h-8 xl:h-10 text-xs xl:text-sm">
-            Modify
-          </Button>
-        </div>
+        {!hideActions && (
+          <div className="flex gap-2 xl:gap-3 pt-1">
+            <Button onClick={onApprove} className="flex-1 h-8 xl:h-10 text-xs xl:text-sm">
+              {isPaddockTransition ? 'Approve Transition' : selectedAlternative ? 'Approve Alternative' : 'Approve Section'}
+            </Button>
+            <Button variant="outline" onClick={onModify} className="flex-1 h-8 xl:h-10 text-xs xl:text-sm">
+              Modify
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
