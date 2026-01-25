@@ -8,6 +8,7 @@ import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
 import { MapAddMenu } from '@/components/map/MapAddMenu'
+import { DragPreview, type DragEntityType } from '@/components/map/DragPreview'
 import { NoGrazeEditPanel } from '@/components/map/NoGrazeEditPanel'
 import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
 import type { NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
@@ -102,6 +103,12 @@ function GISRoute() {
   const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
   const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean
+    type: DragEntityType
+    position: { x: number; y: number }
+    isOverMap: boolean
+  } | null>(null)
 
   const [layers, setLayers] = useState({
     satellite: true,
@@ -241,6 +248,72 @@ function GISRoute() {
     }, 50)
   }, [])
 
+  // Drag-and-drop handlers
+  const handleDragStart = useCallback((type: DragEntityType, startPosition: { x: number; y: number }) => {
+    const rect = mapRef.current?.getMapContainerRect()
+    const isOverMap = rect
+      ? startPosition.x >= rect.left && startPosition.x <= rect.right && startPosition.y >= rect.top && startPosition.y <= rect.bottom
+      : false
+
+    setDragState({
+      isDragging: true,
+      type,
+      position: startPosition,
+      isOverMap,
+    })
+  }, [])
+
+  // Document-level drag event handlers
+  useEffect(() => {
+    if (!dragState?.isDragging) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const rect = mapRef.current?.getMapContainerRect()
+      const isOverMap = rect
+        ? e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+        : false
+
+      setDragState((prev) =>
+        prev ? { ...prev, position: { x: e.clientX, y: e.clientY }, isOverMap } : null
+      )
+    }
+
+    const handlePointerUp = (e: PointerEvent) => {
+      const rect = mapRef.current?.getMapContainerRect()
+      const isOverMap = rect
+        ? e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom
+        : false
+
+      console.log('[DragDrop] Drop event:', {
+        type: dragState?.type,
+        isOverMap,
+        hasMapRef: !!mapRef.current,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        rect: rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } : null
+      })
+
+      if (dragState && isOverMap) {
+        // Drop on map - create entity
+        const entityId = mapRef.current?.createEntityAtScreenPoint(dragState.type, e.clientX, e.clientY)
+        console.log('[DragDrop] Created entity:', entityId)
+      }
+      setDragState(null)
+    }
+
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
+
+    // Set cursor style during drag
+    document.body.style.cursor = 'grabbing'
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.body.style.cursor = ''
+    }
+  }, [dragState])
+
   const handleZoomToSection = useCallback((geometry: Geometry) => {
     if (geometry.type === 'Polygon') {
       const feature: Feature<Polygon> = {
@@ -332,6 +405,7 @@ function GISRoute() {
         onAddPaddock={handleAddPaddock}
         onAddNoGrazeZone={handleAddNoGrazeZone}
         onAddWaterSource={handleAddWaterSource}
+        onDragStart={handleDragStart}
         className="top-14"
       />
 
@@ -420,6 +494,15 @@ function GISRoute() {
           onSave={handleWaterSourceSave}
           onDelete={handleWaterSourceDelete}
           onClose={() => setSelectedWaterSource(null)}
+        />
+      )}
+
+      {/* Drag preview */}
+      {dragState?.isDragging && (
+        <DragPreview
+          type={dragState.type}
+          position={dragState.position}
+          isOverMap={dragState.isOverMap}
         />
       )}
     </div>

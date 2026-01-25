@@ -371,7 +371,20 @@ export function MapView() {
         {/* Add menu (visible when not in edit mode) */}
         {!editMode && (
           <MapAddMenu
-            onAddPaddock={() => handleEditRequest({ entityType: 'paddock' })}
+            onAddPaddock={() => {
+              // Create a new paddock at the center of the map
+              const paddockId = mapRef.current?.createPaddockAtCenter()
+              if (paddockId) {
+                // Enter edit mode with the new paddock selected
+                // FarmMap will handle selecting the paddock via onEditPaddockSelect
+                setEditMode(true)
+                setEntityType('paddock')
+                setEditSectionFeature(null)
+                setEditSectionId(undefined)
+                setFocusPaddockId(paddockId)
+                setInitialPaddockId(paddockId)
+              }
+            }}
             onAddNoGrazeZone={() => {
               setEditMode(true)
               setEntityType('noGrazeZone')

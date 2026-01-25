@@ -99,6 +99,7 @@ export function GeometryProvider({
 
   // Sync paddocks state with initialPaddocks prop changes
   // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
+  // IMPORTANT: Respect pending delete changes (don't restore deleted paddocks)
   useEffect(() => {
     console.log('[GeometryContext] Sync effect, initialPaddocks:', initialPaddocks?.length ?? 'undefined')
     if (initialPaddocks && initialPaddocks.length > 0) {
@@ -110,9 +111,28 @@ export function GeometryProvider({
             .map((c) => c.id)
         )
 
-        if (pendingGeometryIds.size > 0) {
+        // Check for pending delete changes - these paddocks should NOT be restored
+        const pendingDeleteIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'paddock' && c.changeType === 'delete')
+            .map((c) => c.id)
+        )
+
+        if (pendingDeleteIds.size > 0) {
+          console.log('[GeometryContext] Excluding paddocks with pending deletes:', Array.from(pendingDeleteIds))
+        }
+
+        // Check for pending add changes - these are new paddocks not yet in Convex
+        const pendingAddIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'paddock' && c.changeType === 'add')
+            .map((c) => c.id)
+        )
+
+        if (pendingGeometryIds.size > 0 || pendingAddIds.size > 0) {
           console.log('[GeometryContext] Preserving local geometry for paddocks with pending changes:',
             Array.from(pendingGeometryIds))
+          console.log('[GeometryContext] Preserving newly added paddocks:', Array.from(pendingAddIds))
 
           // Create a map of current paddock geometries for those with pending changes
           const localGeometries = new Map<string, typeof currentPaddocks[0]['geometry']>()
@@ -122,27 +142,39 @@ export function GeometryProvider({
             }
           })
 
-          // Merge: use Convex metadata but preserve local geometry for changed paddocks
-          const merged = normalizePaddocks(initialPaddocks).map((p) => {
-            if (localGeometries.has(p.id)) {
-              const localGeo = localGeometries.get(p.id)!
-              return { ...p, geometry: localGeo, area: calculateAreaHectares(localGeo) }
-            }
-            return p
-          })
+          // Get newly added paddocks that aren't in Convex yet
+          const newPaddocks = currentPaddocks.filter((p) => pendingAddIds.has(p.id))
 
-          console.log('[GeometryContext] Merged paddocks, preserving', localGeometries.size, 'local geometries')
-          return merged
+          // Merge: use Convex metadata but preserve local geometry for changed paddocks
+          // Also filter out any paddocks with pending deletes
+          const merged = normalizePaddocks(initialPaddocks)
+            .filter((p) => !pendingDeleteIds.has(p.id))
+            .map((p) => {
+              if (localGeometries.has(p.id)) {
+                const localGeo = localGeometries.get(p.id)!
+                return { ...p, geometry: localGeo, area: calculateAreaHectares(localGeo) }
+              }
+              return p
+            })
+
+          // Add newly created paddocks that aren't in Convex yet
+          const result = [...merged, ...newPaddocks]
+
+          console.log('[GeometryContext] Merged paddocks, preserving', localGeometries.size, 'local geometries and', newPaddocks.length, 'new paddocks')
+          return result
         }
 
-        console.log('[GeometryContext] Updating paddocks state with', initialPaddocks.length, 'paddocks (no pending geometry changes)')
-        return normalizePaddocks(initialPaddocks)
+        // Filter out paddocks with pending deletes
+        const filteredPaddocks = normalizePaddocks(initialPaddocks).filter((p) => !pendingDeleteIds.has(p.id))
+        console.log('[GeometryContext] Updating paddocks state with', filteredPaddocks.length, 'paddocks (no pending geometry changes)')
+        return filteredPaddocks
       })
     }
   }, [initialPaddocks, pendingChanges])
 
   // Sync sections state with initialSections prop changes
   // IMPORTANT: Preserve local geometry changes that haven't been saved to Convex yet
+  // IMPORTANT: Respect pending delete changes (don't restore deleted sections)
   useEffect(() => {
     if (initialSections) {
       setSections((currentSections) => {
@@ -152,6 +184,17 @@ export function GeometryProvider({
             .filter((c) => !c.synced && c.entityType === 'section' && c.geometry)
             .map((c) => c.id)
         )
+
+        // Check for pending delete changes - these sections should NOT be restored
+        const pendingDeleteIds = new Set(
+          pendingChanges
+            .filter((c) => !c.synced && c.entityType === 'section' && c.changeType === 'delete')
+            .map((c) => c.id)
+        )
+
+        if (pendingDeleteIds.size > 0) {
+          console.log('[GeometryContext] Excluding sections with pending deletes:', Array.from(pendingDeleteIds))
+        }
 
         if (pendingSectionIds.size > 0) {
           console.log('[GeometryContext] Preserving local geometry for sections with pending changes:',
@@ -166,18 +209,22 @@ export function GeometryProvider({
           })
 
           // Merge: use Convex data but preserve local geometry for changed sections
-          const merged = normalizeSections(initialSections).map((s) => {
-            if (localGeometries.has(s.id)) {
-              const localGeo = localGeometries.get(s.id)!
-              return { ...s, geometry: localGeo, targetArea: calculateAreaHectares(localGeo) }
-            }
-            return s
-          })
+          // Also filter out any sections with pending deletes
+          const merged = normalizeSections(initialSections)
+            .filter((s) => !pendingDeleteIds.has(s.id))
+            .map((s) => {
+              if (localGeometries.has(s.id)) {
+                const localGeo = localGeometries.get(s.id)!
+                return { ...s, geometry: localGeo, targetArea: calculateAreaHectares(localGeo) }
+              }
+              return s
+            })
 
           return merged
         }
 
-        return normalizeSections(initialSections)
+        // Filter out sections with pending deletes
+        return normalizeSections(initialSections).filter((s) => !pendingDeleteIds.has(s.id))
       })
     }
   }, [initialSections, pendingChanges])

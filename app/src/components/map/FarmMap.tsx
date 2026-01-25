@@ -52,6 +52,8 @@ interface FarmMapProps {
   compactToolbar?: boolean
 }
 
+export type EntityDropType = 'paddock' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
+
 export interface FarmMapHandle {
   getMap: () => maplibregl.Map | null
   getDraw: () => MapboxDraw | null
@@ -60,6 +62,9 @@ export interface FarmMapHandle {
   cancelDrawing: () => void
   focusOnPaddock: (paddockId: string) => void
   focusOnGeometry: (geometry: Feature<Polygon>, padding?: number) => void
+  createPaddockAtCenter: () => string | null
+  createEntityAtScreenPoint: (type: EntityDropType, screenX: number, screenY: number) => string | null
+  getMapContainerRect: () => DOMRect | null
 }
 
 interface SectionRenderItem {
@@ -384,7 +389,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastLoadedPaddockKeyRef = useRef<string | null>(null)
 
-  const { paddocks, getPaddockById, noGrazeZones, waterSources } = useGeometry()
+  const { paddocks, getPaddockById, noGrazeZones, waterSources, addPaddock, addNoGrazeZone, addWaterSource } = useGeometry()
   const { farm, isLoading: isFarmLoading } = useFarm()
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
@@ -478,67 +483,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     mapInstance.fitBounds(bounds, { padding, duration: 1000 })
   }, [mapInstance])
 
-  useImperativeHandle(ref, () => ({
-    getMap: () => mapInstance,
-    getDraw: () => draw,
-    setDrawMode: setMode,
-    deleteSelected,
-    cancelDrawing,
-    focusOnPaddock: (paddockId: string) => {
-      if (!mapInstance) return
-      const paddock = getPaddockById(paddockId)
-      if (!paddock) return
-      
-      const doFocus = () => {
-        fitPolygonBounds(paddock.geometry, 60)
-      }
-      
-      // If map is already loaded, focus immediately. Otherwise wait for it.
-      if (mapInstance.loaded()) {
-        doFocus()
-      } else {
-        mapInstance.once('load', doFocus)
-      }
-    },
-    focusOnGeometry: (geometry: Feature<Polygon>, padding = 60) => {
-      if (!mapInstance) return
-
-      const doFocus = () => {
-        fitPolygonBounds(geometry, padding)
-      }
-
-      if (mapInstance.loaded()) {
-        doFocus()
-      } else {
-        mapInstance.once('load', doFocus)
-      }
-    },
-  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds])
-
-  // Handle paddock click wrapper
-  const handlePaddockClick = useCallback((paddock: Paddock) => {
-    // Don't trigger click handler when in edit mode
-    if (isEditActive) return
-    onPaddockClick?.(paddock)
-  }, [isEditActive, onPaddockClick])
-
-  useEffect(() => {
-    if (!isEditActive || entityType !== 'paddock') {
-      if (lastSelectedPaddockIdRef.current !== null) {
-        lastSelectedPaddockIdRef.current = null
-        onEditPaddockSelect?.(null)
-      }
-      return
-    }
-
-    const nextSelectedId = selectedFeatureIds[0] ?? null
-    if (nextSelectedId === lastSelectedPaddockIdRef.current) return
-
-    lastSelectedPaddockIdRef.current = nextSelectedId
-    const paddock = nextSelectedId ? getPaddockById(nextSelectedId) ?? null : null
-    onEditPaddockSelect?.(paddock)
-  }, [isEditActive, entityType, selectedFeatureIds, getPaddockById, onEditPaddockSelect])
-
   const createDraftSquare = useCallback((center: maplibregl.LngLat, sizePx: number): Feature<Polygon> | null => {
     if (!mapInstance) return null
     const half = sizePx / 2
@@ -563,6 +507,140 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       },
     }
   }, [mapInstance])
+
+  useImperativeHandle(ref, () => ({
+    getMap: () => mapInstance,
+    getDraw: () => draw,
+    setDrawMode: setMode,
+    deleteSelected,
+    cancelDrawing,
+    focusOnPaddock: (paddockId: string) => {
+      if (!mapInstance) return
+      const paddock = getPaddockById(paddockId)
+      if (!paddock) return
+
+      const doFocus = () => {
+        fitPolygonBounds(paddock.geometry, 60)
+      }
+
+      // If map is already loaded, focus immediately. Otherwise wait for it.
+      if (mapInstance.loaded()) {
+        doFocus()
+      } else {
+        mapInstance.once('load', doFocus)
+      }
+    },
+    focusOnGeometry: (geometry: Feature<Polygon>, padding = 60) => {
+      if (!mapInstance) return
+
+      const doFocus = () => {
+        fitPolygonBounds(geometry, padding)
+      }
+
+      if (mapInstance.loaded()) {
+        doFocus()
+      } else {
+        mapInstance.once('load', doFocus)
+      }
+    },
+    createPaddockAtCenter: () => {
+      if (!mapInstance) return null
+      const center = mapInstance.getCenter()
+      const draft = createDraftSquare(center, 100) // 100px square
+      if (!draft) return null
+      const paddockId = addPaddock(draft)
+      return paddockId
+    },
+    getMapContainerRect: () => {
+      return mapContainer.current?.getBoundingClientRect() ?? null
+    },
+    createEntityAtScreenPoint: (type: EntityDropType, screenX: number, screenY: number) => {
+      console.log('[FarmMap] createEntityAtScreenPoint called:', { type, screenX, screenY, hasMapInstance: !!mapInstance })
+      if (!mapInstance) return null
+      const rect = mapContainer.current?.getBoundingClientRect()
+      if (!rect) {
+        console.log('[FarmMap] No rect, returning null')
+        return null
+      }
+
+      // Convert screen coordinates to map-relative coordinates
+      const x = screenX - rect.left
+      const y = screenY - rect.top
+
+      // Check if coordinates are within map bounds
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+        console.log('[FarmMap] Coordinates out of bounds:', { x, y, width: rect.width, height: rect.height })
+        return null
+      }
+
+      const lngLat = mapInstance.unproject([x, y])
+      console.log('[FarmMap] Unprojected lngLat:', { lng: lngLat.lng, lat: lngLat.lat })
+
+      if (type === 'waterPoint') {
+        // Create a point geometry for water marker
+        const pointFeature: GeoJSON.Feature<GeoJSON.Point> = {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Point',
+            coordinates: [lngLat.lng, lngLat.lat],
+          },
+        }
+        const entityId = addWaterSource(pointFeature, 'point')
+        console.log('[FarmMap] Created water point:', { entityId, coordinates: pointFeature.geometry.coordinates })
+        return entityId
+      }
+
+      // For polygon types, create a default square
+      const sizes: Record<Exclude<EntityDropType, 'waterPoint'>, number> = {
+        paddock: 100,
+        noGrazeZone: 80,
+        waterPolygon: 60,
+      }
+      const sizePx = sizes[type as Exclude<EntityDropType, 'waterPoint'>]
+      const draft = createDraftSquare(lngLat, sizePx)
+      if (!draft) return null
+
+      let entityId: string | null = null
+      switch (type) {
+        case 'paddock':
+          entityId = addPaddock(draft)
+          break
+        case 'noGrazeZone':
+          entityId = addNoGrazeZone(draft)
+          break
+        case 'waterPolygon':
+          entityId = addWaterSource(draft, 'polygon')
+          break
+      }
+      console.log('[FarmMap] Created entity:', { type, entityId, draft: draft.geometry.coordinates[0] })
+      return entityId
+    },
+  }), [mapInstance, draw, setMode, deleteSelected, cancelDrawing, getPaddockById, fitPolygonBounds, createDraftSquare, addPaddock, addNoGrazeZone, addWaterSource])
+
+  // Handle paddock click wrapper
+  const handlePaddockClick = useCallback((paddock: Paddock) => {
+    // Don't trigger click handler when in edit mode
+    if (isEditActive) return
+    onPaddockClick?.(paddock)
+  }, [isEditActive, onPaddockClick])
+
+  useEffect(() => {
+    if (!isEditActive || entityType !== 'paddock') {
+      if (lastSelectedPaddockIdRef.current !== null) {
+        lastSelectedPaddockIdRef.current = null
+        onEditPaddockSelect?.(null)
+      }
+      return
+    }
+
+    const nextSelectedId = selectedFeatureIds[0] ?? null
+    if (nextSelectedId === lastSelectedPaddockIdRef.current) return
+
+    lastSelectedPaddockIdRef.current = nextSelectedId
+    const paddock = nextSelectedId ? getPaddockById(nextSelectedId) ?? null : null
+    onEditPaddockSelect?.(paddock)
+  }, [isEditActive, entityType, selectedFeatureIds, getPaddockById, onEditPaddockSelect])
 
   const updateSectionListForPaddock = useCallback(
     (
@@ -1475,22 +1553,34 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       const coordHash = coords.length + ':' + (coords[0]?.[0]?.toFixed(6) || '') + ',' + (coords[0]?.[1]?.toFixed(6) || '')
       return `${p.id}:${coordHash}`
     }).sort().join('|')
-    const drawFeatureCount = draw.getAll().features.length
+    // MapboxDraw internal state can be invalid during cleanup - wrap in try-catch
+    let drawFeatureCount = 0
+    try {
+      drawFeatureCount = draw.getAll()?.features?.length ?? 0
+    } catch {
+      // Draw instance is in invalid state (being cleaned up), skip this update
+      return
+    }
     if (lastLoadedPaddockKeyRef.current === nextKey && drawFeatureCount > 0) {
       return
     }
     console.log('[Paddocks] Loading geometries into draw, key changed:', lastLoadedPaddockKeyRef.current !== nextKey)
     lastLoadedPaddockKeyRef.current = nextKey
-    loadGeometriesToDraw(draw, features)
+    try {
+      loadGeometriesToDraw(draw, features)
+    } catch {
+      // Draw instance is in invalid state, skip loading
+    }
   }, [draw, isEditActive, entityType, paddocks])
 
   // Select a newly created paddock when entering edit mode
+  // Note: We depend on paddocks to ensure this runs after paddocks are loaded into draw
   useEffect(() => {
     if (!draw || !isEditActive || entityType !== 'paddock' || !initialPaddockId) return
     const existing = draw.get(initialPaddockId)
     if (!existing) return
     draw.changeMode('direct_select', { featureId: initialPaddockId })
-  }, [draw, isEditActive, entityType, initialPaddockId])
+  }, [draw, isEditActive, entityType, initialPaddockId, paddocks])
 
   // Load section geometry into draw and select it when editing sections
   useEffect(() => {

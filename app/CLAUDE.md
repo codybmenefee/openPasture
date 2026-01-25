@@ -83,3 +83,17 @@ Required for full functionality:
 
 - `convex/_generated/` - Convex API client
 - `src/routeTree.gen.ts` - TanStack Router routes
+
+## Browser Testing
+
+**Always use the `agent-browser` skill** for browser automation and UI testing. Do NOT use Playwright MCP tools directly.
+
+```bash
+# Example workflow
+agent-browser open http://localhost:5173
+agent-browser snapshot -i          # Get interactive elements with refs
+agent-browser click @e1            # Click element by ref
+agent-browser screenshot test.png  # Capture screenshot
+```
+
+Note: The app requires authentication. Set `VITE_DEV_AUTH=true` in `.env.local` to bypass Clerk auth during development.
