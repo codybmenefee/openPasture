@@ -1505,6 +1505,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const getFeatureIdAtPoint = (point: maplibregl.Point) => {
+      if (!draw) return null
       const ids = draw.getFeatureIdsAt({ x: point.x, y: point.y })
       const firstValid = ids.find((id) => id !== undefined && id !== null && id !== '')
       return firstValid !== undefined ? String(firstValid) : null
@@ -1525,6 +1526,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMouseDown = (e: MapEvent) => {
+      if (!draw) return
       const vertexHit = isVertexHit(e.point)
       const featureId = isDrawing || vertexHit ? null : getFeatureIdAtPoint(e.point)
       if (isDrawing || vertexHit) return
@@ -1547,6 +1549,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMouseMove = (e: MapEvent) => {
+      if (!draw) return
       const state = dragStateRef.current
       if (!state || state.dragging) return
       const dx = e.point.x - state.startPoint.x
@@ -1563,6 +1566,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMouseUp = () => {
+      if (!draw) return
       const state = dragStateRef.current
       if (!state) return
       if (state.manual && state.dragging && state.lastGeometry) {
@@ -1575,6 +1579,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMapClick = (e: MapEvent) => {
+      if (!draw) return
       if (isDrawing || dragStateRef.current || isVertexHit(e.point)) return
       const featureId = getFeatureIdAtPoint(e.point)
       if (!featureId) {
@@ -1590,6 +1595,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     const handleMouseDownCapture = (event: MouseEvent) => {
+      if (!draw) return
       if (isDrawing) return
       const rect = map.getCanvas().getBoundingClientRect()
       const point = new maplibregl.Point(event.clientX - rect.left, event.clientY - rect.top)
