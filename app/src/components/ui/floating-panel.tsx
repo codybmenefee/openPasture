@@ -8,6 +8,7 @@ interface FloatingPanelProps {
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
   title?: string
+  headerActions?: React.ReactNode
   defaultWidth?: number
   defaultHeight?: number
   minWidth?: number
