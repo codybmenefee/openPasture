@@ -79,6 +79,27 @@ Required for full functionality:
 - `BRAINTRUST_API_KEY` - Agent observability (optional, set in Convex dashboard)
 - `BRAINTRUST_PROJECT_NAME` - Braintrust project name (optional, defaults to 'grazing-agent')
 
+## Pre-Commit Checks (IMPORTANT)
+
+**Before committing any code changes, ALWAYS run:**
+
+```bash
+npx tsc -b
+```
+
+This catches TypeScript errors that Vite's dev server ignores but will fail the Railway build:
+- Unused variables, imports, and types (`noUnusedLocals`, `noUnusedParameters`)
+- Type mismatches
+- Missing type declarations
+
+**Why this matters:** The `convex/_generated/api.d.ts` imports all Convex files, so TypeScript checks the entire `convex/` folder even when building just the frontend. Errors in `convex/*.ts` or `lib/*.ts` will fail the production build.
+
+**Common issues to avoid:**
+- Declaring variables you don't use (prefix with `_` or remove)
+- Importing functions/types you don't use
+- Adding new prop values without updating type definitions
+- Using `process.env` in shared libs without type declarations
+
 ## Generated Files (Do Not Edit)
 
 - `convex/_generated/` - Convex API client
