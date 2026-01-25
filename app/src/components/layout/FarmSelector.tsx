@@ -24,10 +24,34 @@ import { Button } from '@/components/ui/button'
 import { useFarmContext } from '@/lib/farm'
 import { useAppAuth } from '@/lib/auth'
 
+// Wrapper that only renders when Clerk is available (not in dev mode)
+function ClerkFarmSelector() {
+  const { organization } = useOrganization()
+  return <FarmSelectorInner organization={organization ?? null} />
+}
+
+// Dev mode version - no Clerk hooks
+function DevFarmSelector() {
+  return <FarmSelectorInner organization={null} />
+}
+
 export function FarmSelector() {
+  const { isDevAuth } = useAppAuth()
+
+  // Use different components based on auth mode to avoid calling Clerk hooks in dev mode
+  if (isDevAuth) {
+    return <DevFarmSelector />
+  }
+  return <ClerkFarmSelector />
+}
+
+interface FarmSelectorInnerProps {
+  organization: { destroy: () => Promise<void> } | null
+}
+
+function FarmSelectorInner({ organization }: FarmSelectorInnerProps) {
   const { activeFarm, activeFarmId, availableFarms, isLoading, switchFarm } = useFarmContext()
   const { isDevAuth } = useAppAuth()
-  const { organization } = useOrganization()
   const deleteFarmMutation = useMutation(api.organizations.deleteFarm)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)

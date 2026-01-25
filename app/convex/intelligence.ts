@@ -339,6 +339,25 @@ export const forceDeleteTodayPlan = mutation({
   },
 })
 
+// Debug: Clear all grazing events for a farm (useful for resetting test data)
+export const clearGrazingEvents = mutation({
+  args: { farmExternalId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+
+    const events = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    for (const event of events) {
+      await ctx.db.delete(event._id)
+    }
+
+    return { deleted: events.length }
+  },
+})
+
 
 export const deleteAllFallbackPlans = mutation({
   args: { farmExternalId: v.optional(v.string()) },

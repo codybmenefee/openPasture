@@ -1,21 +1,11 @@
 import { Search, HelpCircle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useFarm } from '@/lib/convex/useFarm'
-import { useTodayPlan } from '@/lib/convex/usePlan'
 import { FarmSelector } from './FarmSelector'
-import { useState } from 'react'
+import { useAppAuth } from '@/lib/auth'
+import { Link } from '@tanstack/react-router'
 
 export function Header() {
-  const { farm } = useFarm()
-  const farmExternalId = farm?.id
-  const { deleteTodayPlan } = useTodayPlan(farmExternalId ?? 'farm-1')
-  const [isResetting, setIsResetting] = useState(false)
-
-  const handleResetPlan = async () => {
-    setIsResetting(true)
-    await deleteTodayPlan()
-    setIsResetting(false)
-  }
+  const { isDevAuth } = useAppAuth()
 
   return (
     <header className="flex h-10 items-center justify-between border-b border-border bg-background px-4">
@@ -36,17 +26,14 @@ export function Header() {
           demo
         </span>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5"
-          onClick={handleResetPlan}
-          disabled={isResetting}
-          title="Reset daily plan"
-        >
-          <RotateCcw className={`h-3.5 w-3.5 ${isResetting ? 'animate-spin' : ''}`} />
-          <span className="text-xs">reset</span>
-        </Button>
+        {isDevAuth && (
+          <Link to="/onboarding">
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5" title="Reset onboarding journey">
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="text-xs">onboarding</span>
+            </Button>
+          </Link>
+        )}
 
         <Button variant="ghost" size="icon" className="h-7 w-7">
           <HelpCircle className="h-3.5 w-3.5" />
