@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { useSearch, useNavigate } from '@tanstack/react-router'
+import { useSearch } from '@tanstack/react-router'
 import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
@@ -22,7 +22,6 @@ interface MapSearchParams {
 
 export function MapView() {
   const search = useSearch({ strict: false }) as MapSearchParams
-  const navigate = useNavigate()
   
   const { farmId } = useCurrentUser()
   const { plan } = useTodayPlan(farmId || '')
@@ -42,8 +41,6 @@ export function MapView() {
     getPaddockById,
     addPaddock,
     sections,
-    noGrazeZones,
-    waterSources,
     updateNoGrazeZoneMetadata,
     deleteNoGrazeZone,
     updateWaterSourceMetadata,

@@ -1774,7 +1774,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             onSetMode={setMode}
             onDeleteSelected={deleteSelected}
             onCancelDrawing={cancelDrawing}
-            entityType={entityType}
+            entityType={entityType === 'noGrazeZone' || entityType === 'waterPoint' || entityType === 'waterPolygon' ? 'paddock' : entityType}
             compact={compactToolbar}
           />
         </div>

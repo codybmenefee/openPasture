@@ -94,6 +94,7 @@ async function runGrazingAgentCore(
     const dataFetchDuration = Date.now() - dataFetchStart
 
   console.log('[runGrazingAgent] Data fetched:', {
+    dataFetchDurationMs: dataFetchDuration,
     allPaddocksCount: allPaddocks?.length,
     currentPaddock: {
       id: currentPaddock?.externalId,
@@ -344,7 +345,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
   // #region debug log
   const promptPreview = prompt.substring(0, 1000) + (prompt.length > 1000 ? '...' : '')
   const targetGeometryInPrompt = targetPaddock?.geometry ? JSON.stringify(targetPaddock.geometry).substring(0, 300) : 'MISSING'
-  fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:314',message:'LLM prompt check',data:{promptLength:prompt.length,targetPaddockId:targetPaddock?.externalId,targetGeometryInPrompt:targetGeometryInPrompt.substring(0,300),hasTargetGeometry:!!targetPaddock?.geometry},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:314',message:'LLM prompt check',data:{promptLength:prompt.length,promptPreview,targetPaddockId:targetPaddock?.externalId,targetGeometryInPrompt:targetGeometryInPrompt.substring(0,300),hasTargetGeometry:!!targetPaddock?.geometry},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
 
     const result = await generateText({

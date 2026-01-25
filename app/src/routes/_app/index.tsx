@@ -51,8 +51,6 @@ function GISRoute() {
   const {
     getPaddockById,
     addPaddock,
-    noGrazeZones,
-    waterSources,
     getNoGrazeZoneById,
     getWaterSourceById,
     updateNoGrazeZoneMetadata,

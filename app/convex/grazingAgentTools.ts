@@ -4,7 +4,7 @@ import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
 import area from '@turf/area'
 import difference from '@turf/difference'
 import intersect from '@turf/intersect'
-import { featureCollection, polygon as turfPolygon } from '@turf/helpers'
+import { featureCollection } from '@turf/helpers'
 import type { Feature, MultiPolygon, Polygon } from 'geojson'
 // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
 // Mutations cannot use Node.js APIs, so we don't import Braintrust here

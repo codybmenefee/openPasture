@@ -51,7 +51,7 @@ async function flushAllTelemetry(): Promise<void> {
  * Type definition for morning_brief trigger additional context
  * This allows passing event-specific data to avoid duplicate queries
  */
-type MorningBriefContext = {
+export type MorningBriefContext = {
   planGenerationData: {
     existingPlanId: any | null
     observations: any[] | null

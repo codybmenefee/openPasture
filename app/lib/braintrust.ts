@@ -9,6 +9,9 @@
 
 "use node"
 
+// Declare process for Node.js environment (used by Convex actions)
+declare const process: { env: Record<string, string | undefined> }
+
 const BRAINTRUST_API_URL = "https://api.braintrust.dev"
 const BRAINTRUST_PROJECT_NAME = process.env.BRAINTRUST_PROJECT_NAME || 'grazing-agent'
 
@@ -124,7 +127,7 @@ async function insertLogEvents(apiKey: string, events: any[]): Promise<boolean> 
  * Create a span object that mimics the Braintrust SDK interface.
  * Accumulates data from multiple log() calls and flushes as a single event.
  */
-function createSpan(apiKey: string, spanId: string, spanData: any): {
+function createSpan(_apiKey: string, spanId: string, spanData: any): {
   log: (data: any) => void
   end: () => void
   id: string
