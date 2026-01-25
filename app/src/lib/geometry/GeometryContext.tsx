@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
-import type { Feature, Polygon } from 'geojson'
-import type { Paddock, Section } from '@/lib/types'
+import type { Feature, Point, Polygon } from 'geojson'
+import type { Paddock, Section, NoGrazeZone, WaterSource, WaterSourceType } from '@/lib/types'
 import type {
   GeometryContextValue,
   GeometryProviderProps,
@@ -36,6 +36,19 @@ function createDefaultSectionMetadata(): Omit<Section, 'id' | 'paddockId' | 'geo
   }
 }
 
+function createDefaultNoGrazeZoneMetadata(): Pick<NoGrazeZone, 'name'> {
+  return {
+    name: 'New No-graze Zone',
+  }
+}
+
+function createDefaultWaterSourceMetadata(): Pick<WaterSource, 'name' | 'type'> {
+  return {
+    name: 'New Water Source',
+    type: 'other' as WaterSourceType,
+  }
+}
+
 function normalizePaddocks(list: Paddock[]): Paddock[] {
   return list.map((paddock) => ({
     ...paddock,
@@ -51,14 +64,23 @@ function normalizeSections(list: Section[]): Section[] {
 }
 
 function stripFeatureId(feature: Feature<Polygon>): Feature<Polygon> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id: _id, ...rest } = feature as Feature<Polygon> & { id?: string | number }
   return rest
+}
+
+function stripAnyFeatureId<T extends Feature<Point | Polygon>>(feature: T): T {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, ...rest } = feature as T & { id?: string | number }
+  return rest as T
 }
 
 export function GeometryProvider({
   children,
   initialPaddocks,
   initialSections,
+  initialNoGrazeZones,
+  initialWaterSources,
   onGeometryChange,
   onPaddockMetadataChange,
 }: GeometryProviderProps) {
@@ -70,6 +92,8 @@ export function GeometryProvider({
     const source = initialSections ?? []
     return normalizeSections(source)
   })
+  const [noGrazeZones, setNoGrazeZones] = useState<NoGrazeZone[]>(() => initialNoGrazeZones ?? [])
+  const [waterSources, setWaterSources] = useState<WaterSource[]>(() => initialWaterSources ?? [])
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
@@ -182,6 +206,7 @@ export function GeometryProvider({
     setIsSaving(true)
     try {
       // Strip the 'synced' field before sending to backend
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const changesToSync: GeometryChange[] = unsyncedChanges.map(
         ({ synced: _, ...change }) => change
       )
@@ -347,6 +372,170 @@ export function GeometryProvider({
     [recordChange, sections]
   )
 
+  // No-graze zone operations
+  const addNoGrazeZone = useCallback(
+    (
+      geometry: Feature<Polygon>,
+      metadata?: Partial<Omit<NoGrazeZone, 'id' | 'farmId' | 'geometry' | 'createdAt' | 'updatedAt'>>
+    ): string => {
+      const id = `ngz-${generateId()}`
+      const now = new Date().toISOString()
+      const newZone: NoGrazeZone = {
+        ...createDefaultNoGrazeZoneMetadata(),
+        ...metadata,
+        id,
+        farmId: '', // Will be set by backend
+        geometry,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      setNoGrazeZones((prev) => [...prev, newZone])
+      recordChange({
+        id,
+        entityType: 'noGrazeZone',
+        changeType: 'add',
+        geometry,
+        metadata: { name: newZone.name },
+        timestamp: now,
+      })
+
+      return id
+    },
+    [recordChange]
+  )
+
+  const updateNoGrazeZone = useCallback(
+    (id: string, geometry: Feature<Polygon>) => {
+      setNoGrazeZones((prev) =>
+        prev.map((z) => (z.id === id ? { ...z, geometry, updatedAt: new Date().toISOString() } : z))
+      )
+      recordChange({
+        id,
+        entityType: 'noGrazeZone',
+        changeType: 'update',
+        geometry,
+        timestamp: new Date().toISOString(),
+      })
+    },
+    [recordChange]
+  )
+
+  const updateNoGrazeZoneMetadata = useCallback(
+    (id: string, metadata: Partial<Omit<NoGrazeZone, 'id' | 'farmId' | 'geometry' | 'createdAt' | 'updatedAt'>>) => {
+      setNoGrazeZones((prev) =>
+        prev.map((z) => (z.id === id ? { ...z, ...metadata, updatedAt: new Date().toISOString() } : z))
+      )
+    },
+    []
+  )
+
+  const deleteNoGrazeZone = useCallback(
+    (id: string) => {
+      setNoGrazeZones((prev) => prev.filter((z) => z.id !== id))
+      recordChange({
+        id,
+        entityType: 'noGrazeZone',
+        changeType: 'delete',
+        timestamp: new Date().toISOString(),
+      })
+    },
+    [recordChange]
+  )
+
+  const getNoGrazeZoneById = useCallback(
+    (id: string): NoGrazeZone | undefined => {
+      return noGrazeZones.find((z) => z.id === id)
+    },
+    [noGrazeZones]
+  )
+
+  // Water source operations
+  const addWaterSource = useCallback(
+    (
+      geometry: Feature<Point | Polygon>,
+      geometryType: 'point' | 'polygon',
+      metadata?: Partial<Omit<WaterSource, 'id' | 'farmId' | 'geometry' | 'geometryType' | 'createdAt' | 'updatedAt'>>
+    ): string => {
+      const id = `ws-${generateId()}`
+      const now = new Date().toISOString()
+      const newSource: WaterSource = {
+        ...createDefaultWaterSourceMetadata(),
+        ...metadata,
+        id,
+        farmId: '', // Will be set by backend
+        geometryType,
+        geometry,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      setWaterSources((prev) => [...prev, newSource])
+      recordChange({
+        id,
+        entityType: geometryType === 'point' ? 'waterPoint' : 'waterPolygon',
+        changeType: 'add',
+        geometry: stripAnyFeatureId(geometry) as Feature<Polygon>,
+        metadata: { name: newSource.name, type: newSource.type, geometryType },
+        timestamp: now,
+      })
+
+      return id
+    },
+    [recordChange]
+  )
+
+  const updateWaterSource = useCallback(
+    (id: string, geometry: Feature<Point | Polygon>) => {
+      const source = waterSources.find((s) => s.id === id)
+      setWaterSources((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, geometry, updatedAt: new Date().toISOString() } : s))
+      )
+      if (source) {
+        recordChange({
+          id,
+          entityType: source.geometryType === 'point' ? 'waterPoint' : 'waterPolygon',
+          changeType: 'update',
+          geometry: stripAnyFeatureId(geometry) as Feature<Polygon>,
+          timestamp: new Date().toISOString(),
+        })
+      }
+    },
+    [recordChange, waterSources]
+  )
+
+  const updateWaterSourceMetadata = useCallback(
+    (id: string, metadata: Partial<Omit<WaterSource, 'id' | 'farmId' | 'geometry' | 'geometryType' | 'createdAt' | 'updatedAt'>>) => {
+      setWaterSources((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...metadata, updatedAt: new Date().toISOString() } : s))
+      )
+    },
+    []
+  )
+
+  const deleteWaterSource = useCallback(
+    (id: string) => {
+      const source = waterSources.find((s) => s.id === id)
+      setWaterSources((prev) => prev.filter((s) => s.id !== id))
+      if (source) {
+        recordChange({
+          id,
+          entityType: source.geometryType === 'point' ? 'waterPoint' : 'waterPolygon',
+          changeType: 'delete',
+          timestamp: new Date().toISOString(),
+        })
+      }
+    },
+    [recordChange, waterSources]
+  )
+
+  const getWaterSourceById = useCallback(
+    (id: string): WaterSource | undefined => {
+      return waterSources.find((s) => s.id === id)
+    },
+    [waterSources]
+  )
+
   // Utility functions
   const getPaddockById = useCallback(
     (id: string): Paddock | undefined => {
@@ -372,13 +561,17 @@ export function GeometryProvider({
   const resetToInitial = useCallback(() => {
     setPaddocks(normalizePaddocks(initialPaddocks ?? mockPaddocks))
     setSections(normalizeSections(initialSections ?? []))
+    setNoGrazeZones(initialNoGrazeZones ?? [])
+    setWaterSources(initialWaterSources ?? [])
     setPendingChanges([])
-  }, [initialPaddocks, initialSections])
+  }, [initialPaddocks, initialSections, initialNoGrazeZones, initialWaterSources])
 
   const value = useMemo<GeometryContextValue>(
     () => ({
       paddocks,
       sections,
+      noGrazeZones,
+      waterSources,
       pendingChanges,
       hasUnsavedChanges,
       isSaving,
@@ -389,6 +582,16 @@ export function GeometryProvider({
       addSection,
       updateSection,
       deleteSection,
+      addNoGrazeZone,
+      updateNoGrazeZone,
+      updateNoGrazeZoneMetadata,
+      deleteNoGrazeZone,
+      getNoGrazeZoneById,
+      addWaterSource,
+      updateWaterSource,
+      updateWaterSourceMetadata,
+      deleteWaterSource,
+      getWaterSourceById,
       getPaddockById,
       getSectionById,
       getSectionsByPaddockId,
@@ -400,6 +603,8 @@ export function GeometryProvider({
     [
       paddocks,
       sections,
+      noGrazeZones,
+      waterSources,
       pendingChanges,
       hasUnsavedChanges,
       isSaving,
@@ -410,6 +615,16 @@ export function GeometryProvider({
       addSection,
       updateSection,
       deleteSection,
+      addNoGrazeZone,
+      updateNoGrazeZone,
+      updateNoGrazeZoneMetadata,
+      deleteNoGrazeZone,
+      getNoGrazeZoneById,
+      addWaterSource,
+      updateWaterSource,
+      updateWaterSourceMetadata,
+      deleteWaterSource,
+      getWaterSourceById,
       getPaddockById,
       getSectionById,
       getSectionsByPaddockId,

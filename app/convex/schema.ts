@@ -10,6 +10,15 @@ const polygonFeature = v.object({
   }),
 })
 
+const pointFeature = v.object({
+  type: v.literal('Feature'),
+  properties: v.optional(v.any()),
+  geometry: v.object({
+    type: v.literal('Point'),
+    coordinates: v.array(v.number()), // [lng, lat]
+  }),
+})
+
 const rawPolygon = v.object({
   type: v.literal('Polygon'),
   coordinates: v.array(v.array(v.array(v.number()))),
@@ -161,6 +170,29 @@ export default defineSchema({
     geometry: polygonFeature,
     metadata: v.optional(v.any()),
   }).index('by_paddock', ['paddockId']),
+  noGrazeZones: defineTable({
+    farmId: v.id('farms'),
+    name: v.string(),
+    geometry: polygonFeature,
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index('by_farm', ['farmId']),
+  waterSources: defineTable({
+    farmId: v.id('farms'),
+    name: v.string(),
+    type: v.union(
+      v.literal('trough'),
+      v.literal('pond'),
+      v.literal('dam'),
+      v.literal('tank'),
+      v.literal('stream'),
+      v.literal('other')
+    ),
+    geometryType: v.union(v.literal('point'), v.literal('polygon')),
+    geometry: v.union(pointFeature, polygonFeature),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index('by_farm', ['farmId']),
   weatherHistory: defineTable({
     farmId: v.id('farms'),
     date: v.string(),

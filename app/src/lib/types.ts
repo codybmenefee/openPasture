@@ -1,4 +1,4 @@
-import type { Feature, Polygon } from 'geojson'
+import type { Feature, Point, Polygon } from 'geojson'
 
 export type PaddockStatus = 'ready' | 'almost_ready' | 'recovering' | 'grazed'
 
@@ -230,4 +230,29 @@ export interface GrazingStock {
   byPaddock: PaddockGrazingReserve[]
   lastUpdated: string // ISO date
   assumptionNote: string // e.g., "Assumes zero precipitation and growth stall"
+}
+
+// No-graze zones (farm-level exclusion areas)
+export interface NoGrazeZone {
+  id: string
+  farmId: string
+  name: string
+  geometry: Feature<Polygon>
+  createdAt: string
+  updatedAt: string
+}
+
+// Water source types
+export type WaterSourceType = 'trough' | 'pond' | 'dam' | 'tank' | 'stream' | 'other'
+
+// Water sources (can be point or polygon)
+export interface WaterSource {
+  id: string
+  farmId: string
+  name: string
+  type: WaterSourceType
+  geometryType: 'point' | 'polygon'
+  geometry: Feature<Point | Polygon>
+  createdAt: string
+  updatedAt: string
 }

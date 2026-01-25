@@ -17,12 +17,14 @@ import type * as grazingAgentTools from "../grazingAgentTools.js";
 import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
+import type * as noGrazeZones from "../noGrazeZones.js";
 import type * as observations from "../observations.js";
 import type * as organizations from "../organizations.js";
 import type * as paddocks from "../paddocks.js";
 import type * as seedData from "../seedData.js";
 import type * as settings from "../settings.js";
 import type * as users from "../users.js";
+import type * as waterSources from "../waterSources.js";
 import type * as zones from "../zones.js";
 
 import type {
@@ -41,12 +43,14 @@ declare const fullApi: ApiFromModules<{
   intelligence: typeof intelligence;
   intelligenceActions: typeof intelligenceActions;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;
+  noGrazeZones: typeof noGrazeZones;
   observations: typeof observations;
   organizations: typeof organizations;
   paddocks: typeof paddocks;
   seedData: typeof seedData;
   settings: typeof settings;
   users: typeof users;
+  waterSources: typeof waterSources;
   zones: typeof zones;
 }>;
 

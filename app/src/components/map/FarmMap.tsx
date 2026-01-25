@@ -239,6 +239,106 @@ function ensureSectionLayers(mapInstance: maplibregl.Map) {
   }
 }
 
+function ensureNoGrazeZoneLayers(mapInstance: maplibregl.Map) {
+  const emptyCollection: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [],
+  }
+
+  if (!mapInstance.getSource('no-graze-zones')) {
+    mapInstance.addSource('no-graze-zones', {
+      type: 'geojson',
+      data: emptyCollection,
+    })
+  }
+
+  if (!mapInstance.getLayer('no-graze-fill')) {
+    mapInstance.addLayer({
+      id: 'no-graze-fill',
+      type: 'fill',
+      source: 'no-graze-zones',
+      paint: {
+        'fill-color': '#ef4444',
+        'fill-opacity': 0.25,
+      },
+    })
+  }
+
+  if (!mapInstance.getLayer('no-graze-outline')) {
+    mapInstance.addLayer({
+      id: 'no-graze-outline',
+      type: 'line',
+      source: 'no-graze-zones',
+      paint: {
+        'line-color': '#dc2626',
+        'line-width': 2,
+        'line-dasharray': [4, 2],
+      },
+    })
+  }
+}
+
+function ensureWaterSourceLayers(mapInstance: maplibregl.Map) {
+  const emptyCollection: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [],
+  }
+
+  // Polygon water sources
+  if (!mapInstance.getSource('water-source-polygons')) {
+    mapInstance.addSource('water-source-polygons', {
+      type: 'geojson',
+      data: emptyCollection,
+    })
+  }
+
+  if (!mapInstance.getLayer('water-source-fill')) {
+    mapInstance.addLayer({
+      id: 'water-source-fill',
+      type: 'fill',
+      source: 'water-source-polygons',
+      paint: {
+        'fill-color': '#3b82f6',
+        'fill-opacity': 0.3,
+      },
+    })
+  }
+
+  if (!mapInstance.getLayer('water-source-outline')) {
+    mapInstance.addLayer({
+      id: 'water-source-outline',
+      type: 'line',
+      source: 'water-source-polygons',
+      paint: {
+        'line-color': '#2563eb',
+        'line-width': 2,
+      },
+    })
+  }
+
+  // Point water sources (markers)
+  if (!mapInstance.getSource('water-source-points')) {
+    mapInstance.addSource('water-source-points', {
+      type: 'geojson',
+      data: emptyCollection,
+    })
+  }
+
+  if (!mapInstance.getLayer('water-source-markers')) {
+    mapInstance.addLayer({
+      id: 'water-source-markers',
+      type: 'circle',
+      source: 'water-source-points',
+      paint: {
+        'circle-radius': 8,
+        'circle-color': '#3b82f6',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff',
+      },
+    })
+  }
+}
+
 export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap({ 
   onPaddockClick, 
   onEditPaddockSelect,
@@ -280,7 +380,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastLoadedPaddockKeyRef = useRef<string | null>(null)
 
-  const { paddocks, getPaddockById } = useGeometry()
+  const { paddocks, getPaddockById, noGrazeZones, waterSources } = useGeometry()
   const { farm, isLoading: isFarmLoading } = useFarm()
   const farmId = farm?.id ?? null
   const farmLng = farm?.coordinates?.[0] ?? null
@@ -590,6 +690,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             source: 'osm',
             minzoom: 0,
             maxzoom: 19,
+            layout: {
+              visibility: showSatellite ? 'none' : 'visible',
+            },
           },
           {
             id: 'satellite-tiles',
@@ -598,7 +701,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             minzoom: 0,
             maxzoom: 19,
             layout: {
-              visibility: 'none',
+              visibility: showSatellite ? 'visible' : 'none',
             },
           },
         ],
@@ -804,6 +907,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Push section data to sources after layers are created
   pushSectionData(map, sectionStateRef.current)
+
+  // Add no-graze zone and water source layers
+  ensureNoGrazeZoneLayers(map)
+  ensureWaterSourceLayers(map)
 }
 
     const filterExistingLayers = (layerIds: string[]) =>
@@ -1066,6 +1173,71 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       pushSectionData(mapInstance, sectionState)
     }
   }, [mapInstance, isMapLoaded, paddocks, updateSectionListForPaddock])
+
+  // Update no-graze zone layer data
+  useEffect(() => {
+    if (!isMapReady()) return
+    const map = mapInstance!
+
+    const source = map.getSource('no-graze-zones') as maplibregl.GeoJSONSource | undefined
+    if (!source) return
+
+    const geojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: noGrazeZones.map((zone) => ({
+        ...zone.geometry,
+        properties: {
+          ...(zone.geometry.properties ?? {}),
+          id: zone.id,
+          name: zone.name,
+        },
+      })),
+    }
+    source.setData(geojson)
+  }, [mapInstance, isMapLoaded, noGrazeZones, isMapReady])
+
+  // Update water source layer data
+  useEffect(() => {
+    if (!isMapReady()) return
+    const map = mapInstance!
+
+    const polygonSource = map.getSource('water-source-polygons') as maplibregl.GeoJSONSource | undefined
+    const pointSource = map.getSource('water-source-points') as maplibregl.GeoJSONSource | undefined
+
+    if (!polygonSource || !pointSource) return
+
+    const polygonSources = waterSources.filter((s) => s.geometryType === 'polygon')
+    const pointSources = waterSources.filter((s) => s.geometryType === 'point')
+
+    const polygonGeojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: polygonSources.map((source) => ({
+        ...source.geometry,
+        properties: {
+          ...(source.geometry.properties ?? {}),
+          id: source.id,
+          name: source.name,
+          type: source.type,
+        },
+      })),
+    }
+
+    const pointGeojson: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: pointSources.map((source) => ({
+        ...source.geometry,
+        properties: {
+          ...(source.geometry.properties ?? {}),
+          id: source.id,
+          name: source.name,
+          type: source.type,
+        },
+      })),
+    }
+
+    polygonSource.setData(polygonGeojson)
+    pointSource.setData(pointGeojson)
+  }, [mapInstance, isMapLoaded, waterSources, isMapReady])
 
   // Farm boundary visualization layer
   useEffect(() => {

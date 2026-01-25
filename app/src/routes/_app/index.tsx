@@ -83,7 +83,7 @@ function GISRoute() {
   })
 
   const [layers, setLayers] = useState({
-    satellite: false,
+    satellite: true,
     ndviHeat: false,
     paddocks: true,
     labels: true,

@@ -49,7 +49,24 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
       if (!farmId) {
         throw new Error('Farm ID is unavailable.')
       }
-      await applyPaddockChanges({ farmId, changes })
+      // Filter to only paddock and section changes for now
+      // TODO: Add backend handlers for noGrazeZone and waterSource
+      const paddockSectionChanges = changes
+        .filter((c): c is GeometryChange & { entityType: 'paddock' | 'section' } =>
+          c.entityType === 'paddock' || c.entityType === 'section'
+        )
+        .map(({ id, entityType, changeType, geometry, parentId, timestamp, metadata }) => ({
+          id,
+          entityType,
+          changeType,
+          geometry,
+          parentId,
+          timestamp,
+          metadata,
+        }))
+      if (paddockSectionChanges.length > 0) {
+        await applyPaddockChanges({ farmId, changes: paddockSectionChanges })
+      }
     },
     [applyPaddockChanges, farmId]
   )

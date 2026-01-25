@@ -4,6 +4,7 @@ import { FarmMap, type FarmMapHandle } from './FarmMap'
 import { PaddockPanel } from './PaddockPanel'
 import { PaddockEditPanel } from './PaddockEditPanel'
 import { LayerToggles } from './LayerToggles'
+import { MapAddMenu } from './MapAddMenu'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useCurrentUser } from '@/lib/convex/useCurrentUser'
@@ -26,7 +27,7 @@ export function MapView() {
   
   const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
   const [editMode, setEditMode] = useState(false)
-  const [entityType, setEntityType] = useState<'paddock' | 'section'>('paddock')
+  const [entityType, setEntityType] = useState<'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'>('paddock')
   const [focusPaddockId, setFocusPaddockId] = useState<string | undefined>(undefined)
   const [editSectionFeature, setEditSectionFeature] = useState<Feature<Polygon> | null>(null)
   const [editSectionId, setEditSectionId] = useState<string | undefined>(undefined)
@@ -35,7 +36,7 @@ export function MapView() {
   const { getSectionById, getPaddockById, addPaddock, sections } = useGeometry()
   
   const [layers, setLayers] = useState({
-    satellite: false,
+    satellite: true,
     ndviHeat: false,
     paddocks: true,
     labels: true,
@@ -307,7 +308,7 @@ export function MapView() {
           showSections={layers.sections}
           editable={true}
           editMode={editMode}
-          entityType={entityType}
+          entityType={entityType === 'noGrazeZone' || entityType === 'waterPolygon' ? 'paddock' : entityType === 'waterPoint' ? 'paddock' : entityType}
           parentPaddockId={entityType === 'section' ? focusPaddockId : undefined}
           initialSectionFeature={effectiveSectionGeometry ?? undefined}
           initialSectionId={effectiveSectionId}
@@ -319,9 +320,26 @@ export function MapView() {
         {editMode && (
           <div className="absolute top-3 right-3 z-10">
             <div className="rounded-lg border border-primary bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-              Editing {entityType === 'section' ? 'Sections' : 'Paddocks'}
+              Editing {entityType === 'section' ? 'Sections' : entityType === 'noGrazeZone' ? 'No-graze Zone' : entityType === 'waterPoint' || entityType === 'waterPolygon' ? 'Water Source' : 'Paddocks'}
             </div>
           </div>
+        )}
+
+        {/* Add menu (visible when not in edit mode) */}
+        {!editMode && (
+          <MapAddMenu
+            onAddPaddock={() => handleEditRequest({ entityType: 'paddock' })}
+            onAddNoGrazeZone={() => {
+              setEditMode(true)
+              setEntityType('noGrazeZone')
+              setSelectedPaddock(null)
+            }}
+            onAddWaterSource={(geometryType) => {
+              setEditMode(true)
+              setEntityType(geometryType === 'point' ? 'waterPoint' : 'waterPolygon')
+              setSelectedPaddock(null)
+            }}
+          />
         )}
         
         {/* Layer toggles */}

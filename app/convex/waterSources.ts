@@ -1,0 +1,112 @@
+import { v } from 'convex/values'
+import { mutation, query } from './_generated/server'
+
+const polygonFeature = v.object({
+  type: v.literal('Feature'),
+  properties: v.optional(v.any()),
+  geometry: v.object({
+    type: v.literal('Polygon'),
+    coordinates: v.array(v.array(v.array(v.number()))),
+  }),
+})
+
+const pointFeature = v.object({
+  type: v.literal('Feature'),
+  properties: v.optional(v.any()),
+  geometry: v.object({
+    type: v.literal('Point'),
+    coordinates: v.array(v.number()), // [lng, lat]
+  }),
+})
+
+const waterSourceType = v.union(
+  v.literal('trough'),
+  v.literal('pond'),
+  v.literal('dam'),
+  v.literal('tank'),
+  v.literal('stream'),
+  v.literal('other')
+)
+
+/**
+ * List all water sources for a farm.
+ */
+export const list = query({
+  args: {
+    farmId: v.id('farms'),
+  },
+  handler: async (ctx, args) => {
+    const sources = await ctx.db
+      .query('waterSources')
+      .withIndex('by_farm', (q) => q.eq('farmId', args.farmId))
+      .collect()
+    return sources
+  },
+})
+
+/**
+ * Create a new water source.
+ */
+export const create = mutation({
+  args: {
+    farmId: v.id('farms'),
+    name: v.string(),
+    type: waterSourceType,
+    geometryType: v.union(v.literal('point'), v.literal('polygon')),
+    geometry: v.union(pointFeature, polygonFeature),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const sourceId = await ctx.db.insert('waterSources', {
+      farmId: args.farmId,
+      name: args.name,
+      type: args.type,
+      geometryType: args.geometryType,
+      geometry: args.geometry,
+      createdAt: now,
+      updatedAt: now,
+    })
+    return sourceId
+  },
+})
+
+/**
+ * Update a water source.
+ */
+export const update = mutation({
+  args: {
+    id: v.id('waterSources'),
+    name: v.optional(v.string()),
+    type: v.optional(waterSourceType),
+    geometry: v.optional(v.union(pointFeature, polygonFeature)),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id)
+    if (!existing) {
+      throw new Error('Water source not found')
+    }
+
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    }
+    if (args.name !== undefined) updates.name = args.name
+    if (args.type !== undefined) updates.type = args.type
+    if (args.geometry !== undefined) updates.geometry = args.geometry
+
+    await ctx.db.patch(args.id, updates)
+    return args.id
+  },
+})
+
+/**
+ * Delete a water source.
+ */
+export const remove = mutation({
+  args: {
+    id: v.id('waterSources'),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id)
+    return { success: true }
+  },
+})
