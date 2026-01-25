@@ -271,17 +271,21 @@ export function useMapDraw({
     }
 
     const handleDelete = (e: { features: Feature[] }) => {
+      console.log('[useMapDraw] handleDelete called:', { featureCount: e.features.length, entityType })
       e.features.forEach((feature) => {
         if (!feature.id) return
 
         const id = String(feature.id)
+        console.log('[useMapDraw] Deleting feature:', { id, entityType })
         if (entityType === 'paddock') {
           deletePaddock(id)
         } else if (entityType === 'section') {
           deleteSection(id)
         } else if (entityType === 'noGrazeZone') {
+          console.log('[useMapDraw] Calling deleteNoGrazeZone:', id)
           deleteNoGrazeZone(id)
         } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
+          console.log('[useMapDraw] Calling deleteWaterSource:', id)
           deleteWaterSource(id)
         }
 
@@ -344,11 +348,33 @@ export function useMapDraw({
   }, [])
 
   const deleteSelected = useCallback(() => {
+    console.log('[useMapDraw] deleteSelected called:', { selectedFeatureIds, hasDraw: !!drawRef.current, entityType })
     if (drawRef.current && selectedFeatureIds.length > 0) {
+      // Get the features before deleting them from draw
+      const featuresToDelete = selectedFeatureIds.map(id => drawRef.current?.get(id)).filter(Boolean)
+      console.log('[useMapDraw] Features to delete:', featuresToDelete)
+
+      // Delete from draw control
       drawRef.current.delete(selectedFeatureIds)
-      // The delete event handler will update the geometry context
+
+      // Manually call delete functions since draw.delete event may not fire with MapLibre
+      selectedFeatureIds.forEach(id => {
+        console.log('[useMapDraw] Manually deleting:', { id, entityType })
+        if (entityType === 'paddock') {
+          deletePaddock(id)
+        } else if (entityType === 'section') {
+          deleteSection(id)
+        } else if (entityType === 'noGrazeZone') {
+          console.log('[useMapDraw] Calling deleteNoGrazeZone:', id)
+          deleteNoGrazeZone(id)
+        } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
+          console.log('[useMapDraw] Calling deleteWaterSource:', id)
+          deleteWaterSource(id)
+        }
+        onFeatureDeleted?.(id)
+      })
     }
-  }, [selectedFeatureIds])
+  }, [selectedFeatureIds, entityType, deletePaddock, deleteSection, deleteNoGrazeZone, deleteWaterSource, onFeatureDeleted])
 
   const cancelDrawing = useCallback(() => {
     if (drawRef.current) {
