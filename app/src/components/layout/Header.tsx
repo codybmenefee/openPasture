@@ -8,29 +8,29 @@ export function Header() {
   const { isDevAuth } = useAppAuth()
 
   return (
-    <header className="flex h-10 items-center justify-between border-b border-border bg-background px-4">
+    <header className="flex h-8 items-center justify-between border-b border-border bg-background px-2">
       <FarmSelector />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5">
 
-        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
+        <span className="px-1 py-0 text-[9px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
           demo
         </span>
 
         {isDevAuth && (
           <Link to="/onboarding">
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5" title="Reset onboarding journey">
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span className="text-xs">onboarding</span>
+            <Button variant="ghost" size="sm" className="h-5 gap-1 px-1" title="Reset onboarding journey">
+              <RotateCcw className="h-3 w-3" />
+              <span className="text-[10px]">onboarding</span>
             </Button>
           </Link>
         )}
 
-        <Button variant="ghost" size="icon" className="h-7 w-7">
-          <HelpCircle className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-5 w-5">
+          <HelpCircle className="h-3 w-3" />
         </Button>
 
         {/* Avatar placeholder */}
-        <button className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
+        <button className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
           C
         </button>
       </div>

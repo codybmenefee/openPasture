@@ -225,7 +225,7 @@ export function MorningBrief({
     return (
       <div className="h-full flex flex-col">
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex-1 overflow-y-auto p-2 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {showLowConfidenceWarning && (
             <LowConfidenceWarning
               cloudCover={65}
@@ -237,8 +237,8 @@ export function MorningBrief({
             />
           )}
 
-          <div className="rounded-md border border-border bg-card p-3">
-            <p className="text-sm leading-relaxed">
+          <div className="rounded-md border border-border bg-card p-2">
+            <p className="text-xs leading-relaxed">
               {briefNarrative}
             </p>
           </div>
@@ -267,17 +267,17 @@ export function MorningBrief({
           <div className="rounded-md border border-border bg-card">
             <button
               onClick={() => toggleSection('farmOverview')}
-              className="flex w-full items-center justify-between p-3 text-left"
+              className="flex w-full items-center justify-between p-2 text-left"
             >
-              <span className="text-sm font-medium">Farm Overview</span>
+              <span className="text-xs font-medium">Farm Overview</span>
               {expandedSections.farmOverview ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
             </button>
             {expandedSections.farmOverview && (
-              <div className="border-t px-3 pb-3">
+              <div className="border-t px-2 pb-2">
                 <FarmOverview />
               </div>
             )}
@@ -287,17 +287,17 @@ export function MorningBrief({
           <div className="rounded-md border border-border bg-card">
             <button
               onClick={() => toggleSection('dataStatus')}
-              className="flex w-full items-center justify-between p-3 text-left"
+              className="flex w-full items-center justify-between p-2 text-left"
             >
-              <span className="text-sm font-medium">Data Status</span>
+              <span className="text-xs font-medium">Data Status</span>
               {expandedSections.dataStatus ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                <ChevronUp className="h-3 w-3 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-3 w-3 text-muted-foreground" />
               )}
             </button>
             {expandedSections.dataStatus && (
-              <div className="border-t px-3 pb-3">
+              <div className="border-t px-2 pb-2">
                 <DataStatusCard />
               </div>
             )}
@@ -308,7 +308,7 @@ export function MorningBrief({
             <button
               onClick={handleResetPlan}
               disabled={isResetting}
-              className="text-xs text-muted-foreground hover:text-foreground underline disabled:opacity-50"
+              className="text-[10px] text-muted-foreground hover:text-foreground underline disabled:opacity-50"
             >
               {isResetting ? 'Resetting...' : 'Reset plan (debug)'}
             </button>
@@ -316,12 +316,12 @@ export function MorningBrief({
         </div>
 
         {/* Sticky Footer with Action Buttons */}
-        <div className="sticky bottom-0 z-10 border-t bg-background p-3">
-          <div className="flex gap-2">
-            <Button onClick={handleApprove} className="flex-1 h-9 text-sm">
+        <div className="sticky bottom-0 z-10 border-t bg-background p-2">
+          <div className="flex gap-1.5">
+            <Button onClick={handleApprove} className="flex-1 h-7 text-xs">
               Approve Section
             </Button>
-            <Button variant="outline" onClick={handleModify} className="flex-1 h-9 text-sm">
+            <Button variant="outline" onClick={handleModify} className="flex-1 h-7 text-xs">
               Modify
             </Button>
           </div>

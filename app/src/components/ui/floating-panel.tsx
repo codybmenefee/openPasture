@@ -200,31 +200,31 @@ export function FloatingPanel({
       {/* Header - Draggable */}
       <div
         className={cn(
-          "flex items-center justify-between px-4 py-3 border-b",
+          "flex items-center justify-between px-2.5 py-1.5 border-b",
           "bg-muted/30",
           isDragging ? "cursor-grabbing" : "cursor-grab"
         )}
         onMouseDown={handleDragStart}
       >
-        <div className="flex items-center gap-2">
-          <GripVerticalIcon className="h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-1.5">
+          <GripVerticalIcon className="h-3 w-3 text-muted-foreground" />
           <div>
-            {title && <span className="font-semibold text-sm">{title}</span>}
-            {subtitle && <span className="text-xs text-muted-foreground ml-1">• {subtitle}</span>}
+            {title && <span className="font-semibold text-xs">{title}</span>}
+            {subtitle && <span className="text-[10px] text-muted-foreground ml-1">• {subtitle}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {headerActions}
           <button
             data-close-button
             onClick={() => onOpenChange(false)}
             className={cn(
-              "rounded-sm p-1 opacity-70 transition-opacity",
+              "rounded-sm p-0.5 opacity-70 transition-opacity",
               "hover:opacity-100 hover:bg-muted",
               "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             )}
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="h-3 w-3" />
             <span className="sr-only">Close</span>
           </button>
         </div>

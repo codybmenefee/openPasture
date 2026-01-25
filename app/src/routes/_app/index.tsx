@@ -554,7 +554,7 @@ function GISRoute() {
       )}
 
       {/* Layer toggles - bottom left */}
-      <div className="absolute bottom-4 left-4 z-10">
+      <div className="absolute bottom-2 left-2 z-10">
         <LayerToggles
           layers={layers}
           onToggle={toggleLayer}
@@ -563,7 +563,7 @@ function GISRoute() {
       </div>
 
       {/* Save indicator - top center */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
+      <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10">
         <SaveIndicator />
       </div>
 
@@ -573,7 +573,7 @@ function GISRoute() {
         onAddNoGrazeZone={handleAddNoGrazeZone}
         onAddWaterSource={handleAddWaterSource}
         onDragStart={handleDragStart}
-        className="top-14"
+        className="top-9"
       />
 
       {/* Floating Save Button when in plan modify mode */}
@@ -601,9 +601,9 @@ function GISRoute() {
               variant="outline"
               size="sm"
               onClick={() => handleZoomToSection(todaysSection.geometry.geometry)}
-              className="gap-1.5"
+              className="gap-1 h-5 text-[10px] px-1.5"
             >
-              <Focus className="h-3.5 w-3.5" />
+              <Focus className="h-3 w-3" />
               <span className="hidden sm:inline">View Section</span>
             </Button>
           )
@@ -613,7 +613,7 @@ function GISRoute() {
         minWidth={320}
         maxWidth={600}
         minHeight={300}
-        initialPosition={{ x: 64, y: 64 }}
+        initialPosition={{ x: 44, y: 44 }}
       >
         <MorningBrief
           farmExternalId={activeFarmId}
@@ -629,15 +629,15 @@ function GISRoute() {
 
       {/* Toggle button when panel is closed */}
       {!briefOpen && (
-        <div className="absolute top-16 left-3 z-10">
+        <div className="absolute top-11 left-2 z-10">
           {plan?.status === 'approved' || plan?.status === 'modified' ? (
             <Button
               variant="default"
               size="sm"
               onClick={() => setBriefOpen(true)}
-              className="gap-2 shadow-lg bg-green-600 hover:bg-green-700"
+              className="gap-1 h-6 text-xs shadow-lg bg-green-600 hover:bg-green-700"
             >
-              <CheckCircle className="h-4 w-4" />
+              <CheckCircle className="h-3.5 w-3.5" />
               Approved
             </Button>
           ) : (
@@ -645,9 +645,9 @@ function GISRoute() {
               variant="default"
               size="sm"
               onClick={() => setBriefOpen(true)}
-              className="gap-2 shadow-lg"
+              className="gap-1 h-6 text-xs shadow-lg"
             >
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-3.5 w-3.5" />
               Daily Plan
             </Button>
           )}

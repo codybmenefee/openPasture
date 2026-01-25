@@ -358,8 +358,8 @@ export function MapView() {
         
         {/* Edit mode indicator */}
         {editMode && (
-          <div className="absolute top-3 right-3 z-10">
-            <div className="rounded-lg border border-primary bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+          <div className="absolute top-2 right-2 z-10">
+            <div className="rounded-lg border border-primary bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
               Editing {entityType === 'section' ? 'Sections' : entityType === 'noGrazeZone' ? 'No-graze Zone' : entityType === 'waterPoint' || entityType === 'waterPolygon' ? 'Water Source' : 'Paddocks'}
             </div>
           </div>
@@ -396,7 +396,7 @@ export function MapView() {
         )}
         
         {/* Layer toggles */}
-        <div className="absolute bottom-4 left-4 z-10">
+        <div className="absolute bottom-2 left-2 z-10">
           <LayerToggles
             layers={layers}
             onToggle={toggleLayer}

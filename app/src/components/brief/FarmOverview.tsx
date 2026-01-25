@@ -87,20 +87,20 @@ export function FarmOverview() {
   return (
     <>
       <Card>
-        <CardHeader className="pb-3 xl:pb-4">
-          <CardTitle className="text-sm xl:text-base font-medium">Farm Overview</CardTitle>
+        <CardHeader className="pb-1.5 xl:pb-2">
+          <CardTitle className="text-xs xl:text-sm font-medium">Farm Overview</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 xl:space-y-3">
+        <CardContent className="space-y-1.5 xl:space-y-2">
           <div>
-            <p className="text-sm xl:text-base font-medium">{farm?.name ?? 'Farm overview'}</p>
-            <p className="text-xs xl:text-sm text-muted-foreground">{farm?.location ?? 'Location unavailable'}</p>
+            <p className="text-xs xl:text-sm font-medium">{farm?.name ?? 'Farm overview'}</p>
+            <p className="text-[10px] xl:text-xs text-muted-foreground">{farm?.location ?? 'Location unavailable'}</p>
           </div>
 
-          <div className="text-xs xl:text-sm text-muted-foreground">
+          <div className="text-[10px] xl:text-xs text-muted-foreground">
             {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ?? '—'} ha
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5 xl:gap-2 text-center">
+          <div className="grid grid-cols-3 gap-1 xl:gap-1.5 text-center">
             {(['ready', 'recovering', 'grazed'] as StatusGroup[]).map((group) => {
               const config = statusGroupConfig[group]
               return (
@@ -108,12 +108,12 @@ export function FarmOverview() {
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => setOpenGroup(group)}
-                      className={`rounded-md ${config.bgClass} py-1.5 xl:py-2 transition-all hover:ring-2 hover:ring-offset-1 hover:ring-current/20 cursor-pointer`}
+                      className={`rounded-md ${config.bgClass} py-1 xl:py-1.5 transition-all hover:ring-2 hover:ring-offset-1 hover:ring-current/20 cursor-pointer`}
                     >
-                      <p className={`text-sm xl:text-base font-semibold ${config.textClass}`}>
+                      <p className={`text-xs xl:text-sm font-semibold ${config.textClass}`}>
                         {groupCounts[group]}
                       </p>
-                      <p className="text-[10px] xl:text-xs text-muted-foreground">
+                      <p className="text-[9px] xl:text-[10px] text-muted-foreground">
                         {group === 'recovering' ? 'Recov.' : group === 'ready' ? 'Ready' : 'Grazed'}
                       </p>
                     </button>

@@ -26,7 +26,7 @@ export function LayerToggles({
   ]
 
   return (
-    <div className="flex gap-1 rounded-lg border border-border bg-background/95 backdrop-blur p-1">
+    <div className="flex gap-0.5 rounded-lg border border-border bg-background/95 backdrop-blur p-0.5">
       {buttons.map((btn) => (
         <Button
           key={btn.key}
@@ -34,7 +34,7 @@ export function LayerToggles({
           size="sm"
           onClick={() => onToggle(btn.key)}
           className={cn(
-            'h-7 px-3 text-xs',
+            'h-5 px-1.5 text-[10px]',
             layers[btn.key] && 'bg-accent'
           )}
         >

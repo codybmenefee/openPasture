@@ -102,12 +102,12 @@ export function MapAddMenu({
   }
 
   return (
-    <div ref={menuRef} className={cn("absolute top-3 right-3 z-20", className)}>
+    <div ref={menuRef} className={cn("absolute top-2 right-2 z-20", className)}>
       {/* Plus button trigger */}
       <Button
         size="icon"
         className={cn(
-          'h-10 w-10 rounded-full shadow-lg transition-transform',
+          'h-8 w-8 rounded-full shadow-lg transition-transform',
           isOpen && 'rotate-45'
         )}
         onClick={() => {
@@ -115,16 +115,16 @@ export function MapAddMenu({
           setWaterSubmenuOpen(false)
         }}
       >
-        <Plus className="h-5 w-5" />
+        <Plus className="h-4 w-4" />
       </Button>
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute top-12 right-0 w-48 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+        <div className="absolute top-9 right-0 w-40 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
           {/* Add Paddock */}
           <button
             className={cn(
-              "flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-accent transition-colors touch-none select-none",
+              "flex w-full items-center gap-2 px-2.5 py-2 text-xs hover:bg-accent transition-colors touch-none select-none",
               onDragStart && "cursor-grab active:cursor-grabbing"
             )}
             onClick={handleAddPaddock}
@@ -132,14 +132,14 @@ export function MapAddMenu({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
           >
-            <Pentagon className="h-4 w-4 text-green-500" />
+            <Pentagon className="h-3.5 w-3.5 text-green-500" />
             <span>Add Paddock</span>
           </button>
 
           {/* Add No-graze Zone */}
           <button
             className={cn(
-              "flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-accent transition-colors border-t border-border touch-none select-none",
+              "flex w-full items-center gap-2 px-2.5 py-2 text-xs hover:bg-accent transition-colors border-t border-border touch-none select-none",
               onDragStart && "cursor-grab active:cursor-grabbing"
             )}
             onClick={handleAddNoGrazeZone}
@@ -147,20 +147,20 @@ export function MapAddMenu({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
           >
-            <Ban className="h-4 w-4 text-red-500" />
+            <Ban className="h-3.5 w-3.5 text-red-500" />
             <span>Add No-graze Zone</span>
           </button>
 
           {/* Add Water Source (with submenu) */}
           <div className="relative">
             <button
-              className="flex w-full items-center gap-3 px-4 py-3 text-sm hover:bg-accent transition-colors border-t border-border"
+              className="flex w-full items-center gap-2 px-2.5 py-2 text-xs hover:bg-accent transition-colors border-t border-border"
               onClick={() => setWaterSubmenuOpen(!waterSubmenuOpen)}
             >
-              <Droplet className="h-4 w-4 text-blue-500" />
+              <Droplet className="h-3.5 w-3.5 text-blue-500" />
               <span className="flex-1 text-left">Add Water Source</span>
               <span className={cn(
-                'text-xs text-muted-foreground transition-transform',
+                'text-[10px] text-muted-foreground transition-transform',
                 waterSubmenuOpen && 'rotate-90'
               )}>
                 &rsaquo;
@@ -172,7 +172,7 @@ export function MapAddMenu({
               <div className="bg-muted/50 border-t border-border">
                 <button
                   className={cn(
-                    "flex w-full items-center gap-3 px-4 py-2.5 pl-8 text-sm hover:bg-accent transition-colors touch-none select-none",
+                    "flex w-full items-center gap-2 px-2.5 py-1.5 pl-6 text-xs hover:bg-accent transition-colors touch-none select-none",
                     onDragStart && "cursor-grab active:cursor-grabbing"
                   )}
                   onClick={() => handleAddWaterSource('point')}
@@ -180,12 +180,12 @@ export function MapAddMenu({
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
                 >
-                  <MapPin className="h-4 w-4 text-blue-400" />
+                  <MapPin className="h-3.5 w-3.5 text-blue-400" />
                   <span>Place marker</span>
                 </button>
                 <button
                   className={cn(
-                    "flex w-full items-center gap-3 px-4 py-2.5 pl-8 text-sm hover:bg-accent transition-colors border-t border-border/50 touch-none select-none",
+                    "flex w-full items-center gap-2 px-2.5 py-1.5 pl-6 text-xs hover:bg-accent transition-colors border-t border-border/50 touch-none select-none",
                     onDragStart && "cursor-grab active:cursor-grabbing"
                   )}
                   onClick={() => handleAddWaterSource('polygon')}
@@ -193,7 +193,7 @@ export function MapAddMenu({
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
                 >
-                  <Hexagon className="h-4 w-4 text-blue-400" />
+                  <Hexagon className="h-3.5 w-3.5 text-blue-400" />
                   <span>Draw area</span>
                 </button>
               </div>

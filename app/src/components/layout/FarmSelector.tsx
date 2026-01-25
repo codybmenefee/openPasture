@@ -103,9 +103,9 @@ function FarmSelectorInner({ organization }: FarmSelectorInnerProps) {
       <Select value={activeFarmId ?? undefined} onValueChange={handleValueChange}>
         <SelectTrigger
           size="sm"
-          className="h-7 gap-1.5 border-none bg-transparent shadow-none hover:bg-accent px-2"
+          className="h-5 gap-1 border-none bg-transparent shadow-none hover:bg-accent px-1"
         >
-          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+          <Building2 className="h-3 w-3 text-muted-foreground" />
           <SelectValue placeholder="Select farm">
             <span className="text-xs">{activeFarm?.name ?? 'No farm'}</span>
           </SelectValue>

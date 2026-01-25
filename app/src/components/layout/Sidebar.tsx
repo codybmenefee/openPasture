@@ -27,9 +27,9 @@ export function Sidebar() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <aside className="flex h-screen w-12 flex-col items-center border-r border-sidebar-border bg-sidebar py-2">
+      <aside className="flex h-screen w-9 flex-col items-center border-r border-sidebar-border bg-sidebar py-1">
         {/* Navigation */}
-        <nav className="flex flex-1 flex-col items-center gap-1">
+        <nav className="flex flex-1 flex-col items-center gap-0.5">
           {navItems.map((item) => {
             const isActive = location.pathname === item.href
             const Icon = item.icon
@@ -40,13 +40,13 @@ export function Sidebar() {
                   <Link
                     to={item.href}
                     className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-md transition-colors',
+                      'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
                       isActive
                         ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3.5 w-3.5" />
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right">
@@ -58,21 +58,21 @@ export function Sidebar() {
         </nav>
 
         {/* Bottom section */}
-        <div className="flex flex-col items-center gap-1">
-          <Separator className="mb-1 w-6" />
-          
+        <div className="flex flex-col items-center gap-0.5">
+          <Separator className="mb-0.5 w-4" />
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
                 to="/settings"
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-md transition-colors',
+                  'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
                   location.pathname === '/settings'
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="h-3.5 w-3.5" />
               </Link>
             </TooltipTrigger>
             <TooltipContent side="right">
