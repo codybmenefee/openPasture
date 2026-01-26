@@ -111,6 +111,7 @@ export const completeJob = mutation({
     success: v.boolean(),
     captureDate: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
+    failureReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId)
@@ -142,14 +143,30 @@ export const completeJob = mutation({
           },
         })
       } else {
+        // Build metadata with actionable fields for boundary overlap failures
+        const metadata: {
+          provider: string
+          failureReason?: string
+          actionUrl?: string
+          actionLabel?: string
+        } = {
+          provider: 'sentinel2',
+        }
+
+        if (args.failureReason === 'boundary_overlap') {
+          metadata.failureReason = args.failureReason
+          metadata.actionUrl = '/?editBoundary=true'
+          metadata.actionLabel = 'Edit Boundary'
+        }
+
         await ctx.runMutation(api.notifications.create, {
           farmExternalId: job.farmExternalId,
           type: 'satellite_failed',
           title: 'Satellite imagery unavailable',
-          message: args.errorMessage ?? 'Failed to fetch satellite imagery. We\'ll retry later.',
-          metadata: {
-            provider: 'sentinel2',
-          },
+          message: args.failureReason === 'boundary_overlap'
+            ? 'Paddocks don\'t overlap with farm boundary. Please update your farm boundary to receive satellite data.'
+            : args.errorMessage ?? 'Failed to fetch satellite imagery. We\'ll retry later.',
+          metadata,
         })
       }
     }
@@ -167,6 +184,7 @@ export const completeJobByFarm = mutation({
     success: v.boolean(),
     captureDate: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
+    failureReason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Find active job for this farm
@@ -202,14 +220,30 @@ export const completeJobByFarm = mutation({
             },
           })
         } else {
+          // Build metadata with actionable fields for boundary overlap failures
+          const metadata: {
+            provider: string
+            failureReason?: string
+            actionUrl?: string
+            actionLabel?: string
+          } = {
+            provider: 'sentinel2',
+          }
+
+          if (args.failureReason === 'boundary_overlap') {
+            metadata.failureReason = args.failureReason
+            metadata.actionUrl = '/?editBoundary=true'
+            metadata.actionLabel = 'Edit Boundary'
+          }
+
           await ctx.runMutation(api.notifications.create, {
             farmExternalId: args.farmExternalId,
             type: 'satellite_failed',
             title: 'Satellite imagery unavailable',
-            message: args.errorMessage ?? 'Failed to fetch satellite imagery. We\'ll retry later.',
-            metadata: {
-              provider: 'sentinel2',
-            },
+            message: args.failureReason === 'boundary_overlap'
+              ? 'Paddocks don\'t overlap with farm boundary. Please update your farm boundary to receive satellite data.'
+              : args.errorMessage ?? 'Failed to fetch satellite imagery. We\'ll retry later.',
+            metadata,
           })
         }
       }
@@ -226,6 +260,7 @@ export const completeJobByFarm = mutation({
       success: args.success,
       captureDate: args.captureDate,
       errorMessage: args.errorMessage,
+      failureReason: args.failureReason,
     })
   },
 })

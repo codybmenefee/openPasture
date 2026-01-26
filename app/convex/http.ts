@@ -290,6 +290,7 @@ interface SatelliteCompletePayload {
   provider: 'sentinel2' | 'planet'
   captureDate?: string
   errorMessage?: string
+  failureReason?: string  // e.g., 'boundary_overlap'
 }
 
 http.route({
@@ -333,6 +334,7 @@ http.route({
         success: payload.success,
         captureDate: payload.captureDate,
         errorMessage: payload.errorMessage,
+        failureReason: payload.failureReason,
       })
 
       return new Response(JSON.stringify({ status: 'ok' }), {

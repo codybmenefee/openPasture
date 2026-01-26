@@ -404,6 +404,7 @@ def notify_completion(
     provider: str,
     capture_date: Optional[str] = None,
     error_message: Optional[str] = None,
+    failure_reason: Optional[str] = None,
 ) -> bool:
     """
     Notify Convex that satellite processing has completed.
@@ -419,6 +420,7 @@ def notify_completion(
         provider: 'sentinel2' or 'planet'
         capture_date: Optional capture date (YYYY-MM-DD)
         error_message: Optional error message if failed
+        failure_reason: Optional failure reason code (e.g., 'boundary_overlap')
 
     Returns:
         True if notification was sent successfully
@@ -442,10 +444,14 @@ def notify_completion(
         payload["captureDate"] = capture_date
     if error_message:
         payload["errorMessage"] = error_message
+    if failure_reason:
+        payload["failureReason"] = failure_reason
 
     try:
         logger.info(f"Sending completion notification to {webhook_url}")
         logger.info(f"  Farm: {farm_external_id}, Provider: {provider}, Success: {success}")
+        if failure_reason:
+            logger.info(f"  Failure reason: {failure_reason}")
 
         response = requests.post(
             webhook_url,

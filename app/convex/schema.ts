@@ -329,6 +329,10 @@ export default defineSchema({
     metadata: v.optional(v.object({
       provider: v.optional(v.string()),
       captureDate: v.optional(v.string()),
+      // Actionable notification fields
+      actionUrl: v.optional(v.string()),      // e.g., "/?editBoundary=true"
+      actionLabel: v.optional(v.string()),    // e.g., "Edit Boundary"
+      failureReason: v.optional(v.string()),  // e.g., "boundary_overlap"
     })),
     isRead: v.boolean(),
     createdAt: v.string(),

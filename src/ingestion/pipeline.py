@@ -719,11 +719,18 @@ def run_pipeline_for_farm(
 
     valid_count = sum(1 for o in observations if o["isValid"])
     logger.info(f"  Valid observations: {valid_count}/{len(observations)}")
-    
+
     # Debug: Log each observation being created
     logger.info(f"  DEBUG: Created {len(observations)} observation records:")
     for idx, obs in enumerate(observations):
         logger.info(f"    [{idx}] farm={obs['farmExternalId']}, paddock={obs['paddockExternalId']}, date={obs['date']}, ndvi={obs['ndviMean']:.3f}")
+
+    # Detect failure reason - if all paddocks failed, likely boundary overlap issue
+    failure_reason = None
+    if valid_count == 0 and len(observations) > 0:
+        # All paddocks failed - likely boundary overlap issue
+        failure_reason = "boundary_overlap"
+        logger.warning(f"  All {len(observations)} paddocks failed - detected boundary_overlap failure")
 
     # Step 8: Write to Convex if configured
     write_success = False
@@ -754,6 +761,7 @@ def run_pipeline_for_farm(
             provider=source_provider,
             capture_date=observation_date,
             error_message=None if write_success else "Failed to write observations",
+            failure_reason=failure_reason,
         )
 
     return PipelineResult(

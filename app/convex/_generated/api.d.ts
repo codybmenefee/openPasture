@@ -18,6 +18,7 @@ import type * as http from "../http.js";
 import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as internal_ from "../internal.js";
+import type * as livestock from "../livestock.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
 import type * as ndviGrid from "../ndviGrid.js";
 import type * as noGrazeZones from "../noGrazeZones.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   intelligence: typeof intelligence;
   intelligenceActions: typeof intelligenceActions;
   internal: typeof internal_;
+  livestock: typeof livestock;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;
   ndviGrid: typeof ndviGrid;
   noGrazeZones: typeof noGrazeZones;
