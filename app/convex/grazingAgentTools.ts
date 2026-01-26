@@ -576,8 +576,9 @@ export const createPlanWithSection = mutation({
           const currentArea = area(currentFeature)
           const overlapPercent = (overlapArea / currentArea) * 100
 
-          // Allow very small overlaps due to floating point precision (< 1%)
-          if (overlapPercent >= 1) {
+          // Allow small overlaps due to LLM coordinate imprecision (<= 5%)
+          const ALLOWED_OVERLAP_PERCENT = 5
+          if (overlapPercent > ALLOWED_OVERLAP_PERCENT) {
             const differenceResult = difference(featureCollection([currentFeature, prevFeature]))
             const differenceGeometry = differenceResult?.geometry as Polygon | MultiPolygon | undefined
             const largestPolygon = differenceGeometry ? pickLargestPolygon(differenceGeometry) : null
@@ -598,6 +599,9 @@ export const createPlanWithSection = mutation({
 
             adjustedSectionGeometry = largestPolygon
             overlapAdjusted = true
+          } else if (overlapPercent > 0) {
+            // Log allowed overlap for debugging
+            console.log(`[createPlanWithSection] Allowing ${overlapPercent.toFixed(1)}% overlap (within ${ALLOWED_OVERLAP_PERCENT}% tolerance)`)
           }
         }
       }

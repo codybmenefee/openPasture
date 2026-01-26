@@ -27,23 +27,38 @@ import { logLLMCall, logToolCall } from "../lib/braintrust"
 type OTelTracer = any
 
 const GRAZING_AGENT_MODEL = "claude-haiku-4-5"
-const PROMPT_VERSION = "v1.0.0" // Track prompt changes for comparison
+const PROMPT_VERSION = "v2.0.0-ndvi-grid" // Track prompt changes for comparison
 
 // NOTE: Braintrust imports are done in the action file (grazingAgentGateway.ts)
 // to avoid bundler issues. The logger and wrapped Anthropic client are passed
 // as parameters to this function.
 
-const GRAZING_SYSTEM_PROMPT = `You are a grazing intelligence specialist. Your role is to recommend daily grazing sections based on satellite-derived vegetation data.
+const GRAZING_SYSTEM_PROMPT = `You are a grazing intelligence specialist. Your role is to recommend daily grazing sections based on satellite-derived NDVI (vegetation) data.
 
 ## YOUR TASK
-Analyze the provided data and create a grazing plan by calling the tools.
+Analyze the NDVI heat map grid and create a grazing plan by calling the tools.
+
+## READING THE NDVI GRID
+The grid shows NDVI values sampled across the paddock:
+- Higher values (0.60-0.80+) = healthy green vegetation (TARGET THESE)
+- Medium values (0.40-0.60) = moderate vegetation
+- Lower values (<0.40) = sparse vegetation (AVOID)
+
+Use the coordinate reference to convert grid cells to polygon vertices.
+
+## SECTION DRAWING RULES
+- Target high-NDVI cells in the grid
+- Draw sections adjacent to previous sections when possible
+- Up to 5% overlap with previous sections is acceptable
+- Sections must be contiguous (no gaps)
+- Avoid skinny strips - draw reasonably-shaped polygons
+- Section should be approximately 20% of paddock area
 
 ## CRITICAL RULES
 - You MUST ALWAYS create a section geometry - animals must eat somewhere every day
 - You MUST call createPlanWithSection AND finalizePlan tools. The tools are your output mechanism - not text.
 - NEVER recommend "rest" - always select a paddock and draw a section, even if conditions aren't ideal
 - If the current paddock has low NDVI, find the best alternative paddock or continue in current paddock with appropriate justification
-- Never suggest sections that overlap with previously grazed areas
 - Always output valid GeoJSON Polygon for section geometry
 - Calculate section centroid as [lng, lat]`
 
@@ -237,13 +252,69 @@ async function runGrazingAgentCore(
     geometryCoordinatesCount: targetPaddock?.geometry?.geometry?.coordinates?.[0]?.length || targetPaddock?.geometry?.coordinates?.[0]?.length || 0,
   })
 
+  // Fetch NDVI grid for the target paddock
+  console.log('[runGrazingAgent] Fetching NDVI grid for target paddock...')
+  let ndviGridText = 'NDVI grid unavailable - using aggregate paddock NDVI values'
+  try {
+    const ndviGrid = await ctx.runAction(api.ndviGrid.generateNDVIGrid, {
+      farmExternalId,
+      paddockExternalId: targetPaddock?.externalId || 'p1',
+    })
+    if (ndviGrid.hasData) {
+      ndviGridText = ndviGrid.gridText
+      console.log('[runGrazingAgent] NDVI grid generated successfully')
+    } else {
+      console.log('[runGrazingAgent] NDVI grid not available:', ndviGrid.error)
+      ndviGridText = ndviGrid.gridText // Contains fallback message
+    }
+  } catch (error: any) {
+    console.error('[runGrazingAgent] Error generating NDVI grid:', error.message)
+    // Continue with aggregate NDVI values
+  }
+
+  // Get most recent section for adjacency guidance
+  const mostRecentSection = previousSections && previousSections.length > 0
+    ? previousSections[0] // Already sorted by date descending
+    : null
+
   // #region debug log
   fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:196',message:'Target paddock geometry check',data:{targetPaddockId:targetPaddock?.externalId,hasGeometry:!!targetPaddock?.geometry,geometryPreview:targetPaddock?.geometry?JSON.stringify(targetPaddock.geometry).substring(0,200):'null'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
 
   const prompt = `Generate today's grazing plan for farm "${farmName}".
 
-## All Paddocks (sorted by NDVI):
+## ACTIVE PADDOCK: ${targetPaddock?.name} (${targetPaddock?.externalId})
+- Total Area: ${targetPaddock?.area} hectares
+- Target Section: ~20% = ${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares
+- Already Grazed: ${grazedPercentage}%
+- Aggregate NDVI: ${targetPaddock?.ndviMean} (threshold: ${threshold})
+
+## NDVI HEAT MAP GRID
+Use this grid to identify HIGH-NDVI cells (0.60+) for section placement:
+
+${ndviGridText}
+
+## PADDOCK BOUNDARY (section MUST stay within):
+${JSON.stringify(targetPaddock?.geometry, null, 2)}
+
+${mostRecentSection ? `## MOST RECENT SECTION (draw adjacent to this):
+- Date: ${mostRecentSection.date}
+- Area: ${mostRecentSection.area} hectares
+- Geometry: ${JSON.stringify(mostRecentSection.geometry)}
+` : '## NO PREVIOUS SECTIONS - paddock is fresh, draw anywhere within bounds'}
+
+${previousSections && previousSections.length > 1 ? `## OTHER PREVIOUS SECTIONS (avoid >5% overlap):
+${JSON.stringify(previousSections.slice(1).map((s: any) => ({ date: s.date, area: s.area })), null, 2)}
+` : ''}
+
+## SECTION DRAWING INSTRUCTIONS
+1. Study the NDVI grid above - identify cells with values 0.60+ (high vegetation)
+2. ${mostRecentSection ? 'Draw the new section ADJACENT to the most recent section' : 'Draw the section in a high-NDVI area'}
+3. Use the grid coordinates to convert cell positions to polygon vertices
+4. Section MUST be entirely within the paddock boundary
+5. Target ~${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares (20% of paddock)
+
+## ALL PADDOCKS (for context):
 ${JSON.stringify(allPaddocks?.map((p: any) => ({
   externalId: p.externalId,
   name: p.name,
@@ -251,96 +322,21 @@ ${JSON.stringify(allPaddocks?.map((p: any) => ({
   area: p.area,
   restDays: p.restDays,
   status: p.status,
-  // Geometry included for reference - use target paddock geometry for section creation
-  geometry: p.geometry,
 })), null, 2)}
 
-## Current Paddock (${currentPaddock?.externalId}):
-- Name: ${currentPaddock?.name}
-- NDVI: ${currentNdvi} (threshold: ${threshold})
-- Area: ${currentPaddock?.area} hectares
-- Rest days: ${currentPaddock?.restDays}
-- Grazed: ${currentGrazedPercentage}%
+## REQUIRED TOOL CALL - createPlanWithSection:
+- farmExternalId: "${farmExternalId}"
+- targetPaddockId: "${targetPaddock?.externalId}"
+- sectionGeometry: GeoJSON Polygon targeting high-NDVI cells from the grid
+- sectionAreaHectares: ${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10}
+- sectionCentroid: [lng, lat] center of your section
+- sectionAvgNdvi: Estimate based on grid cells covered
+- sectionJustification: Explain which grid cells you targeted and why
+- paddockGrazedPercentage: ${grazedPercentage}
+- confidence: ${recommendation === 'move' ? 0.55 : 0.75}
+- reasoning: ["Targeted high-NDVI cells at Row/Col...", "Adjacent to previous section...", ...]
 
-## Target Paddock (${targetPaddock?.externalId}):
-- Name: ${targetPaddock?.name}
-- NDVI: ${targetPaddock?.ndviMean}
-- Area: ${targetPaddock?.area} hectares
-- Grazed: ${grazedPercentage}%
-- **Paddock Boundary Geometry (CRITICAL - section must stay within this):**
-${JSON.stringify(targetPaddock?.geometry, null, 2)}
-
-## Target Paddock for Plan:
-${recommendation === 'graze' 
-  ? (targetPaddock?.ndviMean >= threshold
-    ? `Continue grazing in ${targetPaddock?.externalId} (${targetPaddock?.name}) - NDVI ${targetPaddock?.ndviMean} meets threshold`
-    : `Continue grazing in ${targetPaddock?.externalId} (${targetPaddock?.name}) - NDVI ${targetPaddock?.ndviMean} is below threshold but this is the best available option`)
-  : (targetPaddock?.ndviMean >= threshold
-    ? `MOVE HERD to ${targetPaddock?.externalId} (${targetPaddock?.name}) - NDVI ${targetPaddock?.ndviMean} meets threshold and is better than current`
-    : `MOVE HERD to ${targetPaddock?.externalId} (${targetPaddock?.name}) - NDVI ${targetPaddock?.ndviMean} is below threshold but is the best available option`)
-}
-
-## Previous Sections in Target Paddock:
-${previousSections?.length === 0 ? "paddock is fresh" : JSON.stringify(previousSections)}
-
-## Farm Settings:
-- NDVI threshold: ${threshold}
-- Rest period: ${settings.minRestPeriod} days
-- Section size: 20%
-
-## Your Task:
-CRITICAL: You MUST create a section geometry - animals must eat somewhere. Never create a plan without a section.
-
-Create a grazing plan by calling createPlanWithSection then finalizePlan.
-
-${recommendation === 'graze' && previousSections && previousSections.length > 0 ? `
-IMPORTANT: You are creating a NEW section in the SAME paddock (${targetPaddock?.externalId}) where livestock are currently grazing.
-The paddock has ${previousSections.length} previous section(s). You MUST create a section that does NOT overlap with any previous sections.
-
-Previous sections in this paddock:
-${JSON.stringify(previousSections.map((s: any) => ({ date: s.date, area: s.area, justification: s.justification })), null, 2)}
-
-Create a NEW ~20% section in ${targetPaddock?.externalId} that avoids all previous sections:
-` : `
-Create an optimal ~20% section in ${targetPaddock?.externalId}:
-`}
-
-REQUIRED FIELDS:
-- targetPaddockId: ${targetPaddock?.externalId}
-- confidence: ${recommendation === 'move' ? '0.55' : '0.75'}${targetPaddock?.ndviMean < threshold ? ' (lower confidence due to below-threshold NDVI)' : ''}
-- reasoning: Array with 2-3 technical factors:
-  ${targetPaddock?.ndviMean < threshold 
-    ? `  * Note that NDVI ${targetPaddock?.ndviMean} is below the ${threshold} threshold but this is the best available option
-  * Explain why this paddock was selected despite low NDVI
-  * Mention any mitigating factors (rest days, alternative options considered)`
-    : recommendation === 'graze'
-    ? '  * Why staying in current paddock (good NDVI, sufficient forage)'
-    : '  * Why this paddock was selected (better NDVI than current)'}
-- sectionGeometry: REQUIRED - Create a valid GeoJSON Polygon that:
-  ${previousSections && previousSections.length > 0 ? `  * Does NOT overlap with any previous sections listed above
-  * Is approximately 20% of paddock area (${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares)
-  * **CRITICAL: Must be 100% within the paddock boundary geometry shown above - ALL coordinates must be inside the paddock polygon**
-  * Use coordinates from the paddock boundary as reference - create a smaller polygon inside it
-  * Ensure every vertex of your section polygon is within the paddock boundary coordinates` : `  * Is approximately 20% of paddock area (${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} hectares)
-  * **CRITICAL: Must be 100% within the paddock boundary geometry shown above - ALL coordinates must be inside the paddock polygon**
-  * Use coordinates from the paddock boundary as reference - create a smaller polygon inside it
-  * Ensure every vertex of your section polygon is within the paddock boundary coordinates`}
-- sectionJustification: 3-5 sentences explaining:
-  ${targetPaddock?.ndviMean < threshold
-    ? `  * That NDVI is below threshold but this is the best available option
-  * Why animals must graze somewhere and this paddock was selected
-  * Any considerations for monitoring or shorter grazing duration`
-    : recommendation === 'graze'
-    ? '  * Why staying in current paddock (good NDVI, sufficient forage)'
-    : '  * Why this paddock was selected (better NDVI than current)'}
-  * NDVI range and vegetation quality
-  * What areas to avoid (if any previous sections exist)
-- sectionAreaHectares: ~20% of ${targetPaddock?.area} ha = ${Math.round((targetPaddock?.area ?? 0) * 0.2 * 10) / 10} ha
-- sectionCentroid: [lng, lat] from the geometry center
-- sectionAvgNdvi: ${targetPaddock?.ndviMean}
-- paddockGrazedPercentage: ${grazedPercentage}% (current percentage of paddock already grazed)
-
-CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExternalId="${farmExternalId}".`
+CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
 
   // #region debug log
   const promptPreview = prompt.substring(0, 1000) + (prompt.length > 1000 ? '...' : '')
@@ -431,11 +427,11 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
     let planCreated = false
     let planFinalized = false
     let createdPlanId: Id<'plans'> | undefined = undefined
-    
+
     if (toolCalls.length > 0) {
       for (const toolCall of toolCalls) {
         const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
-        
+
         console.log('[runGrazingAgent] Executing tool:', toolCall.toolName, {
           hasSectionGeometry: !!args.sectionGeometry,
           targetPaddockId: args.targetPaddockId,
@@ -444,11 +440,11 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
           sectionGeometryType: args.sectionGeometry?.type,
           sectionCoordinatesCount: args.sectionGeometry?.coordinates?.[0]?.length || 0,
         })
-        
+
         // #region debug log
         fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:322',message:'LLM generated section geometry',data:{targetPaddockId:args.targetPaddockId,hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?.type,sectionCoordinatesPreview:args.sectionGeometry?.coordinates?JSON.stringify(args.sectionGeometry.coordinates[0]).substring(0,200):'null',coordinateCount:args.sectionGeometry?.coordinates?.[0]?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
         // #endregion
-        
+
         const toolStartTime = Date.now()
         try {
             if (toolCall.toolName === "createPlanWithSection") {
@@ -474,8 +470,58 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
             throw new Error('sectionGeometry is required - animals must eat somewhere. The agent must always create a section, even if conditions are not ideal.')
           }
 
+          // === NDVI VALIDATION ===
+          // Validate section NDVI before saving to ensure high-quality sections
+          let sectionNDVI = { mean: 0, meetsThreshold: false, threshold: threshold }
+          try {
+            console.log('[runGrazingAgent] Validating section NDVI...')
+            sectionNDVI = await ctx.runAction(api.ndviGrid.calculateSectionNDVI, {
+              farmExternalId,
+              paddockExternalId: args.targetPaddockId || targetPaddock?.externalId || 'p1',
+              sectionGeometry: args.sectionGeometry,
+            })
+
+            // Log section NDVI validation to Braintrust
+            logToolCall({
+              parentSpanId: llmSpanId,
+              toolName: 'calculateSectionNDVI',
+              input: {
+                sectionGeometry: JSON.stringify(args.sectionGeometry).substring(0, 200),
+                paddockId: args.targetPaddockId,
+                iteration: 1, // TODO: Track actual iteration when loop is implemented
+              },
+              output: {
+                mean: sectionNDVI.mean,
+                threshold: sectionNDVI.threshold,
+                meetsThreshold: sectionNDVI.meetsThreshold,
+              },
+              durationMs: Date.now() - toolStartTime,
+            })
+
+            console.log('[runGrazingAgent] Section NDVI validation:', {
+              mean: sectionNDVI.mean,
+              threshold: sectionNDVI.threshold,
+              meetsThreshold: sectionNDVI.meetsThreshold,
+            })
+
+            // Update section NDVI in args if we calculated it
+            if (sectionNDVI.mean > 0) {
+              args.sectionAvgNdvi = sectionNDVI.mean
+            }
+
+            // Add warning to justification if section doesn't meet threshold
+            if (!sectionNDVI.meetsThreshold && sectionNDVI.mean > 0) {
+              const warningNote = ` [NDVI Warning: Section average ${sectionNDVI.mean.toFixed(2)} is below threshold ${sectionNDVI.threshold}. Consider reviewing grid placement.]`
+              args.sectionJustification = (args.sectionJustification || '') + warningNote
+              console.log('[runGrazingAgent] Added NDVI warning to justification')
+            }
+          } catch (ndviError: any) {
+            console.warn('[runGrazingAgent] NDVI validation failed (continuing):', ndviError.message)
+            // Continue with section creation even if NDVI validation fails
+          }
+
           // #region debug log
-          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:299',message:'Calling createPlanWithSection mutation',data:{hasSectionGeometry:true,targetPaddockId:args.targetPaddockId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:299',message:'Calling createPlanWithSection mutation',data:{hasSectionGeometry:true,targetPaddockId:args.targetPaddockId,sectionNDVI:sectionNDVI.mean,meetsThreshold:sectionNDVI.meetsThreshold},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
           // #endregion
 
               const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
@@ -486,7 +532,11 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
                 parentSpanId: llmSpanId,
                 toolName: toolCall.toolName,
                 input: args,
-                output: { planId: planId.toString() },
+                output: {
+                  planId: planId.toString(),
+                  sectionNDVI: sectionNDVI.mean,
+                  meetsThreshold: sectionNDVI.meetsThreshold,
+                },
                 durationMs: Date.now() - toolStartTime,
               })
 
@@ -495,6 +545,8 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan. Use farmExterna
                 planIdType: typeof planId,
                 hasSectionGeometry: !!args.sectionGeometry,
                 targetPaddockId: args.targetPaddockId,
+                sectionNDVI: sectionNDVI.mean,
+                meetsThreshold: sectionNDVI.meetsThreshold,
                 note: 'This planId will be returned in result object',
               })
               planCreated = true

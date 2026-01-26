@@ -190,6 +190,45 @@ export const applyPaddockChanges = mutation({
   },
 })
 
+/**
+ * Get a paddock by farm and paddock external IDs.
+ * Used by NDVI grid generation for coordinate bounds.
+ */
+export const getPaddockByExternalId = query({
+  args: {
+    farmExternalId: v.string(),
+    paddockExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // First find the farm
+    let farm = await ctx.db
+      .query('farms')
+      .withIndex('by_externalId', (q) => q.eq('externalId', args.farmExternalId))
+      .first()
+
+    // Also check legacyExternalId for migration support
+    if (!farm) {
+      farm = await ctx.db
+        .query('farms')
+        .withIndex('by_legacyExternalId', (q: any) => q.eq('legacyExternalId', args.farmExternalId))
+        .first()
+    }
+
+    if (!farm) {
+      return null
+    }
+
+    // Find the paddock using helper to satisfy TypeScript
+    const farmId = farm._id
+    const paddock = await ctx.db
+      .query('paddocks')
+      .withIndex('by_farm_externalId', (q) => byFarmExternalId(q, farmId, args.paddockExternalId))
+      .first()
+
+    return paddock
+  },
+})
+
 export const updatePaddockMetadata = mutation({
   args: {
     farmId: v.string(),

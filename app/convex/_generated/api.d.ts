@@ -19,6 +19,7 @@ import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as internal_ from "../internal.js";
 import type * as migrations_migrateToClerkOrgs from "../migrations/migrateToClerkOrgs.js";
+import type * as ndviGrid from "../ndviGrid.js";
 import type * as noGrazeZones from "../noGrazeZones.js";
 import type * as notifications from "../notifications.js";
 import type * as observations from "../observations.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   intelligenceActions: typeof intelligenceActions;
   internal: typeof internal_;
   "migrations/migrateToClerkOrgs": typeof migrations_migrateToClerkOrgs;
+  ndviGrid: typeof ndviGrid;
   noGrazeZones: typeof noGrazeZones;
   notifications: typeof notifications;
   observations: typeof observations;
