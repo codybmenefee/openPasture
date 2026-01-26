@@ -1,13 +1,13 @@
-# Use OSGEO's GDAL image - has GDAL/GEOS/PROJ pre-installed
+# Use OSGEO's GDAL image - has GDAL/GEOS/PROJ pre-installed (Ubuntu 22.04 base)
 FROM ghcr.io/osgeo/gdal:ubuntu-small-3.8.5
 
-# Install Python 3.12
+# Install Python 3 (uses system python3.10 from Ubuntu 22.04)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-venv \
+    python3 \
+    python3-venv \
     python3-pip \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/python3.12 /usr/bin/python
+    && ln -sf /usr/bin/python3 /usr/bin/python
 
 WORKDIR /app
 
