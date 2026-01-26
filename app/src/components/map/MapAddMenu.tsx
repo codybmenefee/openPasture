@@ -24,11 +24,12 @@ export function MapAddMenu({
   const [isOpen, setIsOpen] = useState(false)
   const [waterSubmenuOpen, setWaterSubmenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const dragStateRef = useRef<{
+
+  // Use state to track drag attempt so useEffect re-runs
+  const [dragAttempt, setDragAttempt] = useState<{
     type: DragEntityType
     startX: number
     startY: number
-    isDragging: boolean
   } | null>(null)
 
   // Close menu when clicking outside
@@ -46,44 +47,52 @@ export function MapAddMenu({
     }
   }, [isOpen])
 
+  // Document-level listeners for drag tracking
+  useEffect(() => {
+    if (!dragAttempt) return
+
+    let dragStarted = false
+
+    const handleDocumentPointerMove = (e: PointerEvent) => {
+      if (dragStarted) return // Already started dragging
+
+      const dx = e.clientX - dragAttempt.startX
+      const dy = e.clientY - dragAttempt.startY
+      const distance = Math.hypot(dx, dy)
+
+      if (distance >= DRAG_THRESHOLD) {
+        dragStarted = true
+        setIsOpen(false)
+        setWaterSubmenuOpen(false)
+        setDragAttempt(null)
+        onDragStart?.(dragAttempt.type, { x: e.clientX, y: e.clientY })
+      }
+    }
+
+    const handleDocumentPointerUp = () => {
+      setDragAttempt(null)
+    }
+
+    document.addEventListener('pointermove', handleDocumentPointerMove)
+    document.addEventListener('pointerup', handleDocumentPointerUp)
+
+    return () => {
+      document.removeEventListener('pointermove', handleDocumentPointerMove)
+      document.removeEventListener('pointerup', handleDocumentPointerUp)
+    }
+  }, [dragAttempt, onDragStart])
+
   const handlePointerDown = useCallback((type: DragEntityType, e: React.PointerEvent) => {
     if (!onDragStart) return
 
-    // Capture pointer for tracking
-    const target = e.currentTarget as HTMLElement
-    target.setPointerCapture(e.pointerId)
+    e.preventDefault() // Prevent text selection during drag
 
-    dragStateRef.current = {
+    setDragAttempt({
       type,
       startX: e.clientX,
       startY: e.clientY,
-      isDragging: false,
-    }
+    })
   }, [onDragStart])
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    const state = dragStateRef.current
-    if (!state || state.isDragging) return
-
-    const dx = e.clientX - state.startX
-    const dy = e.clientY - state.startY
-    const distance = Math.hypot(dx, dy)
-
-    if (distance >= DRAG_THRESHOLD) {
-      state.isDragging = true
-      setIsOpen(false)
-      setWaterSubmenuOpen(false)
-      onDragStart?.(state.type, { x: e.clientX, y: e.clientY })
-    }
-  }, [onDragStart])
-
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    const target = e.currentTarget as HTMLElement
-    if (target.hasPointerCapture(e.pointerId)) {
-      target.releasePointerCapture(e.pointerId)
-    }
-    dragStateRef.current = null
-  }, [])
 
   const handleAddPaddock = () => {
     setIsOpen(false)
@@ -129,8 +138,6 @@ export function MapAddMenu({
             )}
             onClick={handleAddPaddock}
             onPointerDown={(e) => handlePointerDown('paddock', e)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
           >
             <Pentagon className="h-3.5 w-3.5 text-green-500" />
             <span>Add Paddock</span>
@@ -144,8 +151,6 @@ export function MapAddMenu({
             )}
             onClick={handleAddNoGrazeZone}
             onPointerDown={(e) => handlePointerDown('noGrazeZone', e)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
           >
             <Ban className="h-3.5 w-3.5 text-red-500" />
             <span>Add No-graze Zone</span>
@@ -177,8 +182,6 @@ export function MapAddMenu({
                   )}
                   onClick={() => handleAddWaterSource('point')}
                   onPointerDown={(e) => handlePointerDown('waterPoint', e)}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
                 >
                   <MapPin className="h-3.5 w-3.5 text-blue-400" />
                   <span>Place marker</span>
@@ -190,8 +193,6 @@ export function MapAddMenu({
                   )}
                   onClick={() => handleAddWaterSource('polygon')}
                   onPointerDown={(e) => handlePointerDown('waterPolygon', e)}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
                 >
                   <Hexagon className="h-3.5 w-3.5 text-blue-400" />
                   <span>Draw area</span>

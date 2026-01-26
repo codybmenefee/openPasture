@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import {
   Select,
@@ -10,11 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { WaterSource, WaterSourceType } from '@/lib/types'
+import type { WaterSource, WaterSourceType, WaterSourceStatus } from '@/lib/types'
 
 interface WaterSourceEditPanelProps {
   source: WaterSource
-  onSave: (id: string, updates: { name?: string; type?: WaterSourceType }) => void
+  onSave: (id: string, updates: { name?: string; type?: WaterSourceType; status?: WaterSourceStatus; description?: string }) => void
   onDelete: (id: string) => void
   onClose: () => void
 }
@@ -28,6 +29,20 @@ const waterSourceTypeOptions: { value: WaterSourceType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ]
 
+const statusOptions: { value: WaterSourceStatus; label: string; description: string }[] = [
+  { value: 'active', label: 'Active', description: 'Currently available and functioning' },
+  { value: 'seasonal', label: 'Seasonal', description: 'Available during certain seasons only' },
+  { value: 'maintenance', label: 'Maintenance', description: 'Temporarily unavailable for repairs' },
+  { value: 'dry', label: 'Dry', description: 'Currently empty or unavailable' },
+]
+
+const statusStyles: Record<WaterSourceStatus, { bg: string; border: string; text: string }> = {
+  active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-600 dark:text-green-400' },
+  seasonal: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-600 dark:text-yellow-400' },
+  maintenance: { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-600 dark:text-orange-400' },
+  dry: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-600 dark:text-red-400' },
+}
+
 export function WaterSourceEditPanel({
   source,
   onSave,
@@ -36,21 +51,39 @@ export function WaterSourceEditPanel({
 }: WaterSourceEditPanelProps) {
   const [name, setName] = useState(source.name)
   const [type, setType] = useState<WaterSourceType>(source.type)
+  const [status, setStatus] = useState<WaterSourceStatus>(source.status ?? 'active')
+  const [description, setDescription] = useState(source.description ?? '')
 
   useEffect(() => {
     setName(source.name)
     setType(source.type)
-  }, [source.id, source.name, source.type])
+    setStatus(source.status ?? 'active')
+    setDescription(source.description ?? '')
+  }, [source.id, source.name, source.type, source.status, source.description])
 
   const typeLabel = useMemo(
     () => waterSourceTypeOptions.find((opt) => opt.value === type)?.label ?? 'Select type',
     [type]
   )
 
+  const statusLabel = useMemo(
+    () => statusOptions.find((opt) => opt.value === status)?.label ?? 'Select status',
+    [status]
+  )
+
+  const statusInfo = useMemo(
+    () => statusOptions.find((opt) => opt.value === status),
+    [status]
+  )
+
+  const currentStatusStyles = statusStyles[status] ?? statusStyles.active
+
   const handleSave = () => {
     onSave(source.id, {
       name: name.trim() || source.name,
       type,
+      status,
+      description: description.trim() || undefined,
     })
   }
 
@@ -102,8 +135,53 @@ export function WaterSourceEditPanel({
           </Select>
         </div>
 
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-3">
-          <p className="text-sm text-blue-600 dark:text-blue-400">
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground uppercase tracking-wide">Status</label>
+          <Select value={status} onValueChange={(value) => setStatus(value as WaterSourceStatus)}>
+            <SelectTrigger className="w-full">
+              <SelectValue>{statusLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {source.geometryType === 'polygon' && (
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area (ha)</label>
+            <Input
+              type="text"
+              value={source.area != null ? source.area.toFixed(2) : 'N/A'}
+              disabled
+              className="bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">Auto-calculated from boundary</p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground uppercase tracking-wide">Description</label>
+          <Textarea
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add notes about this water source..."
+          />
+        </div>
+
+        <div className={`rounded-lg ${currentStatusStyles.bg} border ${currentStatusStyles.border} p-3`}>
+          <p className={`text-sm font-medium ${currentStatusStyles.text}`}>
+            Status: {statusInfo?.label ?? 'Active'}
+          </p>
+          <p className={`text-xs ${currentStatusStyles.text} mt-1`}>
+            {statusInfo?.description ?? 'Currently available and functioning'}
+          </p>
+          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
             Water sources are factored into grazing recommendations to ensure livestock have adequate access.
           </p>
         </div>

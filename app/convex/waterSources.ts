@@ -28,6 +28,13 @@ const waterSourceType = v.union(
   v.literal('other')
 )
 
+const waterSourceStatus = v.union(
+  v.literal('active'),
+  v.literal('seasonal'),
+  v.literal('maintenance'),
+  v.literal('dry'),
+)
+
 /**
  * List all water sources for a farm by external ID.
  */
@@ -63,6 +70,9 @@ export const create = mutation({
     type: waterSourceType,
     geometryType: v.union(v.literal('point'), v.literal('polygon')),
     geometry: v.union(pointFeature, polygonFeature),
+    area: v.optional(v.number()),
+    description: v.optional(v.string()),
+    status: v.optional(waterSourceStatus),
   },
   handler: async (ctx, args) => {
     const farm = await ctx.db
@@ -81,6 +91,9 @@ export const create = mutation({
       type: args.type,
       geometryType: args.geometryType,
       geometry: args.geometry,
+      area: args.area,
+      description: args.description,
+      status: args.status,
       createdAt: now,
       updatedAt: now,
     })
@@ -97,6 +110,9 @@ export const update = mutation({
     name: v.optional(v.string()),
     type: v.optional(waterSourceType),
     geometry: v.optional(v.union(pointFeature, polygonFeature)),
+    area: v.optional(v.number()),
+    description: v.optional(v.string()),
+    status: v.optional(waterSourceStatus),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.get(args.id)
@@ -110,6 +126,39 @@ export const update = mutation({
     if (args.name !== undefined) updates.name = args.name
     if (args.type !== undefined) updates.type = args.type
     if (args.geometry !== undefined) updates.geometry = args.geometry
+    if (args.area !== undefined) updates.area = args.area
+    if (args.description !== undefined) updates.description = args.description
+    if (args.status !== undefined) updates.status = args.status
+
+    await ctx.db.patch(args.id, updates)
+    return args.id
+  },
+})
+
+/**
+ * Update metadata for a water source (without geometry changes).
+ */
+export const updateMetadata = mutation({
+  args: {
+    id: v.id('waterSources'),
+    name: v.optional(v.string()),
+    type: v.optional(waterSourceType),
+    description: v.optional(v.string()),
+    status: v.optional(waterSourceStatus),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id)
+    if (!existing) {
+      throw new Error('Water source not found')
+    }
+
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    }
+    if (args.name !== undefined) updates.name = args.name
+    if (args.type !== undefined) updates.type = args.type
+    if (args.description !== undefined) updates.description = args.description
+    if (args.status !== undefined) updates.status = args.status
 
     await ctx.db.patch(args.id, updates)
     return args.id

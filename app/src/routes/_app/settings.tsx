@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { SettingsForm } from '@/components/settings'
+import { SubscriptionCard } from '@/components/settings/SubscriptionCard'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
+import { useFarmContext } from '@/lib/farm'
 import type { FarmSettings } from '@/lib/types'
 
 export const Route = createFileRoute('/_app/settings')({
@@ -12,6 +14,7 @@ export const Route = createFileRoute('/_app/settings')({
 
 function SettingsPage() {
   const { settings, isLoading, saveSettings, resetSettings } = useFarmSettings()
+  const { activeFarmId } = useFarmContext()
   const [pendingSettings, setPendingSettings] = useState<FarmSettings | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -58,6 +61,17 @@ function SettingsPage() {
           Configure your farm preferences and thresholds
         </p>
       </div>
+
+      {/* Subscription Card */}
+      {activeFarmId && (
+        <div>
+          <h2 className="text-lg font-medium mb-3">Subscription</h2>
+          <SubscriptionCard
+            farmId={activeFarmId}
+            farmAcreage={50}
+          />
+        </div>
+      )}
 
       <SettingsForm settings={displaySettings} onChange={handleChange} />
 

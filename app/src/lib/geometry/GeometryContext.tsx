@@ -36,9 +36,10 @@ function createDefaultSectionMetadata(): Omit<Section, 'id' | 'paddockId' | 'geo
   }
 }
 
-function createDefaultNoGrazeZoneMetadata(): Pick<NoGrazeZone, 'name'> {
+function createDefaultNoGrazeZoneMetadata(): Pick<NoGrazeZone, 'name' | 'type'> {
   return {
     name: 'New No-graze Zone',
+    type: 'other',
   }
 }
 
@@ -433,11 +434,14 @@ export function GeometryProvider({
     ): string => {
       const id = `ngz-${generateId()}`
       const now = new Date().toISOString()
+      const area = calculateAreaHectares(geometry)
+      const defaults = createDefaultNoGrazeZoneMetadata()
       const newZone: NoGrazeZone = {
-        ...createDefaultNoGrazeZoneMetadata(),
+        ...defaults,
         ...metadata,
         id,
         farmId: '', // Will be set by backend
+        area: metadata?.area ?? area,
         geometry,
         createdAt: now,
         updatedAt: now,
@@ -449,7 +453,7 @@ export function GeometryProvider({
         entityType: 'noGrazeZone',
         changeType: 'add',
         geometry,
-        metadata: { name: newZone.name },
+        metadata: { name: newZone.name, type: newZone.type, area: newZone.area },
         timestamp: now,
       })
 
@@ -460,14 +464,16 @@ export function GeometryProvider({
 
   const updateNoGrazeZone = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
+      const area = calculateAreaHectares(geometry)
       setNoGrazeZones((prev) =>
-        prev.map((z) => (z.id === id ? { ...z, geometry, updatedAt: new Date().toISOString() } : z))
+        prev.map((z) => (z.id === id ? { ...z, geometry, area, updatedAt: new Date().toISOString() } : z))
       )
       recordChange({
         id,
         entityType: 'noGrazeZone',
         changeType: 'update',
         geometry,
+        metadata: { area },
         timestamp: new Date().toISOString(),
       })
     },
@@ -512,6 +518,10 @@ export function GeometryProvider({
     ): string => {
       const id = `ws-${generateId()}`
       const now = new Date().toISOString()
+      // Calculate area only for polygon types
+      const area = geometryType === 'polygon'
+        ? calculateAreaHectares(geometry as Feature<Polygon>)
+        : undefined
       const newSource: WaterSource = {
         ...createDefaultWaterSourceMetadata(),
         ...metadata,
@@ -519,6 +529,7 @@ export function GeometryProvider({
         farmId: '', // Will be set by backend
         geometryType,
         geometry,
+        area: metadata?.area ?? area,
         createdAt: now,
         updatedAt: now,
       }
@@ -529,7 +540,7 @@ export function GeometryProvider({
         entityType: geometryType === 'point' ? 'waterPoint' : 'waterPolygon',
         changeType: 'add',
         geometry: stripAnyFeatureId(geometry) as Feature<Polygon>,
-        metadata: { name: newSource.name, type: newSource.type, geometryType },
+        metadata: { name: newSource.name, type: newSource.type, geometryType, area: newSource.area },
         timestamp: now,
       })
 
@@ -541,8 +552,12 @@ export function GeometryProvider({
   const updateWaterSource = useCallback(
     (id: string, geometry: Feature<Point | Polygon>) => {
       const source = waterSources.find((s) => s.id === id)
+      // Recalculate area for polygon types
+      const area = source?.geometryType === 'polygon'
+        ? calculateAreaHectares(geometry as Feature<Polygon>)
+        : undefined
       setWaterSources((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, geometry, updatedAt: new Date().toISOString() } : s))
+        prev.map((s) => (s.id === id ? { ...s, geometry, area: s.geometryType === 'polygon' ? area : s.area, updatedAt: new Date().toISOString() } : s))
       )
       if (source) {
         recordChange({
@@ -550,6 +565,7 @@ export function GeometryProvider({
           entityType: source.geometryType === 'point' ? 'waterPoint' : 'waterPolygon',
           changeType: 'update',
           geometry: stripAnyFeatureId(geometry) as Feature<Polygon>,
+          metadata: area !== undefined ? { area } : undefined,
           timestamp: new Date().toISOString(),
         })
       }

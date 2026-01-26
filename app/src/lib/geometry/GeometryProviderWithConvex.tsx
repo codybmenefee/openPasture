@@ -118,16 +118,20 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
       // Handle no-graze zone changes
       for (const change of changes.filter((c) => c.entityType === 'noGrazeZone')) {
         if (change.changeType === 'add' && change.geometry) {
-          const name = (change.metadata as { name?: string })?.name ?? 'New No-graze Zone'
+          const metadata = change.metadata as { name?: string; type?: string; area?: number } | undefined
           await createNoGrazeZone({
             farmId,
-            name,
+            name: metadata?.name ?? 'New No-graze Zone',
+            type: (metadata?.type as 'environmental' | 'hazard' | 'infrastructure' | 'protected' | 'other') ?? 'other',
+            area: metadata?.area,
             geometry: change.geometry,
           })
         } else if (change.changeType === 'update') {
+          const metadata = change.metadata as { area?: number } | undefined
           await updateNoGrazeZone({
             id: change.id as any,
             geometry: change.geometry,
+            area: metadata?.area,
           })
         } else if (change.changeType === 'delete') {
           await removeNoGrazeZone({ id: change.id as any })
@@ -138,18 +142,21 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
       for (const change of changes.filter((c) => c.entityType === 'waterPoint' || c.entityType === 'waterPolygon')) {
         const geometryType = change.entityType === 'waterPoint' ? 'point' : 'polygon'
         if (change.changeType === 'add' && change.geometry) {
-          const metadata = change.metadata as { name?: string; type?: WaterSourceType } | undefined
+          const metadata = change.metadata as { name?: string; type?: WaterSourceType; area?: number } | undefined
           await createWaterSource({
             farmId,
             name: metadata?.name ?? 'New Water Source',
             type: metadata?.type ?? 'other',
             geometryType,
             geometry: change.geometry as any,
+            area: metadata?.area,
           })
         } else if (change.changeType === 'update') {
+          const metadata = change.metadata as { area?: number } | undefined
           await updateWaterSource({
             id: change.id as any,
             geometry: change.geometry as any,
+            area: metadata?.area,
           })
         } else if (change.changeType === 'delete') {
           await removeWaterSource({ id: change.id as any })

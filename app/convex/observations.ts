@@ -193,3 +193,79 @@ export const getObservationsTrend = query({
     }))
   },
 })
+
+/**
+ * Get the most recent observation date for a farm.
+ * Used by the satellite pipeline to determine if updates are needed.
+ */
+export const getLatestObservationDate = query({
+  args: {
+    farmExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const observations = await ctx.db
+      .query('observations')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    if (observations.length === 0) {
+      return null
+    }
+
+    // Sort by date descending and return the most recent
+    observations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    return observations[0].date
+  },
+})
+
+/**
+ * Get available dates with satellite observation data for a farm.
+ * Used by the historical date picker.
+ */
+export const getAvailableDates = query({
+  args: {
+    farmExternalId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const observations = await ctx.db
+      .query('observations')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    if (observations.length === 0) {
+      return []
+    }
+
+    // Group by date and compute aggregate stats
+    const dateMap = new Map<string, {
+      date: string
+      cloudCoverPct: number
+      provider: string
+      paddockCount: number
+      avgNdvi: number
+    }>()
+
+    for (const obs of observations) {
+      const existing = dateMap.get(obs.date)
+      if (existing) {
+        existing.paddockCount += 1
+        existing.avgNdvi = (existing.avgNdvi * (existing.paddockCount - 1) + obs.ndviMean) / existing.paddockCount
+        // Use minimum cloud-free (maximum coverage) for the date
+        existing.cloudCoverPct = Math.min(existing.cloudCoverPct, 100 - obs.cloudFreePct * 100)
+      } else {
+        dateMap.set(obs.date, {
+          date: obs.date,
+          cloudCoverPct: 100 - obs.cloudFreePct * 100,
+          provider: obs.sourceProvider,
+          paddockCount: 1,
+          avgNdvi: obs.ndviMean,
+        })
+      }
+    }
+
+    // Sort by date descending
+    return Array.from(dateMap.values()).sort((a, b) =>
+      b.date.localeCompare(a.date)
+    )
+  },
+})

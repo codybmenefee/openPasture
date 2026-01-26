@@ -293,3 +293,44 @@ export const updateFarmBoundary = mutation({
     }
   },
 })
+
+/**
+ * List all farms with their settings and subscriptions.
+ * Used by the satellite pipeline scheduler to determine which farms need updates.
+ */
+export const listAllWithSettings = query({
+  handler: async (ctx) => {
+    const farms = await ctx.db.query('farms').collect()
+
+    const farmsWithData = await Promise.all(
+      farms.map(async (farm) => {
+        // Get settings
+        const settings = await ctx.db
+          .query('farmSettings')
+          .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farm.externalId))
+          .first()
+
+        // Get subscription
+        const subscription = await ctx.db
+          .query('subscriptions')
+          .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
+          .first()
+
+        // Get paddocks
+        const paddocks = await ctx.db
+          .query('paddocks')
+          .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
+          .collect()
+
+        return {
+          ...farm,
+          settings: settings ?? null,
+          subscription: subscription ?? null,
+          paddocks,
+        }
+      })
+    )
+
+    return farmsWithData
+  },
+})
