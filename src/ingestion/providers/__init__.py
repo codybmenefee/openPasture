@@ -9,6 +9,31 @@ from abc import ABC, abstractmethod
 from typing import Protocol, TypedDict
 
 
+# Provider-specific exceptions
+class ProviderError(Exception):
+    """Base exception for satellite provider errors."""
+    pass
+
+
+class ActivationTimeoutError(ProviderError):
+    """Raised when asset activation times out (Planet API specific)."""
+    def __init__(self, item_id: str, asset_type: str, timeout: int):
+        self.item_id = item_id
+        self.asset_type = asset_type
+        self.timeout = timeout
+        super().__init__(
+            f"Asset activation timed out after {timeout}s for item {item_id}, "
+            f"asset type {asset_type}"
+        )
+
+
+class QuotaExceededError(ProviderError):
+    """Raised when provider quota or rate limit is exceeded."""
+    def __init__(self, provider: str, message: str = ""):
+        self.provider = provider
+        super().__init__(f"Quota exceeded for {provider}: {message}" if message else f"Quota exceeded for {provider}")
+
+
 class BandNames(TypedDict, total=False):
     """Map semantic band names to provider-specific identifiers."""
     nir: str   # Near-infrared
@@ -242,7 +267,11 @@ class ProviderFactory:
             return Sentinel2Provider()
         elif provider_name == "planet_scope":
             from .planet_scope import PlanetScopeProvider
-            return PlanetScopeProvider(api_key=kwargs.get("api_key"))
+            return PlanetScopeProvider(
+                api_key=kwargs.get("api_key"),
+                client_id=kwargs.get("client_id"),
+                client_secret=kwargs.get("client_secret"),
+            )
         else:
             raise ValueError(f"Unknown provider: {provider_name}")
 
@@ -250,6 +279,8 @@ class ProviderFactory:
     def get_providers_for_tier(
         tier: str,
         planet_api_key: str | None = None,
+        planet_client_id: str | None = None,
+        planet_client_secret: str | None = None,
         use_copernicus: bool = True,
     ) -> list[SatelliteProvider]:
         """
@@ -258,6 +289,8 @@ class ProviderFactory:
         Args:
             tier: Subscription tier ("free", "starter", "professional", "enterprise")
             planet_api_key: Optional Planet API key for premium tiers
+            planet_client_id: Optional Planet OAuth2 client ID
+            planet_client_secret: Optional Planet OAuth2 client secret
             use_copernicus: Whether to use Copernicus (default) or Planetary Computer
 
         Returns:
@@ -293,15 +326,39 @@ class ProviderFactory:
 
         # Premium tiers (professional, enterprise) can add PlanetScope
         premium_tiers = ["professional", "enterprise"]
-        if tier in premium_tiers and planet_api_key:
+
+        # Check for Planet API key (required for Data API)
+        # Note: OAuth2 is only supported for Sentinel Hub, not Data API
+        has_planet_api_key = (
+            planet_api_key or
+            (os.getenv("PL_API_KEY") and os.getenv("PL_API_KEY") != "your_planet_api_key")
+        )
+
+        if tier in premium_tiers and has_planet_api_key:
             from .planet_scope import PlanetScopeProvider
-            providers.append(PlanetScopeProvider(api_key=planet_api_key))
-            logger.info("Added PlanetScope provider for premium tier")
-        elif tier in premium_tiers and not planet_api_key:
-            logger.warning(
-                f"Farm is {tier} tier but no Planet API key configured. "
-                "Using Sentinel-2 only."
+            providers.append(PlanetScopeProvider(
+                api_key=planet_api_key,
+                client_id=planet_client_id,
+                client_secret=planet_client_secret,
+            ))
+            logger.info("Added PlanetScope provider for premium tier (auth: API key)")
+        elif tier in premium_tiers and not has_planet_api_key:
+            # Check if OAuth credentials exist but no API key
+            has_planet_oauth = (
+                (planet_client_id and planet_client_secret) or
+                (os.getenv("PL_CLIENT_ID") and os.getenv("PL_CLIENT_SECRET"))
             )
+            if has_planet_oauth:
+                logger.warning(
+                    f"Farm is {tier} tier with Planet OAuth2 credentials, but Planet's "
+                    "Data API requires an API key. OAuth2 is only supported for Sentinel Hub. "
+                    "Get an API key from https://www.planet.com/account/"
+                )
+            else:
+                logger.warning(
+                    f"Farm is {tier} tier but no Planet API key configured. "
+                    "Using Sentinel-2 only. Get an API key from https://www.planet.com/account/"
+                )
 
         return providers
 

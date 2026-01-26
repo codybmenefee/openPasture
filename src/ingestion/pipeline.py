@@ -35,7 +35,7 @@ from config import (
     get_farm_bbox,
     get_paddocks_geojson,
 )
-from providers import ProviderFactory
+from providers import ProviderFactory, ActivationTimeoutError, QuotaExceededError
 from composite import (
     create_median_composite,
     resample_to_resolution,
@@ -384,6 +384,20 @@ def run_pipeline_for_farm(
             all_provider_masks.append(valid_mask)
             all_provider_cloud_pcts.append(cloud_free_pct)
 
+        except ActivationTimeoutError as e:
+            # Planet asset activation timed out - skip this provider and try others
+            logger.warning(
+                f"  Activation timeout for {provider.__class__.__name__}: {e}. "
+                f"Skipping and trying other providers."
+            )
+            continue
+        except QuotaExceededError as e:
+            # Quota exceeded - skip this provider but don't fail the pipeline
+            logger.warning(
+                f"  Quota exceeded for {provider.__class__.__name__}: {e}. "
+                f"Skipping and trying other providers."
+            )
+            continue
         except Exception as e:
             logger.error(f"  Error processing {provider.__class__.__name__}: {e}")
             continue

@@ -310,12 +310,16 @@ export function HistoricalSatelliteView({
             {activeLayer === 'ndwi' && <NDWIColorLegend />}
           </div>
 
-          {/* Tile info */}
+          {/* Tile info with provider badge */}
           {(tile || rgbTile) && (
-            <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
-              <p>Provider: {(activeLayer === 'rgb' ? rgbTile : tile)?.provider}</p>
-              <p>Resolution: {(activeLayer === 'rgb' ? rgbTile : tile)?.resolutionMeters}m</p>
-              <p>Cloud cover: {(activeLayer === 'rgb' ? rgbTile : tile)?.cloudCoverPct.toFixed(1)}%</p>
+            <div className="p-4 border-t border-gray-700">
+              <ProviderBadge
+                provider={(activeLayer === 'rgb' ? rgbTile : tile)?.provider}
+                resolutionMeters={(activeLayer === 'rgb' ? rgbTile : tile)?.resolutionMeters}
+              />
+              <div className="mt-2 text-xs text-gray-500">
+                <p>Cloud cover: {(activeLayer === 'rgb' ? rgbTile : tile)?.cloudCoverPct.toFixed(1)}%</p>
+              </div>
             </div>
           )}
         </div>
@@ -425,13 +429,11 @@ export function HistoricalSatelliteView({
                       ))}
                   </div>
                 </div>
-                <div className="px-3 py-2 border-t border-gray-700 flex items-center justify-between text-xs text-gray-500">
-                  <span>
-                    Provider: {observations[0]?.sourceProvider || 'Unknown'}
-                  </span>
-                  <span>
-                    Resolution: {observations[0]?.resolutionMeters || '?'}m
-                  </span>
+                <div className="px-3 py-2 border-t border-gray-700">
+                  <ProviderBadge
+                    provider={observations[0]?.sourceProvider}
+                    resolutionMeters={observations[0]?.resolutionMeters}
+                  />
                 </div>
               </div>
             </div>
@@ -470,6 +472,64 @@ export function HistoricalSatelliteView({
 }
 
 // Helper components
+
+/**
+ * Displays provider name and resolution as a styled badge.
+ * Shows "High Resolution" indicator for 3m (PlanetScope) imagery.
+ */
+function ProviderBadge({
+  provider,
+  resolutionMeters,
+}: {
+  provider?: string
+  resolutionMeters?: number
+}) {
+  if (!provider) return null
+
+  const isHighRes = resolutionMeters && resolutionMeters <= 5
+  const providerDisplay = getProviderDisplayName(provider)
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium ${
+          isHighRes
+            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+            : 'bg-gray-600/50 text-gray-300'
+        }`}
+      >
+        {isHighRes && (
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fillRule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+              clipRule="evenodd"
+            />
+          </svg>
+        )}
+        {providerDisplay}
+        <span className="text-gray-400">({resolutionMeters}m)</span>
+      </span>
+      {isHighRes && (
+        <span className="text-xs text-purple-400">High Resolution</span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Get display-friendly provider name
+ */
+function getProviderDisplayName(provider: string): string {
+  const providerNames: Record<string, string> = {
+    planetscope: 'PlanetScope',
+    'planet_scope': 'PlanetScope',
+    sentinel2: 'Sentinel-2',
+    copernicus: 'Sentinel-2',
+    merged: 'Multi-Source',
+  }
+  return providerNames[provider.toLowerCase()] || provider
+}
 
 function LayerButton({
   label,
