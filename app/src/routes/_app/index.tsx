@@ -28,6 +28,7 @@ import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
+import { useAvailableDates } from '@/lib/hooks/useSatelliteTiles'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 
@@ -284,6 +285,22 @@ function GISRoute() {
   const handleToggleRGB = useCallback((enabled: boolean) => {
     updateMapPreference('showRGBSatellite', enabled)
   }, [updateMapPreference])
+
+  // Fetch available satellite dates for RGB imagery badge
+  const { dates: availableDates } = useAvailableDates(activeFarmId ?? undefined)
+  const rgbImageryInfo = useMemo(() => {
+    if (!availableDates || availableDates.length === 0) return null
+    const mostRecent = availableDates[0]
+    const captureDate = new Date(mostRecent.date + 'T00:00:00')
+    // Sentinel-2 has ~5-day revisit time
+    const nextEstimate = new Date(captureDate)
+    nextEstimate.setDate(nextEstimate.getDate() + 5)
+    return {
+      date: mostRecent.date,
+      provider: mostRecent.provider,
+      nextEstimate,
+    }
+  }, [availableDates])
 
   // Historical satellite view state
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
@@ -639,6 +656,30 @@ function GISRoute() {
       <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-10">
         <SaveIndicator />
       </div>
+
+      {/* RGB Imagery info badge - top center, below save indicator */}
+      {showRGBSatellite && rgbImageryInfo && (
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-full shadow-lg">
+            <Satellite className="h-3.5 w-3.5" />
+            <span>
+              {new Date(rgbImageryInfo.date + 'T00:00:00').toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+            <span className="text-blue-200">•</span>
+            <span className="text-blue-100">{rgbImageryInfo.provider}</span>
+            <span className="text-blue-200">•</span>
+            <span className="text-blue-100">
+              Next: ~{rgbImageryInfo.nextEstimate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Add menu - below save indicator */}
       <MapAddMenu
