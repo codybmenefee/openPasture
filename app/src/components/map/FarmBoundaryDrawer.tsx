@@ -3,6 +3,7 @@ import { X, Check, MousePointer2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
+import { createSquareFromCorners } from '@/lib/geometry'
 import type { Feature, Polygon } from 'geojson'
 import type { Map as MapLibreMap, GeoJSONSource } from 'maplibre-gl'
 
@@ -14,11 +15,21 @@ interface FarmBoundaryDrawerProps {
   isPostOnboarding?: boolean
   /** Callback with the saved geometry when boundary is confirmed */
   onBoundarySaved?: (geometry: Feature<Polygon>) => void
+  /** Existing boundary to edit (enables edit mode) */
+  existingBoundary?: Feature<Polygon> | null
 }
 
 const PREVIEW_SOURCE_ID = 'boundary-preview'
 const PREVIEW_FILL_LAYER_ID = 'boundary-preview-fill'
 const PREVIEW_OUTLINE_LAYER_ID = 'boundary-preview-outline'
+const CORNER_MARKERS_SOURCE_ID = 'boundary-corner-markers'
+const CORNER_MARKERS_LAYER_ID = 'boundary-corner-markers-layer'
+
+interface DragState {
+  isDragging: boolean
+  cornerIndex: number
+  anchorCorner: [number, number]
+}
 
 export function FarmBoundaryDrawer({
   map,
@@ -26,35 +37,31 @@ export function FarmBoundaryDrawer({
   onCancel,
   isPostOnboarding = false,
   onBoundarySaved,
+  existingBoundary,
 }: FarmBoundaryDrawerProps) {
   const { saveBoundary, isSaving, error: saveError } = useFarmBoundary()
-  const [step, setStep] = useState<'instructions' | 'drawing' | 'confirm'>('instructions')
+  const [step, setStep] = useState<'instructions' | 'drawing' | 'editing' | 'confirm'>(
+    existingBoundary ? 'editing' : 'instructions'
+  )
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null)
-  const [drawnGeometry, setDrawnGeometry] = useState<Feature<Polygon> | null>(null)
+  const [drawnGeometry, setDrawnGeometry] = useState<Feature<Polygon> | null>(
+    existingBoundary || null
+  )
+  const [dragState, setDragState] = useState<DragState | null>(null)
   const clickHandlerRef = useRef<((e: maplibregl.MapMouseEvent) => void) | null>(null)
   const mouseMoveHandlerRef = useRef<((e: maplibregl.MapMouseEvent) => void) | null>(null)
 
-  // Create preview rectangle geometry
-  const createRectangle = useCallback((p1: [number, number], p2: [number, number]): Feature<Polygon> => {
-    const minLng = Math.min(p1[0], p2[0])
-    const maxLng = Math.max(p1[0], p2[0])
-    const minLat = Math.min(p1[1], p2[1])
-    const maxLat = Math.max(p1[1], p2[1])
+  // Create square from two opposite corners using screen-space calculation
+  const createSquare = useCallback((p1: [number, number], p2: [number, number]): Feature<Polygon> | null => {
+    if (!map) return null
+    return createSquareFromCorners(map, p1, p2)
+  }, [map])
 
-    return {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [minLng, maxLat],
-          [maxLng, maxLat],
-          [maxLng, minLat],
-          [minLng, minLat],
-          [minLng, maxLat],
-        ]],
-      },
-    }
+  // Get corner points from a polygon (first 4 unique points)
+  const getCornerPoints = useCallback((geometry: Feature<Polygon>): [number, number][] => {
+    const coords = geometry.geometry.coordinates[0]
+    // Take first 4 points (5th is duplicate of first to close polygon)
+    return coords.slice(0, 4).map(coord => [coord[0], coord[1]] as [number, number])
   }, [])
 
   // Setup preview layer
@@ -95,10 +102,36 @@ export function FarmBoundaryDrawer({
       })
     }
 
+    // Add corner markers source and layer
+    if (!map.getSource(CORNER_MARKERS_SOURCE_ID)) {
+      map.addSource(CORNER_MARKERS_SOURCE_ID, {
+        type: 'geojson',
+        data: emptyCollection,
+      })
+
+      map.addLayer({
+        id: CORNER_MARKERS_LAYER_ID,
+        type: 'circle',
+        source: CORNER_MARKERS_SOURCE_ID,
+        paint: {
+          'circle-radius': 10,
+          'circle-color': '#ffffff',
+          'circle-stroke-color': '#22c55e',
+          'circle-stroke-width': 3,
+        },
+      })
+    }
+
     return () => {
       // Cleanup layers and source - check map still exists
       try {
         if (map && map.getStyle()) {
+          if (map.getLayer(CORNER_MARKERS_LAYER_ID)) {
+            map.removeLayer(CORNER_MARKERS_LAYER_ID)
+          }
+          if (map.getSource(CORNER_MARKERS_SOURCE_ID)) {
+            map.removeSource(CORNER_MARKERS_SOURCE_ID)
+          }
           if (map.getLayer(PREVIEW_FILL_LAYER_ID)) {
             map.removeLayer(PREVIEW_FILL_LAYER_ID)
           }
@@ -119,23 +152,173 @@ export function FarmBoundaryDrawer({
   const updatePreview = useCallback((geometry: Feature<Polygon> | null) => {
     if (!map) return
 
-    const source = map.getSource(PREVIEW_SOURCE_ID) as GeoJSONSource | undefined
-    if (!source) return
+    try {
+      // Check if map style is loaded before accessing sources
+      if (!map.getStyle()) return
 
-    if (geometry) {
-      source.setData({
-        type: 'FeatureCollection',
-        features: [geometry],
-      })
-    } else {
-      source.setData({
-        type: 'FeatureCollection',
-        features: [],
-      })
+      const source = map.getSource(PREVIEW_SOURCE_ID) as GeoJSONSource | undefined
+      if (!source) return
+
+      if (geometry) {
+        source.setData({
+          type: 'FeatureCollection',
+          features: [geometry],
+        })
+      } else {
+        source.setData({
+          type: 'FeatureCollection',
+          features: [],
+        })
+      }
+    } catch {
+      // Map may be in transitional state during save/navigation
     }
   }, [map])
 
-  // Setup click and mousemove handlers when drawing
+  // Update corner markers
+  const updateCornerMarkers = useCallback((geometry: Feature<Polygon> | null) => {
+    if (!map) return
+
+    try {
+      // Check if map style is loaded before accessing sources
+      if (!map.getStyle()) return
+
+      const source = map.getSource(CORNER_MARKERS_SOURCE_ID) as GeoJSONSource | undefined
+      if (!source) return
+
+      if (geometry) {
+        const corners = getCornerPoints(geometry)
+        source.setData({
+          type: 'FeatureCollection',
+          features: corners.map((coord, index) => ({
+            type: 'Feature' as const,
+            properties: { cornerIndex: index },
+            geometry: {
+              type: 'Point' as const,
+              coordinates: coord,
+            },
+          })),
+        })
+      } else {
+        source.setData({
+          type: 'FeatureCollection',
+          features: [],
+        })
+      }
+    } catch {
+      // Map may be in transitional state during save/navigation
+    }
+  }, [map, getCornerPoints])
+
+  // Initialize edit mode when existingBoundary is provided
+  useEffect(() => {
+    if (!map || !existingBoundary || step !== 'editing') return
+
+    try {
+      // Check if map style is loaded
+      if (!map.getStyle()) return
+
+      // Show the existing boundary
+      updatePreview(existingBoundary)
+      updateCornerMarkers(existingBoundary)
+      setDrawnGeometry(existingBoundary)
+
+      // Fit map to boundary bounds
+      const coords = existingBoundary.geometry.coordinates[0]
+      let minLng = Infinity, maxLng = -Infinity
+      let minLat = Infinity, maxLat = -Infinity
+
+      coords.forEach(([lng, lat]) => {
+        minLng = Math.min(minLng, lng)
+        maxLng = Math.max(maxLng, lng)
+        minLat = Math.min(minLat, lat)
+        maxLat = Math.max(maxLat, lat)
+      })
+
+      map.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: 100, duration: 500 }
+      )
+    } catch {
+      // Map may be in transitional state
+    }
+  }, [map, existingBoundary, step, updatePreview, updateCornerMarkers])
+
+  // Handle corner dragging in edit mode
+  useEffect(() => {
+    if (!map || step !== 'editing') return
+
+    const handleMouseDown = (e: maplibregl.MapMouseEvent) => {
+      // Check if click is on a corner marker
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [CORNER_MARKERS_LAYER_ID],
+      })
+
+      if (features.length > 0 && drawnGeometry) {
+        const cornerIndex = features[0].properties?.cornerIndex as number
+        const corners = getCornerPoints(drawnGeometry)
+
+        // The anchor is the opposite corner (index + 2) % 4
+        const anchorIndex = (cornerIndex + 2) % 4
+        const anchorCorner = corners[anchorIndex]
+
+        setDragState({
+          isDragging: true,
+          cornerIndex,
+          anchorCorner,
+        })
+
+        // Disable map panning
+        map.dragPan.disable()
+        map.getCanvas().style.cursor = 'grabbing'
+
+        e.preventDefault()
+      }
+    }
+
+    const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+      if (!dragState?.isDragging) {
+        // Update cursor on hover over corner markers
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: [CORNER_MARKERS_LAYER_ID],
+        })
+        map.getCanvas().style.cursor = features.length > 0 ? 'grab' : ''
+        return
+      }
+
+      // Create new square from anchor + cursor
+      const cursorPoint: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+      const newGeometry = createSquare(dragState.anchorCorner, cursorPoint)
+
+      if (newGeometry) {
+        setDrawnGeometry(newGeometry)
+        updatePreview(newGeometry)
+        updateCornerMarkers(newGeometry)
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (dragState?.isDragging) {
+        setDragState(null)
+        map.dragPan.enable()
+        map.getCanvas().style.cursor = ''
+      }
+    }
+
+    map.on('mousedown', handleMouseDown)
+    map.on('mousemove', handleMouseMove)
+    map.on('mouseup', handleMouseUp)
+
+    return () => {
+      map.off('mousedown', handleMouseDown)
+      map.off('mousemove', handleMouseMove)
+      map.off('mouseup', handleMouseUp)
+      map.dragPan.enable()
+      map.getCanvas().style.cursor = ''
+    }
+  }, [map, step, dragState, drawnGeometry, createSquare, getCornerPoints, updatePreview, updateCornerMarkers])
+
+  // Setup click and mousemove handlers when drawing (create mode)
   useEffect(() => {
     if (!map || step !== 'drawing') return
 
@@ -146,11 +329,13 @@ export function FarmBoundaryDrawer({
         // First click - set start point
         setStartPoint(clickPoint)
       } else {
-        // Second click - complete rectangle
-        const rectangle = createRectangle(startPoint, clickPoint)
-        setDrawnGeometry(rectangle)
-        updatePreview(rectangle)
-        setStep('confirm')
+        // Second click - complete square
+        const square = createSquare(startPoint, clickPoint)
+        if (square) {
+          setDrawnGeometry(square)
+          updatePreview(square)
+          setStep('confirm')
+        }
       }
     }
 
@@ -158,8 +343,10 @@ export function FarmBoundaryDrawer({
       if (!startPoint) return
 
       const currentPoint: [number, number] = [e.lngLat.lng, e.lngLat.lat]
-      const preview = createRectangle(startPoint, currentPoint)
-      updatePreview(preview)
+      const preview = createSquare(startPoint, currentPoint)
+      if (preview) {
+        updatePreview(preview)
+      }
     }
 
     // Store refs for cleanup
@@ -177,22 +364,38 @@ export function FarmBoundaryDrawer({
       map.off('mousemove', handleMouseMove)
       map.getCanvas().style.cursor = ''
     }
-  }, [map, step, startPoint, createRectangle, updatePreview])
+  }, [map, step, startPoint, createSquare, updatePreview])
 
   const handleStartDrawing = useCallback(() => {
     setStartPoint(null)
     setDrawnGeometry(null)
     updatePreview(null)
+    updateCornerMarkers(null)
     setStep('drawing')
-  }, [updatePreview])
+  }, [updatePreview, updateCornerMarkers])
 
   const handleCancel = useCallback(() => {
     setStartPoint(null)
     setDrawnGeometry(null)
     updatePreview(null)
+    updateCornerMarkers(null)
     setStep('instructions')
     onCancel?.()
-  }, [updatePreview, onCancel])
+  }, [updatePreview, updateCornerMarkers, onCancel])
+
+  const handleDoneEditing = useCallback(async () => {
+    // In edit mode, save directly without going to confirm step
+    if (!drawnGeometry) return
+
+    await saveBoundary(drawnGeometry)
+    updatePreview(null)
+    updateCornerMarkers(null)
+    if (onBoundarySaved) {
+      await onBoundarySaved(drawnGeometry)
+    }
+    await new Promise(resolve => setTimeout(resolve, 100))
+    onComplete?.()
+  }, [drawnGeometry, saveBoundary, updatePreview, updateCornerMarkers, onBoundarySaved, onComplete])
 
   const handleConfirm = useCallback(async () => {
     console.log('[FarmBoundaryDrawer] handleConfirm called, drawnGeometry:', !!drawnGeometry)
@@ -200,6 +403,7 @@ export function FarmBoundaryDrawer({
 
     await saveBoundary(drawnGeometry)
     updatePreview(null)
+    updateCornerMarkers(null)
     console.log('[FarmBoundaryDrawer] Calling onBoundarySaved, callback exists:', !!onBoundarySaved)
     // Await the callback to ensure paddock is created before navigation
     if (onBoundarySaved) {
@@ -209,14 +413,15 @@ export function FarmBoundaryDrawer({
     await new Promise(resolve => setTimeout(resolve, 100))
     console.log('[FarmBoundaryDrawer] Calling onComplete')
     onComplete?.()
-  }, [drawnGeometry, saveBoundary, updatePreview, onBoundarySaved, onComplete])
+  }, [drawnGeometry, saveBoundary, updatePreview, updateCornerMarkers, onBoundarySaved, onComplete])
 
   const handleRedraw = useCallback(() => {
     setStartPoint(null)
     setDrawnGeometry(null)
     updatePreview(null)
+    updateCornerMarkers(null)
     setStep('drawing')
-  }, [updatePreview])
+  }, [updatePreview, updateCornerMarkers])
 
   return (
     <Card className="absolute top-3 left-1/2 -translate-x-1/2 z-20 shadow-lg">
@@ -256,7 +461,7 @@ export function FarmBoundaryDrawer({
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                 <span>
                   {startPoint
-                    ? 'Click the opposite corner to complete the rectangle'
+                    ? 'Click the opposite corner to complete the square'
                     : 'Click to set the first corner'}
                 </span>
               </div>
@@ -265,6 +470,25 @@ export function FarmBoundaryDrawer({
               <X className="h-4 w-4" />
               <span className="ml-1">Cancel</span>
             </Button>
+          </div>
+        )}
+
+        {step === 'editing' && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <MousePointer2 className="h-4 w-4 text-muted-foreground" />
+              <span>Drag any corner to resize the boundary</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleDoneEditing} disabled={isSaving}>
+                <Check className="h-4 w-4 mr-1" />
+                {isSaving ? 'Saving...' : 'Save Boundary'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleCancel} disabled={isSaving}>
+                <X className="h-4 w-4" />
+                <span className="ml-1">Cancel</span>
+              </Button>
+            </div>
           </div>
         )}
 

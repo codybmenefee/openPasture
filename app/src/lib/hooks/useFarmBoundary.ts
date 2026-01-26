@@ -14,6 +14,8 @@ interface UseFarmBoundaryResult {
   hasBoundary: boolean
   /** Current boundary area in hectares */
   boundaryArea: number | null
+  /** The existing farm boundary geometry, if valid */
+  existingGeometry: Feature<Polygon> | null
   /** Start drawing a new boundary */
   startDraw: () => void
   /** Cancel boundary drawing */
@@ -67,6 +69,7 @@ export function useFarmBoundary(): UseFarmBoundaryResult {
   const boundaryArea = hasBoundary && farm?.geometry
     ? calculateAreaHectares(farm.geometry)
     : null
+  const existingGeometry = hasBoundary && farm?.geometry ? farm.geometry : null
 
   const startDraw = useCallback(() => {
     setIsDrawingBoundary(true)
@@ -104,6 +107,7 @@ export function useFarmBoundary(): UseFarmBoundaryResult {
     isSaving,
     hasBoundary,
     boundaryArea,
+    existingGeometry,
     startDraw,
     cancelDraw,
     saveBoundary,

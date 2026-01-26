@@ -110,9 +110,17 @@ function GISRoute() {
   })
   const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
 
+  // Track when we're intentionally completing the boundary edit (to prevent re-triggering)
+  const boundaryCompleteRef = useRef(false)
+
   // Handle ?editBoundary=true query param
   const editBoundaryParam = search.editBoundary === 'true'
   useEffect(() => {
+    // Don't re-trigger if we just completed/canceled
+    if (boundaryCompleteRef.current) {
+      boundaryCompleteRef.current = false
+      return
+    }
     if (editBoundaryParam && !isDrawingBoundary) {
       startDraw()
     }
@@ -164,6 +172,8 @@ function GISRoute() {
   }, [pendingOnboardingSave, saveChanges])
 
   const handleBoundaryComplete = useCallback(() => {
+    // Mark that we're intentionally completing to prevent effect re-triggering
+    boundaryCompleteRef.current = true
     // Stop the drawing mode and remove the query param
     cancelDraw()
     navigate({ to: '/', search: {} })
@@ -244,6 +254,8 @@ function GISRoute() {
   }, [search.onboarded, addPaddock])
 
   const handleBoundaryCancel = useCallback(() => {
+    // Mark that we're intentionally canceling to prevent effect re-triggering
+    boundaryCompleteRef.current = true
     cancelDraw()
     navigate({ to: '/', search: {} })
   }, [cancelDraw, navigate])
