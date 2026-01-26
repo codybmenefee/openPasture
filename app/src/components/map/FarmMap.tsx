@@ -962,7 +962,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             'grazed', statusColors.grazed,
             '#6b7280',
           ],
-          'fill-opacity': 0.3,
+          'fill-opacity': 0,
         },
       })
 
