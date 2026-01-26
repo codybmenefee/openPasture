@@ -109,13 +109,23 @@ def compute_zonal_stats(
     """
     import rioxarray  # Enables .rio accessor
 
-    # Get raster CRS - odc-stac loads data in EPSG:4326 by default
+    # Get raster CRS - try multiple sources
     raster_crs = None
-    if hasattr(data, 'rio') and hasattr(data.rio, 'crs'):
+
+    # Try rioxarray accessor first
+    if hasattr(data, 'rio') and hasattr(data.rio, 'crs') and data.rio.crs is not None:
         raster_crs = data.rio.crs
         print(f"DEBUG: Found raster CRS from rio: {raster_crs}")
-    else:
-        # Set default CRS for data from odc-stac
+
+    # Try attrs
+    if raster_crs is None and "crs" in data.attrs:
+        crs_str = data.attrs["crs"]
+        print(f"DEBUG: Found raster CRS from attrs: {crs_str}")
+        data = data.rio.write_crs(crs_str)
+        raster_crs = data.rio.crs
+
+    # Fallback to EPSG:4326
+    if raster_crs is None:
         raster_crs = "EPSG:4326"
         data = data.rio.write_crs(raster_crs)
         print(f"DEBUG: Set raster CRS to: {raster_crs}")
