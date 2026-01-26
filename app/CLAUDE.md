@@ -118,3 +118,22 @@ agent-browser screenshot test.png  # Capture screenshot
 ```
 
 Note: The app requires authentication. Set `VITE_DEV_AUTH=true` in `.env.local` to bypass Clerk auth during development.
+
+## Design Principles
+
+### Farmer-Configurable Decision Variables
+
+**All variables used in grazing calculations must be configurable per farm with sensible defaults.** This allows farmers to fine-tune recommendations to their specific conditions, breeds, and management style.
+
+This principle applies to:
+- Animal unit (AU) conversion factors
+- Daily consumption rates
+- NDVI thresholds
+- Rest period minimums
+- Any future calculation parameters
+
+When adding new calculation logic, always:
+1. Define sensible defaults in `convex/seedData.ts`
+2. Add configuration fields to `farmSettings` table
+3. Expose settings in the UI via the Settings page
+4. Document the default values and their meaning

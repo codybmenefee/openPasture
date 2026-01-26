@@ -46,6 +46,21 @@ const waterSourceStatus = v.union(
   v.literal('dry'),
 )
 
+const animalType = v.union(
+  v.literal('cow'),
+  v.literal('sheep'),
+)
+
+const livestockSettings = v.object({
+  // Animal Unit factors (defaults: cow=1.0, calf=0.5, sheep=0.2, lamb=0.1)
+  cowAU: v.number(),
+  calfAU: v.number(),
+  sheepAU: v.number(),
+  lambAU: v.number(),
+  // Daily dry matter consumption per AU (default: 12 kg)
+  dailyDMPerAU: v.number(),
+})
+
 export default defineSchema({
   farms: defineTable({
     externalId: v.string(),  // Will store Clerk org ID (org_xxx) for new farms
@@ -104,12 +119,25 @@ export default defineSchema({
       showRGBSatellite: v.boolean(),
       showNDVIHeatmap: v.optional(v.boolean()),
     })),
+    // Livestock settings for animal unit calculations
+    livestockSettings: v.optional(livestockSettings),
     // Imagery check tracking for smart scheduling
     lastImageryCheckAt: v.optional(v.string()),   // When we last checked for new imagery (ISO timestamp)
     lastNewImageryDate: v.optional(v.string()),   // Date of newest imagery found (YYYY-MM-DD)
     createdAt: v.string(),
     updatedAt: v.string(),
   })    .index('by_farm', ['farmExternalId']),
+  livestock: defineTable({
+    farmId: v.id('farms'),
+    animalType: animalType,
+    adultCount: v.number(),               // Breeding cows or ewes
+    offspringCount: v.number(),           // Calves or lambs
+    notes: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmId'])
+    .index('by_farm_type', ['farmId', 'animalType']),
   observations: defineTable({
     farmExternalId: v.string(),
     paddockExternalId: v.string(),

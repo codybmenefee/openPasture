@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { SettingsForm } from '@/components/settings'
+import { SettingsForm, LivestockSettings } from '@/components/settings'
 import { SubscriptionCard } from '@/components/settings/SubscriptionCard'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
@@ -74,6 +74,9 @@ function SettingsPage() {
       )}
 
       <SettingsForm settings={displaySettings} onChange={handleChange} />
+
+      {/* Livestock Settings */}
+      <LivestockSettings />
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-4 border-t">

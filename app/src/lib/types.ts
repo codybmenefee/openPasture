@@ -2,6 +2,36 @@ import type { Feature, Point, Polygon } from 'geojson'
 
 export type PaddockStatus = 'ready' | 'almost_ready' | 'recovering' | 'grazed'
 
+// Livestock types
+export type AnimalType = 'cow' | 'sheep'
+
+export interface LivestockEntry {
+  id: string
+  farmId: string
+  animalType: AnimalType
+  adultCount: number
+  offspringCount: number
+  notes?: string
+}
+
+export interface LivestockSettings {
+  cowAU: number
+  calfAU: number
+  sheepAU: number
+  lambAU: number
+  dailyDMPerAU: number
+}
+
+export interface LivestockSummary {
+  cows: number
+  calves: number
+  sheep: number
+  lambs: number
+  totalAnimalUnits: number
+  dailyConsumptionKg: number
+  auFactors: LivestockSettings
+}
+
 export type PlanStatus = 'pending' | 'approved' | 'rejected' | 'executed' | 'modified'
 
 // Section: Ephemeral, AI-generated daily grazing polygon within a paddock

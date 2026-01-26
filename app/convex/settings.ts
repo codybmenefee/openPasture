@@ -7,6 +7,14 @@ const mapPreferencesShape = v.object({
   showNDVIHeatmap: v.optional(v.boolean()),
 })
 
+const livestockSettingsShape = v.object({
+  cowAU: v.number(),
+  calfAU: v.number(),
+  sheepAU: v.number(),
+  lambAU: v.number(),
+  dailyDMPerAU: v.number(),
+})
+
 const settingsShape = {
   minNDVIThreshold: v.number(),
   minRestPeriod: v.number(),
@@ -225,5 +233,64 @@ export const getImageryCheckStatus = query({
       lastImageryCheckAt: settings.lastImageryCheckAt ?? null,
       lastNewImageryDate: settings.lastNewImageryDate ?? null,
     }
+  },
+})
+
+/**
+ * Update livestock settings (AU factors and consumption rate)
+ */
+export const updateLivestockSettings = mutation({
+  args: {
+    farmId: v.string(),
+    livestockSettings: livestockSettingsShape,
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const existing = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmId))
+      .first()
+
+    if (!existing) {
+      const id = await ctx.db.insert('farmSettings', {
+        farmExternalId: args.farmId,
+        ...defaultFarmSettings,
+        livestockSettings: args.livestockSettings,
+        createdAt: now,
+        updatedAt: now,
+      })
+      return { id }
+    }
+
+    await ctx.db.patch(existing._id, {
+      livestockSettings: args.livestockSettings,
+      updatedAt: now,
+    })
+
+    return { id: existing._id }
+  },
+})
+
+/**
+ * Get livestock settings for a farm
+ */
+export const getLivestockSettings = query({
+  args: { farmId: v.string() },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmId))
+      .first()
+
+    // Return default settings if not configured
+    const defaultLivestockSettings = {
+      cowAU: 1.0,
+      calfAU: 0.5,
+      sheepAU: 0.2,
+      lambAU: 0.1,
+      dailyDMPerAU: 12,
+    }
+
+    return settings?.livestockSettings ?? defaultLivestockSettings
   },
 })

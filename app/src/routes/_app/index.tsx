@@ -3,7 +3,7 @@ import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-react'
+import { Beef, Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalSatelliteView } from '@/components/satellite/HistoricalSatelliteView'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
@@ -28,6 +28,7 @@ import { ErrorState } from '@/components/ui/error/ErrorState'
 import { useFarmContext } from '@/lib/farm'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
+import { LivestockDrawer } from '@/components/livestock'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useAvailableDates } from '@/lib/hooks/useSatelliteTiles'
@@ -309,6 +310,9 @@ function GISRoute() {
 
   // Historical satellite view state
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
+
+  // Livestock drawer state
+  const [livestockDrawerOpen, setLivestockDrawerOpen] = useState(false)
 
   // Boundary saved dialog state - show after non-onboarding boundary save
   const [boundarySavedDialogOpen, setBoundarySavedDialogOpen] = useState(false)
@@ -637,7 +641,7 @@ function GISRoute() {
       </div>
 
       {/* Historical Satellite button - bottom left, above layer toggles */}
-      <div className="absolute bottom-14 left-2 z-10">
+      <div className="absolute bottom-14 left-2 z-10 flex gap-1">
         <Button
           variant="outline"
           size="sm"
@@ -646,6 +650,15 @@ function GISRoute() {
         >
           <Satellite className="h-3.5 w-3.5" />
           Historical
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLivestockDrawerOpen(true)}
+          className="gap-1 h-7 text-xs shadow-lg bg-white"
+        >
+          <Beef className="h-3.5 w-3.5" />
+          Livestock
         </Button>
       </div>
 
@@ -835,6 +848,12 @@ function GISRoute() {
       <BoundarySavedDialog
         open={boundarySavedDialogOpen}
         onOpenChange={setBoundarySavedDialogOpen}
+      />
+
+      {/* Livestock drawer */}
+      <LivestockDrawer
+        open={livestockDrawerOpen}
+        onOpenChange={setLivestockDrawerOpen}
       />
     </div>
   )
