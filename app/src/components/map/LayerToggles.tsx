@@ -8,14 +8,17 @@ interface LayerTogglesProps {
     paddocks: boolean
     labels: boolean
     sections: boolean
+    rgbSatellite?: boolean
   }
-  onToggle: (layer: keyof LayerTogglesProps['layers']) => void
+  onToggle: (layer: keyof Omit<LayerTogglesProps['layers'], 'rgbSatellite'>) => void
+  onToggleRGB?: (enabled: boolean) => void
   showEditToggle?: boolean
 }
 
 export function LayerToggles({
   layers,
   onToggle,
+  onToggleRGB,
 }: LayerTogglesProps) {
   const buttons = [
     { key: 'satellite' as const, label: 'Satellite' },
@@ -41,6 +44,19 @@ export function LayerToggles({
           {btn.label}
         </Button>
       ))}
+      {onToggleRGB && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onToggleRGB(!layers.rgbSatellite)}
+          className={cn(
+            'h-5 px-1.5 text-[10px]',
+            layers.rgbSatellite && 'bg-accent'
+          )}
+        >
+          RGB Imagery
+        </Button>
+      )}
     </div>
   )
 }

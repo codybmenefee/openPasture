@@ -10,6 +10,7 @@ import { MapAddMenu } from './MapAddMenu'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useCurrentUser } from '@/lib/convex/useCurrentUser'
+import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import type { Paddock, Section, SectionAlternative, NoGrazeZone, WaterSource, WaterSourceType, NoGrazeZoneType, WaterSourceStatus } from '@/lib/types'
 import type { Feature, Polygon } from 'geojson'
 
@@ -22,10 +23,11 @@ interface MapSearchParams {
 
 export function MapView() {
   const search = useSearch({ strict: false }) as MapSearchParams
-  
+
   const { farmId } = useCurrentUser()
   const { plan } = useTodayPlan(farmId || '')
-  
+  const { settings, updateMapPreference } = useFarmSettings()
+
   const [selectedPaddock, setSelectedPaddock] = useState<Paddock | null>(null)
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
   const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
@@ -56,6 +58,13 @@ export function MapView() {
     labels: true,
     sections: true,
   })
+
+  // RGB satellite toggle is persisted in settings
+  const showRGBSatellite = settings.mapPreferences?.showRGBSatellite ?? false
+
+  const handleToggleRGB = useCallback((enabled: boolean) => {
+    updateMapPreference('showRGBSatellite', enabled)
+  }, [updateMapPreference])
 
   // Extract today's section from plan or fallback to most recent section
   const todaysSection = useMemo<Section | null>(() => {
@@ -392,6 +401,7 @@ export function MapView() {
           showPaddocks={layers.paddocks}
           showLabels={layers.labels}
           showSections={layers.sections}
+          showRGBSatellite={showRGBSatellite}
           editable={true}
           editMode={editMode}
           entityType={entityType}
@@ -444,8 +454,9 @@ export function MapView() {
         {/* Layer toggles */}
         <div className="absolute bottom-2 left-2 z-10">
           <LayerToggles
-            layers={layers}
+            layers={{ ...layers, rgbSatellite: showRGBSatellite }}
             onToggle={toggleLayer}
+            onToggleRGB={handleToggleRGB}
           />
         </div>
       </div>

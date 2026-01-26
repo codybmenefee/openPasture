@@ -2,6 +2,10 @@ import { mutationGeneric as mutation, queryGeneric as query } from 'convex/serve
 import { v } from 'convex/values'
 import { defaultFarmSettings } from './seedData'
 
+const mapPreferencesShape = v.object({
+  showRGBSatellite: v.boolean(),
+})
+
 const settingsShape = {
   minNDVIThreshold: v.number(),
   minRestPeriod: v.number(),
@@ -11,6 +15,7 @@ const settingsShape = {
   pushNotifications: v.boolean(),
   virtualFenceProvider: v.optional(v.string()),
   apiKey: v.optional(v.string()),
+  mapPreferences: v.optional(mapPreferencesShape),
 }
 
 export const getSettings = query({
@@ -75,6 +80,42 @@ export const resetSettings = mutation({
 
     await ctx.db.patch(existing._id, {
       ...defaultFarmSettings,
+      updatedAt: now,
+    })
+
+    return { id: existing._id }
+  },
+})
+
+export const updateMapPreference = mutation({
+  args: {
+    farmId: v.string(),
+    key: v.string(),
+    value: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString()
+    const existing = await ctx.db
+      .query('farmSettings')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmId))
+      .first()
+
+    const currentPrefs = existing?.mapPreferences ?? { showRGBSatellite: false }
+    const updatedPrefs = { ...currentPrefs, [args.key]: args.value }
+
+    if (!existing) {
+      const id = await ctx.db.insert('farmSettings', {
+        farmExternalId: args.farmId,
+        ...defaultFarmSettings,
+        mapPreferences: updatedPrefs,
+        createdAt: now,
+        updatedAt: now,
+      })
+      return { id }
+    }
+
+    await ctx.db.patch(existing._id, {
+      mapPreferences: updatedPrefs,
       updatedAt: now,
     })
 

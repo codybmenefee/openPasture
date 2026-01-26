@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react'
 import maplibregl from 'maplibre-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -7,7 +7,9 @@ import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry, clipPolygonToPolygon, getTranslationDelta, translatePolygon } from '@/lib/geometry'
 import { createNoGrazeStripePatternByType, getNoGrazeZoneTypes } from '@/lib/map/patterns'
 import { useMapDraw, loadGeometriesToDraw, type DrawMode } from '@/lib/hooks'
+import { useSatelliteTile, useAvailableDates } from '@/lib/hooks/useSatelliteTiles'
 import { DrawingToolbar } from './DrawingToolbar'
+import { RasterTileLayer } from './RasterTileLayer'
 import type { Feature, Polygon } from 'geojson'
 import { useFarm } from '@/lib/convex/useFarm'
 import { MapSkeleton } from '@/components/ui/loading/MapSkeleton'
@@ -43,6 +45,7 @@ interface FarmMapProps {
   showPaddocks?: boolean
   showLabels?: boolean
   showSections?: boolean
+  showRGBSatellite?: boolean
   editable?: boolean
   editMode?: boolean
   entityType?: 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
@@ -397,6 +400,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   showPaddocks = true,
   showLabels = true,
   showSections = true,
+  showRGBSatellite = false,
   editable = false,
   editMode = false,
   entityType = 'paddock',
@@ -440,6 +444,21 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const farmLng = farm?.coordinates?.[0] ?? null
   const farmLat = farm?.coordinates?.[1] ?? null
   const farmGeometry = farm?.geometry ?? null
+
+  // Fetch available satellite dates and get the most recent one
+  const { dates: availableDates } = useAvailableDates(farmId ?? undefined)
+  const mostRecentDate = useMemo(() => {
+    if (!availableDates || availableDates.length === 0) return undefined
+    // Dates are returned sorted by date descending, so first is most recent
+    return availableDates[0].date
+  }, [availableDates])
+
+  // Fetch the RGB tile for the most recent date
+  const { tile: rgbTile } = useSatelliteTile(
+    farmId ?? undefined,
+    mostRecentDate,
+    'rgb'
+  )
 
   // Check if farm has a valid boundary (not the default tiny polygon)
   const hasValidBoundary = useCallback(() => {
@@ -2271,7 +2290,20 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       ) : (
         <div ref={mapContainer} className="h-full w-full" />
       )}
-      
+
+      {/* RGB Satellite imagery layer - renders below paddocks */}
+      {rgbTile && showRGBSatellite && (
+        <RasterTileLayer
+          map={mapInstance}
+          tileUrl={rgbTile.r2Url}
+          bounds={rgbTile.bounds}
+          visible={showRGBSatellite}
+          opacity={1}
+          layerId="rgb-satellite"
+          beforeLayerId="paddocks-fill"
+        />
+      )}
+
       {isEditActive && showToolbar && (
         <div className={`absolute ${toolbarPositionClasses[toolbarPosition]} z-10`}>
           <DrawingToolbar

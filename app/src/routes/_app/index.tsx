@@ -27,6 +27,7 @@ import { useFarmContext } from '@/lib/farm'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
+import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 
@@ -275,6 +276,14 @@ function GISRoute() {
     labels: true,
     sections: true,
   })
+
+  // RGB satellite toggle is persisted in settings
+  const { settings, updateMapPreference } = useFarmSettings()
+  const showRGBSatellite = settings.mapPreferences?.showRGBSatellite ?? false
+
+  const handleToggleRGB = useCallback((enabled: boolean) => {
+    updateMapPreference('showRGBSatellite', enabled)
+  }, [updateMapPreference])
 
   // Historical satellite view state
   const [satelliteViewOpen, setSatelliteViewOpen] = useState(false)
@@ -568,6 +577,7 @@ function GISRoute() {
         showPaddocks={layers.paddocks}
         showLabels={layers.labels}
         showSections={layers.sections}
+        showRGBSatellite={showRGBSatellite}
         editable={true}
         editMode={true}
         entityType={drawEntityType}
@@ -595,8 +605,9 @@ function GISRoute() {
       {/* Layer toggles - bottom left */}
       <div className="absolute bottom-2 left-2 z-10">
         <LayerToggles
-          layers={layers}
+          layers={{ ...layers, rgbSatellite: showRGBSatellite }}
           onToggle={toggleLayer}
+          onToggleRGB={handleToggleRGB}
           showEditToggle={false}
         />
       </div>

@@ -9,4 +9,5 @@ export const defaultSettings: FarmSettings = {
   pushNotifications: false,
   virtualFenceProvider: '',
   apiKey: '',
+  mapPreferences: { showRGBSatellite: false },
 }

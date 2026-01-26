@@ -31,6 +31,21 @@ const paddockStatus = v.union(
   v.literal('grazed'),
 )
 
+const noGrazeZoneType = v.union(
+  v.literal('environmental'),
+  v.literal('hazard'),
+  v.literal('infrastructure'),
+  v.literal('protected'),
+  v.literal('other'),
+)
+
+const waterSourceStatus = v.union(
+  v.literal('active'),
+  v.literal('seasonal'),
+  v.literal('maintenance'),
+  v.literal('dry'),
+)
+
 export default defineSchema({
   farms: defineTable({
     externalId: v.string(),  // Will store Clerk org ID (org_xxx) for new farms
@@ -85,6 +100,9 @@ export default defineSchema({
     pushNotifications: v.boolean(),
     virtualFenceProvider: v.optional(v.string()),
     apiKey: v.optional(v.string()),
+    mapPreferences: v.optional(v.object({
+      showRGBSatellite: v.boolean(),
+    })),
     createdAt: v.string(),
     updatedAt: v.string(),
   })    .index('by_farm', ['farmExternalId']),
@@ -173,6 +191,9 @@ export default defineSchema({
   noGrazeZones: defineTable({
     farmId: v.id('farms'),
     name: v.string(),
+    type: v.optional(noGrazeZoneType),
+    area: v.optional(v.number()),
+    description: v.optional(v.string()),
     geometry: polygonFeature,
     createdAt: v.string(),
     updatedAt: v.string(),
@@ -190,6 +211,9 @@ export default defineSchema({
     ),
     geometryType: v.union(v.literal('point'), v.literal('polygon')),
     geometry: v.union(pointFeature, polygonFeature),
+    area: v.optional(v.number()),
+    description: v.optional(v.string()),
+    status: v.optional(waterSourceStatus),
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_farm', ['farmId']),
@@ -203,4 +227,59 @@ export default defineSchema({
     windDirection: v.optional(v.number()),
     createdAt: v.string(),
   }).index('by_farm_date', ['farmId', 'date']),
+
+  // Satellite image tiles stored in Cloudflare R2
+  satelliteImageTiles: defineTable({
+    farmId: v.id('farms'),
+    captureDate: v.string(),
+    provider: v.string(),  // 'sentinel2' | 'planet'
+    tileType: v.union(
+      v.literal('rgb'),
+      v.literal('ndvi'),
+      v.literal('evi'),
+      v.literal('ndwi')
+    ),
+    r2Key: v.string(),     // Cloudflare R2 object key
+    r2Url: v.string(),     // Public/signed URL
+    bounds: v.object({
+      west: v.number(),
+      south: v.number(),
+      east: v.number(),
+      north: v.number(),
+    }),
+    cloudCoverPct: v.number(),
+    resolutionMeters: v.number(),
+    fileSizeBytes: v.number(),
+    createdAt: v.string(),
+    expiresAt: v.optional(v.string()),
+  })
+    .index('by_farm_date', ['farmId', 'captureDate'])
+    .index('by_farm_type', ['farmId', 'tileType']),
+
+  // Clerk Billing subscriptions
+  subscriptions: defineTable({
+    farmId: v.id('farms'),
+    clerkSubscriptionId: v.string(),
+    stripeCustomerId: v.string(),
+    tier: v.union(
+      v.literal('free'),
+      v.literal('starter'),
+      v.literal('professional'),
+      v.literal('enterprise')
+    ),
+    acreageLimit: v.number(),
+    rawImageryEnabled: v.boolean(),
+    premiumProvidersEnabled: v.boolean(),
+    retentionDays: v.number(),
+    status: v.union(
+      v.literal('active'),
+      v.literal('past_due'),
+      v.literal('canceled')
+    ),
+    currentPeriodEnd: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmId'])
+    .index('by_clerk_subscription', ['clerkSubscriptionId']),
 })
