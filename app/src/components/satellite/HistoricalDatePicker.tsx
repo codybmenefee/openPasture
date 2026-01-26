@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import type { TileType } from '../../lib/hooks/useSatelliteTiles'
 import { useAvailableDates } from '../../lib/hooks/useSatelliteTiles'
 import { useSubscription } from '../../lib/hooks/useSubscription'
+import { cn } from '@/lib/utils'
 
 interface HistoricalDatePickerProps {
   /**
@@ -193,78 +194,79 @@ export function HistoricalDatePicker({
 
   if (isLoading) {
     return (
-      <div className={`animate-pulse bg-gray-100 rounded-lg h-64 ${className}`} />
+      <div className={cn('animate-pulse bg-muted rounded-lg h-36', className)} />
     )
   }
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
+    <div className={cn('bg-card rounded-lg border border-border p-1.5', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-1">
         <button
           onClick={() => navigateMonth(-1)}
-          className="p-1 hover:bg-gray-100 rounded"
+          className="p-0.5 hover:bg-muted rounded"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h3 className="text-sm font-medium text-gray-900">
+        <h3 className="text-xs font-medium text-foreground">
           {monthNames[viewMonth.month]} {viewMonth.year}
         </h3>
         <button
           onClick={() => navigateMonth(1)}
-          className="p-1 hover:bg-gray-100 rounded"
+          className="p-0.5 hover:bg-muted rounded"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
 
       {/* Day headers */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+      <div className="grid grid-cols-7 gap-px mb-0.5">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+          <div key={idx} className="text-center text-[10px] font-medium text-muted-foreground">
             {day}
           </div>
         ))}
       </div>
 
       {/* Calendar days */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-px">
         {calendarDays.map((day, idx) => (
           <button
             key={idx}
             onClick={() => day.hasData && !day.isRestricted && onDateSelect(day.date)}
             disabled={!day.hasData || day.isRestricted}
-            className={`
-              relative aspect-square flex items-center justify-center rounded text-sm
-              ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-              ${selectedDate === day.date ? 'bg-green-600 text-white' : ''}
-              ${day.hasData && !day.isRestricted && selectedDate !== day.date ? 'hover:bg-gray-100 cursor-pointer' : ''}
-              ${!day.hasData || day.isRestricted ? 'cursor-not-allowed' : ''}
-              ${day.isRestricted && day.hasData ? 'opacity-50' : ''}
-            `}
+            className={cn(
+              'relative h-5 flex items-center justify-center rounded text-xs',
+              day.isCurrentMonth ? 'text-foreground' : 'text-muted-foreground',
+              selectedDate === day.date && 'bg-primary text-white',
+              day.hasData && !day.isRestricted && selectedDate !== day.date && 'hover:bg-muted cursor-pointer',
+              (!day.hasData || day.isRestricted) && 'cursor-not-allowed',
+              day.isRestricted && day.hasData && 'opacity-50'
+            )}
           >
             <span>{day.dayNum}</span>
             {/* Data indicator */}
             {day.hasData && !day.isRestricted && (
               <span
-                className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
+                className={cn(
+                  'absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full',
                   day.cloudCover && day.cloudCover < 20
                     ? 'bg-green-500'
                     : day.cloudCover && day.cloudCover < 50
                       ? 'bg-yellow-500'
                       : 'bg-red-500'
-                }`}
+                )}
                 title={`Cloud cover: ${day.cloudCover?.toFixed(0) ?? 'N/A'}%`}
               />
             )}
             {/* Lock indicator for restricted dates */}
             {day.isRestricted && day.hasData && (
-              <span className="absolute top-0 right-0 text-gray-400">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <span className="absolute top-0 right-0 text-muted-foreground">
+                <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
                     d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
@@ -277,27 +279,15 @@ export function HistoricalDatePicker({
         ))}
       </div>
 
-      {/* Legend */}
-      <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span>&lt;20% clouds</span>
+      {/* Compact footer: legend dots + count inline */}
+      <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Clear</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />Hazy</span>
+          <span className="flex items-center gap-0.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />Cloudy</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-yellow-500" />
-          <span>20-50% clouds</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span>&gt;50% clouds</span>
-        </div>
+        <span>{dates.length} dates</span>
       </div>
-
-      {/* Available dates count */}
-      <p className="mt-2 text-xs text-gray-500">
-        {dates.length} capture dates available
-        {retentionMonths !== Infinity && ` (last ${retentionMonths} months)`}
-      </p>
     </div>
   )
 }

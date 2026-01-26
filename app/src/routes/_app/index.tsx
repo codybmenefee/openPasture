@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Beef, Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
-import { HistoricalSatelliteView } from '@/components/satellite/HistoricalSatelliteView'
+import { HistoricalPanel } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
 import { LayerToggles } from '@/components/map/LayerToggles'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { useFarmContext } from '@/lib/farm'
+import { cn } from '@/lib/utils'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { LivestockDrawer } from '@/components/livestock'
@@ -643,10 +644,10 @@ function GISRoute() {
       {/* Historical Satellite button - bottom left, above layer toggles */}
       <div className="absolute bottom-14 left-2 z-10 flex gap-1">
         <Button
-          variant="outline"
+          variant={satelliteViewOpen ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setSatelliteViewOpen(true)}
-          className="gap-1 h-7 text-xs shadow-lg bg-white"
+          onClick={() => setSatelliteViewOpen(!satelliteViewOpen)}
+          className={cn('gap-1 h-7 text-xs shadow-lg', !satelliteViewOpen && 'bg-white')}
         >
           <Satellite className="h-3.5 w-3.5" />
           Historical
@@ -662,13 +663,13 @@ function GISRoute() {
         </Button>
       </div>
 
-      {/* Historical Satellite View */}
+      {/* Historical Satellite Panel */}
       {activeFarmId && (
-        <HistoricalSatelliteView
+        <HistoricalPanel
           farmId={activeFarmId}
           map={mapInstance}
-          isOpen={satelliteViewOpen}
-          onClose={() => setSatelliteViewOpen(false)}
+          open={satelliteViewOpen}
+          onOpenChange={setSatelliteViewOpen}
         />
       )}
 
