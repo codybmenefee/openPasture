@@ -1,30 +1,23 @@
-FROM python:3.12-slim
+# Use OSGEO's GDAL image - has GDAL/GEOS/PROJ pre-installed
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.8.5
 
-# Install system dependencies for rasterio/GDAL
-RUN apt-get update && apt-get install -y \
-    gdal-bin \
-    libgdal-dev \
-    libexpat1 \
-    libproj-dev \
-    libgeos-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set GDAL environment variables
-ENV GDAL_CONFIG=/usr/bin/gdal-config
-ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
-ENV C_INCLUDE_PATH=/usr/include/gdal
+# Install Python 3.12
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python
 
 WORKDIR /app
 
-# Copy and install Python dependencies
+# Copy and install Python dependencies (layer cached if requirements unchanged)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy source code (changes frequently, so last)
 COPY . .
 
-# Expose health check port
 EXPOSE 8080
 
-# Run the pipeline
 CMD ["python", "scheduler.py"]
