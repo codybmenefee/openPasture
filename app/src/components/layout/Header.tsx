@@ -11,11 +11,6 @@ export function Header() {
     <header className="flex h-8 items-center justify-between border-b border-border bg-background px-2">
       <FarmSelector />
       <div className="flex items-center gap-1.5">
-
-        <span className="px-1 py-0 text-[9px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 rounded">
-          demo
-        </span>
-
         {isDevAuth && (
           <Link to="/onboarding">
             <Button variant="ghost" size="sm" className="h-5 gap-1 px-1" title="Reset onboarding journey">
