@@ -200,7 +200,7 @@ export function GeometryProvider({
         )
 
         if (pendingDeleteIds.size > 0) {
-          console.log('[GeometryContext] Excluding sections with pending deletes:', Array.from(pendingDeleteIds))
+          console.log('[GeometryContext] Sections sync: excluding pending deletes:', Array.from(pendingDeleteIds))
         }
 
         if (pendingSectionIds.size > 0) {

@@ -28,6 +28,7 @@ import { ErrorState } from '@/components/ui/error/ErrorState'
 import { useFarmContext } from '@/lib/farm'
 import { cn } from '@/lib/utils'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
+import { createTypedFeatureId, parseTypedFeatureId } from '@/lib/hooks'
 import { useTodayPlan } from '@/lib/convex/usePlan'
 import { LivestockDrawer } from '@/components/livestock'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
@@ -43,11 +44,12 @@ const searchSchema = z.object({
 
 type DrawEntityType = 'paddock' | 'section' | 'noGrazeZone' | 'waterPoint' | 'waterPolygon'
 
+// Simplified edit drawer state using typed feature IDs
 interface EditDrawerState {
   open: boolean
-  entityType: 'paddock' | 'section'
-  paddockId?: string
-  sectionId?: string
+  // Typed feature ID in format "entityType:entityId" (e.g., "paddock:abc123")
+  featureId: string | null
+  // Optional geometry for newly created entities
   geometry?: Feature<Polygon>
 }
 
@@ -59,8 +61,10 @@ function GISRoute() {
   const { plan } = useTodayPlan(activeFarmId || '')
   const {
     getPaddockById,
+    getSectionById,
     addPaddock,
     saveChanges,
+    pendingChanges,
     getNoGrazeZoneById,
     getWaterSourceById,
     updateNoGrazeZoneMetadata,
@@ -112,9 +116,22 @@ function GISRoute() {
   // State declarations - must come before callbacks that use them
   const [editDrawerState, setEditDrawerState] = useState<EditDrawerState>({
     open: false,
-    entityType: 'paddock',
+    featureId: null,
   })
+  // Drawing entity type - for creating NEW entities via draw mode
   const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
+
+  // Derived state from the typed feature ID
+  const parsedFeatureId = useMemo(() => {
+    if (!editDrawerState.featureId) return null
+    return parseTypedFeatureId(editDrawerState.featureId)
+  }, [editDrawerState.featureId])
+
+  const selectedEntityType = parsedFeatureId?.entityType as 'paddock' | 'section' | undefined
+  const selectedEntityId = parsedFeatureId?.entityId
+
+  // Track whether we're in edit mode for a section (derived from entity type)
+  const isEditingSection = selectedEntityType === 'section'
 
   // Track when we're intentionally completing the boundary edit (to prevent re-triggering)
   const boundaryCompleteRef = useRef(false)
@@ -157,8 +174,7 @@ function GISRoute() {
         // Open the paddock edit drawer so user can customize
         setEditDrawerState({
           open: true,
-          entityType: 'paddock',
-          paddockId,
+          featureId: createTypedFeatureId('paddock', paddockId),
           geometry,
         })
         setDrawEntityType('paddock')
@@ -350,13 +366,22 @@ function GISRoute() {
     return getPaddockById(todaysSection.paddockId)
   }, [getPaddockById, todaysSection])
 
-  // Clip section to paddock bounds
+  // Check if a section has a pending delete
+  const sectionHasPendingDelete = useCallback((sectionId: string) => {
+    return pendingChanges.some(
+      (c) => !c.synced && c.entityType === 'section' && c.changeType === 'delete' && c.id === sectionId
+    )
+  }, [pendingChanges])
+
+  // Clip section to paddock bounds (returns null if section has pending delete)
   const clippedSectionGeometry = useMemo(() => {
     if (!todaysSection) return null
+    // Don't render section if it has a pending delete
+    if (sectionHasPendingDelete(todaysSection.id)) return null
     if (!sectionPaddock) return todaysSection.geometry
     const clipped = clipPolygonToPolygon(todaysSection.geometry, sectionPaddock.geometry)
     return clipped ?? sectionPaddock.geometry
-  }, [todaysSection, sectionPaddock])
+  }, [todaysSection, sectionPaddock, sectionHasPendingDelete])
 
   const toggleLayer = (layer: keyof typeof layers) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }))
@@ -370,43 +395,73 @@ function GISRoute() {
     waterSourceId?: string
     geometry?: Feature<Polygon>
   }) => {
+    console.log('[handleEditRequest]', request)
+
     // If creating a new paddock with geometry (double-click on empty space)
     if (request.entityType === 'paddock' && request.geometry && !request.paddockId) {
       const newId = addPaddock(request.geometry)
       setEditDrawerState({
         open: true,
-        entityType: 'paddock',
-        paddockId: newId,
+        featureId: createTypedFeatureId('paddock', newId),
         geometry: request.geometry,
       })
       setDrawEntityType('paddock')
       return
     }
 
-    // For no-graze zones and water polygons, just enter edit mode
-    // The geometries will be loaded into draw by the FarmMap effects
-    if (request.entityType === 'noGrazeZone' || request.entityType === 'waterPolygon') {
-      setDrawEntityType(request.entityType)
+    // For no-graze zones and water polygons, set draw entity type for the unified draw
+    // No separate drawer - they use floating panels
+    if (request.entityType === 'noGrazeZone') {
+      setDrawEntityType('noGrazeZone')
+      // Open the no-graze panel if a zone ID was provided
+      if (request.noGrazeZoneId) {
+        const zone = getNoGrazeZoneById(request.noGrazeZoneId)
+        if (zone) setSelectedNoGrazeZone(zone)
+      }
       return
     }
 
-    // Opening existing paddock or section
-    setEditDrawerState({
-      open: true,
-      entityType: request.entityType,
-      paddockId: request.paddockId,
-      sectionId: request.sectionId,
-      geometry: request.geometry,
-    })
-    // Also update the draw entity type so FarmMap enters the correct edit mode
-    setDrawEntityType(request.entityType)
-  }, [addPaddock])
+    if (request.entityType === 'waterPolygon') {
+      setDrawEntityType('waterPolygon')
+      // Open the water source panel if a source ID was provided
+      if (request.waterSourceId) {
+        const source = getWaterSourceById(request.waterSourceId)
+        if (source) setSelectedWaterSource(source)
+      }
+      return
+    }
+
+    // Opening existing paddock or section - use typed feature ID
+    if (request.entityType === 'paddock' && request.paddockId) {
+      setEditDrawerState({
+        open: true,
+        featureId: createTypedFeatureId('paddock', request.paddockId),
+        geometry: request.geometry,
+      })
+      setDrawEntityType('paddock')
+    } else if (request.entityType === 'section' && request.sectionId) {
+      setEditDrawerState({
+        open: true,
+        featureId: createTypedFeatureId('section', request.sectionId),
+        geometry: request.geometry,
+      })
+      setDrawEntityType('section')
+    }
+  }, [addPaddock, getNoGrazeZoneById, getWaterSourceById])
 
   const closeEditDrawer = useCallback(() => {
     setEditDrawerState({
       open: false,
-      entityType: 'paddock',
+      featureId: null,
     })
+  }, [])
+
+  // Handle entering edit mode for a section (from the "Update Section" button)
+  // isEditingSection is now derived from selectedEntityType === 'section'
+  const handleEnterSectionEditMode = useCallback(() => {
+    // Just ensure draw entity type is set to section
+    // The section feature should already be in editDrawerState
+    setDrawEntityType('section')
   }, [])
 
   const handleNoGrazeZoneClick = useCallback((zoneId: string) => {
@@ -569,11 +624,20 @@ function GISRoute() {
 
   // Get the selected paddock for the edit drawer
   const selectedPaddock: Paddock | undefined = useMemo(() => {
-    if (editDrawerState.entityType === 'paddock' && editDrawerState.paddockId) {
-      return getPaddockById(editDrawerState.paddockId)
+    if (selectedEntityType === 'paddock' && selectedEntityId) {
+      return getPaddockById(selectedEntityId)
     }
     return undefined
-  }, [editDrawerState.entityType, editDrawerState.paddockId, getPaddockById])
+  }, [selectedEntityType, selectedEntityId, getPaddockById])
+
+  // Get the parent paddock ID for sections
+  const parentPaddockIdForSection = useMemo(() => {
+    if (selectedEntityType === 'section' && selectedEntityId) {
+      const section = getSectionById(selectedEntityId)
+      return section?.paddockId
+    }
+    return undefined
+  }, [selectedEntityType, selectedEntityId, getSectionById])
 
   if (isLoading) {
     return (
@@ -610,13 +674,28 @@ function GISRoute() {
         editable={true}
         editMode={true}
         entityType={drawEntityType}
-        parentPaddockId={editDrawerState.entityType === 'section' ? editDrawerState.paddockId : undefined}
-        initialSectionFeature={clippedSectionGeometry ?? undefined}
-        initialSectionId={todaysSection?.id}
-        initialPaddockId={editDrawerState.paddockId}
+        parentPaddockId={parentPaddockIdForSection}
+        initialSectionFeature={
+          isEditingSection && editDrawerState.geometry && selectedEntityId && !sectionHasPendingDelete(selectedEntityId)
+            ? editDrawerState.geometry
+            : clippedSectionGeometry ?? undefined
+        }
+        initialSectionId={
+          isEditingSection && selectedEntityId && !sectionHasPendingDelete(selectedEntityId)
+            ? selectedEntityId
+            : (todaysSection && !sectionHasPendingDelete(todaysSection.id) ? todaysSection.id : undefined)
+        }
+        initialPaddockId={selectedEntityType === 'paddock' ? selectedEntityId : undefined}
         showToolbar={true}
         toolbarPosition="top-left"
         compactToolbar={true}
+        selectedSectionId={
+          editDrawerState.open &&
+          selectedEntityType === 'section' &&
+          !isEditingSection
+            ? selectedEntityId
+            : undefined
+        }
       />
 
       {/* Farm Boundary Drawer - shown when editing boundary */}
@@ -731,7 +810,7 @@ function GISRoute() {
         title="Daily Plan"
         subtitle={getFormattedDate()}
         headerActions={
-          todaysSection && (
+          todaysSection && !sectionHasPendingDelete(todaysSection.id) && (
             <Button
               variant="outline"
               size="sm"
@@ -799,14 +878,26 @@ function GISRoute() {
         width={360}
         modal={false}
       >
-        <DrawerContent side="right" width={360} showCloseButton={false} showOverlay={false}>
-          {editDrawerState.entityType === 'paddock' && selectedPaddock ? (
+        <DrawerContent
+          side="right"
+          width={360}
+          showCloseButton={false}
+          showOverlay={false}
+          ariaLabel={
+            selectedEntityType === 'paddock'
+              ? `Edit ${selectedPaddock?.name ?? 'Paddock'}`
+              : 'Grazing Section'
+          }
+        >
+          {selectedEntityType === 'paddock' && selectedPaddock ? (
             <PaddockEditDrawer paddock={selectedPaddock} onClose={closeEditDrawer} />
-          ) : editDrawerState.entityType === 'section' && editDrawerState.sectionId && editDrawerState.geometry ? (
+          ) : selectedEntityType === 'section' && selectedEntityId && editDrawerState.geometry ? (
             <SectionEditDrawer
-              sectionId={editDrawerState.sectionId}
-              paddockId={editDrawerState.paddockId || ''}
+              sectionId={selectedEntityId}
+              paddockId={parentPaddockIdForSection || ''}
               geometry={editDrawerState.geometry}
+              isEditMode={isEditingSection}
+              onEnterEditMode={handleEnterSectionEditMode}
               onClose={closeEditDrawer}
             />
           ) : null}

@@ -10,21 +10,49 @@ import type { EntityType } from '@/lib/geometry'
 
 export type DrawMode = 'simple_select' | 'direct_select' | 'draw_polygon' | 'draw_point'
 
+// Parse typed feature ID (format: "entityType:entityId")
+export function parseTypedFeatureId(typedId: string): { entityType: EntityType; entityId: string } | null {
+  const colonIndex = typedId.indexOf(':')
+  if (colonIndex === -1) return null
+  const entityType = typedId.slice(0, colonIndex) as EntityType
+  const entityId = typedId.slice(colonIndex + 1)
+  if (!['paddock', 'section', 'noGrazeZone', 'waterPoint', 'waterPolygon'].includes(entityType)) {
+    return null
+  }
+  return { entityType, entityId }
+}
+
+// Create typed feature ID
+export function createTypedFeatureId(entityType: EntityType, entityId: string): string {
+  return `${entityType}:${entityId}`
+}
+
 export interface UseMapDrawOptions {
   map: MapLibreMap | null
-  entityType: EntityType
-  parentPaddockId?: string // Required when entityType is 'section'
   editable?: boolean
-  onFeatureCreated?: (id: string, geometry: Feature<Polygon>) => void
-  onFeatureUpdated?: (id: string, geometry: Feature<Polygon>) => void
-  onFeatureDeleted?: (id: string) => void
+  // Called when a feature is selected in the draw control
+  onFeatureSelected?: (typedId: string | null, entityType: EntityType | null, entityId: string | null) => void
+  // Called when a new feature is created (for drawing new entities)
+  onFeatureCreated?: (entityType: EntityType, geometry: Feature<Polygon | Point>) => void
+  // Called when a feature is updated
+  onFeatureUpdated?: (entityType: EntityType, entityId: string, geometry: Feature<Polygon | Point>) => void
+  // Called when a feature is deleted
+  onFeatureDeleted?: (entityType: EntityType, entityId: string) => void
+  // Drawing mode entity type (for creating new entities)
+  drawingEntityType?: EntityType
+  // Parent paddock ID (for creating sections)
+  parentPaddockId?: string
 }
 
 export interface UseMapDrawReturn {
   draw: MapboxDraw | null
   currentMode: DrawMode
   selectedFeatureIds: string[]
+  selectedTypedId: string | null
+  selectedEntityType: EntityType | null
+  selectedEntityId: string | null
   setMode: (mode: DrawMode) => void
+  selectFeature: (typedId: string) => void
   deleteSelected: () => void
   cancelDrawing: () => void
   isDrawing: boolean
@@ -120,18 +148,24 @@ const drawStyles = [
 
 export function useMapDraw({
   map,
-  entityType,
-  parentPaddockId,
   editable = true,
+  onFeatureSelected,
   onFeatureCreated,
   onFeatureUpdated,
   onFeatureDeleted,
+  drawingEntityType,
+  parentPaddockId,
 }: UseMapDrawOptions): UseMapDrawReturn {
   const drawRef = useRef<MapboxDraw | null>(null)
   const [draw, setDraw] = useState<MapboxDraw | null>(null)
   const [currentMode, setCurrentMode] = useState<DrawMode>('simple_select')
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([])
   const [isDrawing, setIsDrawing] = useState(false)
+
+  // Derived state from selected feature ID
+  const [selectedTypedId, setSelectedTypedId] = useState<string | null>(null)
+  const [selectedEntityType, setSelectedEntityType] = useState<EntityType | null>(null)
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null)
 
   const {
     addPaddock,
@@ -193,6 +227,13 @@ export function useMapDraw({
       const feature = e.features[0]
       if (!feature) return
 
+      // For newly drawn features, use drawingEntityType to determine what to create
+      const entityType = drawingEntityType
+      if (!entityType) {
+        console.warn('[useMapDraw] No drawingEntityType specified for create')
+        return
+      }
+
       let newId: string
 
       if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
@@ -210,14 +251,15 @@ export function useMapDraw({
         return
       }
 
-      // Update the feature ID in draw to match our generated ID
+      // Update the feature ID in draw to match our typed ID
+      const typedId = createTypedFeatureId(entityType, newId)
       if (drawRef.current && feature.id) {
         drawRef.current.delete(feature.id as string)
-        const updatedFeature = { ...feature, id: newId }
+        const updatedFeature = { ...feature, id: typedId }
         drawRef.current.add(updatedFeature as unknown as FeatureCollection)
       }
 
-      onFeatureCreated?.(newId, feature as Feature<Polygon>)
+      onFeatureCreated?.(entityType, feature as Feature<Polygon | Point>)
       setCurrentMode('simple_select')
       setIsDrawing(false)
     }
@@ -226,25 +268,33 @@ export function useMapDraw({
       e.features.forEach((feature) => {
         if (!feature.id) return
 
-        const id = String(feature.id)
+        const typedId = String(feature.id)
+        const parsed = parseTypedFeatureId(typedId)
+
+        if (!parsed) {
+          console.warn('[useMapDraw] Could not parse typed ID:', typedId)
+          return
+        }
+
+        const { entityType, entityId } = parsed
 
         if (entityType === 'paddock' && feature.geometry.type === 'Polygon') {
-          const previousPaddock = getPaddockById(id)
+          const previousPaddock = getPaddockById(entityId)
           const nextGeometry = feature as Feature<Polygon>
-          updatePaddock(id, feature as Feature<Polygon>)
+          updatePaddock(entityId, feature as Feature<Polygon>)
           if (previousPaddock) {
             const previousGeometry = previousPaddock.geometry
             const translation = getTranslationDelta(previousGeometry, nextGeometry)
             const shouldTranslate = e.action === 'move' || (e.action !== 'change_coordinates' && translation)
 
             if (shouldTranslate && translation) {
-              const sections = getSectionsByPaddockId(id)
+              const sections = getSectionsByPaddockId(entityId)
               sections.forEach((section) => {
                 const moved = translatePolygon(section.geometry, translation.deltaLng, translation.deltaLat)
                 updateSection(section.id, moved)
               })
             } else {
-              const sections = getSectionsByPaddockId(id)
+              const sections = getSectionsByPaddockId(entityId)
               sections.forEach((section) => {
                 const clipped = clipPolygonToPolygon(section.geometry, nextGeometry)
                 if (clipped) {
@@ -256,40 +306,49 @@ export function useMapDraw({
             }
           }
         } else if (entityType === 'section' && feature.geometry.type === 'Polygon') {
-          updateSection(id, feature as Feature<Polygon>)
+          updateSection(entityId, feature as Feature<Polygon>)
         } else if (entityType === 'noGrazeZone' && feature.geometry.type === 'Polygon') {
-          updateNoGrazeZone(id, feature as Feature<Polygon>)
+          updateNoGrazeZone(entityId, feature as Feature<Polygon>)
         } else if ((entityType === 'waterPoint' || entityType === 'waterPolygon')) {
-          updateWaterSource(id, feature as Feature<Point | Polygon>)
+          updateWaterSource(entityId, feature as Feature<Point | Polygon>)
         }
 
-        onFeatureUpdated?.(id, feature as Feature<Polygon>)
+        onFeatureUpdated?.(entityType, entityId, feature as Feature<Polygon | Point>)
         if (e.action === 'move' && drawRef.current) {
-          drawRef.current.changeMode('direct_select', { featureId: id })
+          drawRef.current.changeMode('direct_select', { featureId: typedId })
         }
       })
     }
 
     const handleDelete = (e: { features: Feature[] }) => {
-      console.log('[useMapDraw] handleDelete called:', { featureCount: e.features.length, entityType })
+      console.log('[useMapDraw] handleDelete called:', { featureCount: e.features.length })
       e.features.forEach((feature) => {
         if (!feature.id) return
 
-        const id = String(feature.id)
-        console.log('[useMapDraw] Deleting feature:', { id, entityType })
-        if (entityType === 'paddock') {
-          deletePaddock(id)
-        } else if (entityType === 'section') {
-          deleteSection(id)
-        } else if (entityType === 'noGrazeZone') {
-          console.log('[useMapDraw] Calling deleteNoGrazeZone:', id)
-          deleteNoGrazeZone(id)
-        } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
-          console.log('[useMapDraw] Calling deleteWaterSource:', id)
-          deleteWaterSource(id)
+        const typedId = String(feature.id)
+        const parsed = parseTypedFeatureId(typedId)
+
+        if (!parsed) {
+          console.warn('[useMapDraw] Could not parse typed ID for delete:', typedId)
+          return
         }
 
-        onFeatureDeleted?.(id)
+        const { entityType, entityId } = parsed
+        console.log('[useMapDraw] Deleting feature:', { typedId, entityType, entityId })
+
+        if (entityType === 'paddock') {
+          deletePaddock(entityId)
+        } else if (entityType === 'section') {
+          deleteSection(entityId)
+        } else if (entityType === 'noGrazeZone') {
+          console.log('[useMapDraw] Calling deleteNoGrazeZone:', entityId)
+          deleteNoGrazeZone(entityId)
+        } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
+          console.log('[useMapDraw] Calling deleteWaterSource:', entityId)
+          deleteWaterSource(entityId)
+        }
+
+        onFeatureDeleted?.(entityType, entityId)
       })
     }
 
@@ -299,7 +358,30 @@ export function useMapDraw({
     }
 
     const handleSelectionChange = (e: { features: Feature[] }) => {
-      setSelectedFeatureIds(e.features.map((f) => String(f.id)))
+      const newSelectedIds = e.features.map((f) => String(f.id))
+      setSelectedFeatureIds(newSelectedIds)
+
+      // Parse the first selected feature to update derived state
+      if (newSelectedIds.length > 0) {
+        const typedId = newSelectedIds[0]
+        const parsed = parseTypedFeatureId(typedId)
+        if (parsed) {
+          setSelectedTypedId(typedId)
+          setSelectedEntityType(parsed.entityType)
+          setSelectedEntityId(parsed.entityId)
+          onFeatureSelected?.(typedId, parsed.entityType, parsed.entityId)
+        } else {
+          setSelectedTypedId(null)
+          setSelectedEntityType(null)
+          setSelectedEntityId(null)
+          onFeatureSelected?.(null, null, null)
+        }
+      } else {
+        setSelectedTypedId(null)
+        setSelectedEntityType(null)
+        setSelectedEntityId(null)
+        onFeatureSelected?.(null, null, null)
+      }
     }
 
     map.on('draw.create', handleCreate)
@@ -317,7 +399,7 @@ export function useMapDraw({
     }
   }, [
     map,
-    entityType,
+    drawingEntityType,
     parentPaddockId,
     addPaddock,
     updatePaddock,
@@ -336,6 +418,7 @@ export function useMapDraw({
     onFeatureCreated,
     onFeatureUpdated,
     onFeatureDeleted,
+    onFeatureSelected,
   ])
 
   // Keyboard handler for vertex deletion in direct_select mode
@@ -382,7 +465,7 @@ export function useMapDraw({
   }, [])
 
   const deleteSelected = useCallback(() => {
-    console.log('[useMapDraw] deleteSelected called:', { selectedFeatureIds, hasDraw: !!drawRef.current, entityType })
+    console.log('[useMapDraw] deleteSelected called:', { selectedFeatureIds, hasDraw: !!drawRef.current })
     if (drawRef.current && selectedFeatureIds.length > 0) {
       // Get the features before deleting them from draw
       const featuresToDelete = selectedFeatureIds.map(id => drawRef.current?.get(id)).filter(Boolean)
@@ -392,23 +475,40 @@ export function useMapDraw({
       drawRef.current.delete(selectedFeatureIds)
 
       // Manually call delete functions since draw.delete event may not fire with MapLibre
-      selectedFeatureIds.forEach(id => {
-        console.log('[useMapDraw] Manually deleting:', { id, entityType })
-        if (entityType === 'paddock') {
-          deletePaddock(id)
-        } else if (entityType === 'section') {
-          deleteSection(id)
-        } else if (entityType === 'noGrazeZone') {
-          console.log('[useMapDraw] Calling deleteNoGrazeZone:', id)
-          deleteNoGrazeZone(id)
-        } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
-          console.log('[useMapDraw] Calling deleteWaterSource:', id)
-          deleteWaterSource(id)
+      selectedFeatureIds.forEach(typedId => {
+        const parsed = parseTypedFeatureId(typedId)
+        if (!parsed) {
+          console.warn('[useMapDraw] Could not parse typed ID for manual delete:', typedId)
+          return
         }
-        onFeatureDeleted?.(id)
+
+        const { entityType, entityId } = parsed
+        console.log('[useMapDraw] Manually deleting:', { typedId, entityType, entityId })
+
+        if (entityType === 'paddock') {
+          deletePaddock(entityId)
+        } else if (entityType === 'section') {
+          deleteSection(entityId)
+        } else if (entityType === 'noGrazeZone') {
+          console.log('[useMapDraw] Calling deleteNoGrazeZone:', entityId)
+          deleteNoGrazeZone(entityId)
+        } else if (entityType === 'waterPoint' || entityType === 'waterPolygon') {
+          console.log('[useMapDraw] Calling deleteWaterSource:', entityId)
+          deleteWaterSource(entityId)
+        }
+        onFeatureDeleted?.(entityType, entityId)
       })
     }
-  }, [selectedFeatureIds, entityType, deletePaddock, deleteSection, deleteNoGrazeZone, deleteWaterSource, onFeatureDeleted])
+  }, [selectedFeatureIds, deletePaddock, deleteSection, deleteNoGrazeZone, deleteWaterSource, onFeatureDeleted])
+
+  const selectFeature = useCallback((typedId: string) => {
+    if (drawRef.current) {
+      const feature = drawRef.current.get(typedId)
+      if (feature) {
+        drawRef.current.changeMode('direct_select', { featureId: typedId })
+      }
+    }
+  }, [])
 
   const cancelDrawing = useCallback(() => {
     if (drawRef.current) {
@@ -422,7 +522,11 @@ export function useMapDraw({
     draw,
     currentMode,
     selectedFeatureIds,
+    selectedTypedId,
+    selectedEntityType,
+    selectedEntityId,
     setMode,
+    selectFeature,
     deleteSelected,
     cancelDrawing,
     isDrawing,
@@ -430,9 +534,10 @@ export function useMapDraw({
 }
 
 // Helper function to load existing geometries into draw
+// Features should have typed IDs in the format "entityType:entityId"
 export function loadGeometriesToDraw(
   draw: MapboxDraw | null,
-  features: Feature<Polygon>[]
+  features: Feature<Polygon | Point>[]
 ): void {
   if (!draw) return
 
@@ -440,11 +545,19 @@ export function loadGeometriesToDraw(
   console.log('[loadGeometriesToDraw] Before set, draw has', draw.getAll().features.length, 'features')
   console.log('[loadGeometriesToDraw] Features to load:', features.map(f => ({
     id: f.id,
-    coordCount: f.geometry.coordinates[0]?.length,
-    firstCoord: f.geometry.coordinates[0]?.[0],
+    type: f.geometry.type,
+    coordCount: f.geometry.type === 'Polygon' ? f.geometry.coordinates[0]?.length : 1,
+    firstCoord: f.geometry.type === 'Polygon' ? f.geometry.coordinates[0]?.[0] : f.geometry.coordinates,
   })))
 
-  // Use draw.set() to replace all features at once - more reliable than deleteAll + add
+  // Clear existing features first, then set new ones
+  // draw.set() alone doesn't always fully replace in all scenarios
+  try {
+    draw.deleteAll()
+  } catch {
+    // Ignore errors during cleanup
+  }
+
   const featureCollection: FeatureCollection = {
     type: 'FeatureCollection',
     features: features.filter(f => f.id) as Feature[],
@@ -454,7 +567,8 @@ export function loadGeometriesToDraw(
   console.log('[loadGeometriesToDraw] After set, draw has', draw.getAll().features.length, 'features')
   console.log('[loadGeometriesToDraw] Features in draw:', draw.getAll().features.map(f => ({
     id: f.id,
-    coordCount: (f.geometry as any).coordinates?.[0]?.length,
-    firstCoord: (f.geometry as any).coordinates?.[0]?.[0],
+    type: f.geometry.type,
+    coordCount: f.geometry.type === 'Polygon' ? (f.geometry as Polygon).coordinates?.[0]?.length : 1,
+    firstCoord: f.geometry.type === 'Polygon' ? (f.geometry as Polygon).coordinates?.[0]?.[0] : (f.geometry as Point).coordinates,
   })))
 }

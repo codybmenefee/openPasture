@@ -44,6 +44,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
   const applyPaddockChanges = useMutation(api.paddocks.applyPaddockChanges)
   const updatePaddockMetadata = useMutation(api.paddocks.updatePaddockMetadata)
   const updatePlanSectionGeometry = useMutation(api.intelligence.updatePlanSectionGeometry)
+  const deletePlan = useMutation(api.intelligence.forceDeleteTodayPlan)
   const createNoGrazeZone = useMutation(api.noGrazeZones.create)
   const updateNoGrazeZone = useMutation(api.noGrazeZones.update)
   const removeNoGrazeZone = useMutation(api.noGrazeZones.remove)
@@ -94,11 +95,10 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
         await applyPaddockChanges({ farmId, changes: paddockChanges })
       }
 
-      // Handle section changes - update the plan's sectionGeometry directly
+      // Handle section changes - the section ID is actually the plan ID (from how sections are derived from plans)
       const sectionChanges = changes.filter((c) => c.entityType === 'section')
       for (const change of sectionChanges) {
         if (change.changeType === 'update' && change.geometry) {
-          // The section ID is actually the plan ID (from how sections are derived from plans)
           const planId = change.id as any // Convex ID type
           const geometry = change.geometry.geometry
           if (geometry.type === 'Polygon') {
@@ -112,6 +112,10 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
               sectionGeometry: geometry,
             })
           }
+        } else if (change.changeType === 'delete') {
+          const planId = change.id
+          console.log('[GeometryProviderWithConvex] Deleting plan/section', { planId })
+          await deletePlan({ planId })
         }
       }
 
@@ -163,7 +167,7 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
         }
       }
     },
-    [applyPaddockChanges, updatePlanSectionGeometry, createNoGrazeZone, updateNoGrazeZone, removeNoGrazeZone, createWaterSource, updateWaterSource, removeWaterSource, farmId]
+    [applyPaddockChanges, updatePlanSectionGeometry, deletePlan, createNoGrazeZone, updateNoGrazeZone, removeNoGrazeZone, createWaterSource, updateWaterSource, removeWaterSource, farmId]
   )
 
   const handlePaddockMetadataChange = useCallback(

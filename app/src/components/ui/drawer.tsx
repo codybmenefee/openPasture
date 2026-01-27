@@ -84,6 +84,7 @@ interface DrawerContentProps extends React.ComponentProps<typeof DialogPrimitive
   width?: number | string
   showCloseButton?: boolean
   showOverlay?: boolean
+  ariaLabel?: string  // For content with custom visible headers
 }
 
 function DrawerContent({
@@ -93,6 +94,7 @@ function DrawerContent({
   width = 400,
   showCloseButton = true,
   showOverlay = true,
+  ariaLabel,
   ...props
 }: DrawerContentProps) {
   const widthValue = typeof width === 'number' ? `${width}px` : width
@@ -102,6 +104,7 @@ function DrawerContent({
       {showOverlay && <DrawerOverlay transparent />}
       <DialogPrimitive.Content
         data-slot="drawer-content"
+        aria-describedby={undefined}
         className={cn(
           "bg-background fixed top-0 z-50 flex h-full flex-col border shadow-lg outline-none",
           // Animation classes
@@ -125,6 +128,11 @@ function DrawerContent({
         }}
         {...props}
       >
+        {ariaLabel && (
+          <DialogPrimitive.Title className="sr-only">
+            {ariaLabel}
+          </DialogPrimitive.Title>
+        )}
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
