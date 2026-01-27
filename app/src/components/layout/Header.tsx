@@ -1,11 +1,17 @@
-import { BookOpen, HelpCircle } from 'lucide-react'
-import { useUser } from '@clerk/clerk-react'
+import { BookOpen, HelpCircle, LogOut } from 'lucide-react'
+import { useUser, useClerk } from '@clerk/clerk-react'
 import { FarmSelector } from './FarmSelector'
 import { NotificationBell } from './NotificationBell'
 import { DevToolsDropdown } from './DevToolsDropdown'
 import { Link } from '@tanstack/react-router'
 import { useAppAuth } from '@/lib/auth'
 import { useTutorial } from '@/components/onboarding/tutorial'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 function AvatarFallback({ initial = 'U' }: { initial?: string }) {
   return (
@@ -32,15 +38,62 @@ function ClerkProfileAvatar() {
   )
 }
 
-function ProfileAvatar() {
-  const { isDevAuth } = useAppAuth()
+function ClerkProfileDropdown() {
+  const { signOut } = useClerk()
 
-  // In dev auth mode, ClerkProvider isn't mounted, so we can't use useUser()
-  if (isDevAuth) {
-    return <AvatarFallback initial="D" />
+  const handleLogout = () => {
+    signOut()
   }
 
-  return <ClerkProfileAvatar />
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="rounded-full hover:ring-2 hover:ring-accent focus:outline-none focus:ring-2 focus:ring-accent">
+          <ClerkProfileAvatar />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="h-3.5 w-3.5 mr-2" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function DevProfileDropdown() {
+  const handleLogout = () => {
+    // In dev mode, just reload the page to simulate logout
+    window.location.reload()
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="rounded-full hover:ring-2 hover:ring-accent focus:outline-none focus:ring-2 focus:ring-accent">
+          <AvatarFallback initial="D" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="h-3.5 w-3.5 mr-2" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function ProfileDropdown() {
+  const { isDevAuth } = useAppAuth()
+
+  // In dev auth mode, ClerkProvider isn't mounted, so we can't use useClerk()
+  if (isDevAuth) {
+    return <DevProfileDropdown />
+  }
+
+  return <ClerkProfileDropdown />
 }
 
 export function Header() {
@@ -74,7 +127,7 @@ export function Header() {
 
         <NotificationBell />
 
-        <ProfileAvatar />
+        <ProfileDropdown />
       </div>
     </header>
   )
