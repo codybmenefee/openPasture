@@ -611,3 +611,170 @@ export const deleteOldPlans = mutation({
     return { deleted }
   },
 })
+
+/**
+ * Get rest period distribution for analytics.
+ * Computes gaps between consecutive grazing events per paddock.
+ */
+export const getRestPeriodDistribution = query({
+  args: {
+    farmExternalId: v.string(),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const days = args.days ?? 90
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+
+    // Get all grazing events for the farm
+    const grazingEvents = await ctx.db
+      .query('grazingEvents')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    // Filter to relevant time period
+    const relevantEvents = grazingEvents.filter(e => new Date(e.date) >= cutoff)
+
+    if (relevantEvents.length < 2) {
+      return {
+        buckets: [
+          { label: '0-7 days', count: 0, isTarget: false },
+          { label: '7-14 days', count: 0, isTarget: false },
+          { label: '14-21 days', count: 0, isTarget: false },
+          { label: '21-30 days', count: 0, isTarget: true },
+          { label: '30-45 days', count: 0, isTarget: true },
+          { label: '45+ days', count: 0, isTarget: false },
+        ],
+        avgRestPeriod: 0,
+        totalEvents: relevantEvents.length,
+      }
+    }
+
+    // Group events by paddock
+    const eventsByPaddock = new Map<string, typeof relevantEvents>()
+    for (const event of relevantEvents) {
+      const existing = eventsByPaddock.get(event.paddockExternalId) || []
+      existing.push(event)
+      eventsByPaddock.set(event.paddockExternalId, existing)
+    }
+
+    // Calculate rest periods (gaps between consecutive grazing events per paddock)
+    const restPeriods: number[] = []
+
+    for (const [, paddockEvents] of eventsByPaddock) {
+      // Sort by date ascending
+      const sorted = paddockEvents.sort((a, b) =>
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      )
+
+      // Calculate gaps between consecutive events
+      for (let i = 1; i < sorted.length; i++) {
+        const prevDate = new Date(sorted[i - 1].date)
+        const currDate = new Date(sorted[i].date)
+        const gapDays = Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24))
+        if (gapDays > 0) {
+          restPeriods.push(gapDays)
+        }
+      }
+    }
+
+    // Bucket the rest periods
+    const buckets = [
+      { label: '0-7 days', min: 0, max: 7, count: 0, isTarget: false },
+      { label: '7-14 days', min: 7, max: 14, count: 0, isTarget: false },
+      { label: '14-21 days', min: 14, max: 21, count: 0, isTarget: false },
+      { label: '21-30 days', min: 21, max: 30, count: 0, isTarget: true },
+      { label: '30-45 days', min: 30, max: 45, count: 0, isTarget: true },
+      { label: '45+ days', min: 45, max: Infinity, count: 0, isTarget: false },
+    ]
+
+    for (const period of restPeriods) {
+      for (const bucket of buckets) {
+        if (period >= bucket.min && period < bucket.max) {
+          bucket.count++
+          break
+        }
+      }
+    }
+
+    // Calculate average
+    const avgRestPeriod = restPeriods.length > 0
+      ? Math.round(restPeriods.reduce((a, b) => a + b, 0) / restPeriods.length)
+      : 0
+
+    return {
+      buckets: buckets.map(({ label, count, isTarget }) => ({ label, count, isTarget })),
+      avgRestPeriod,
+      totalEvents: relevantEvents.length,
+    }
+  },
+})
+
+/**
+ * Get plan approval statistics for AI partnership insights.
+ */
+export const getPlanApprovalStats = query({
+  args: {
+    farmExternalId: v.string(),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const days = args.days ?? 90
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+
+    // Get all plans for the farm
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    // Filter to relevant time period
+    const relevantPlans = plans.filter(p => new Date(p.date) >= cutoff)
+
+    const total = relevantPlans.length
+    const approved = relevantPlans.filter(p => p.status === 'approved').length
+    const modified = relevantPlans.filter(p => p.status === 'modified').length
+    const rejected = relevantPlans.filter(p => p.status === 'rejected').length
+    const pending = relevantPlans.filter(p => p.status === 'pending').length
+
+    // Approval rate = approved / (total - pending) to exclude unreviewed plans
+    const reviewed = total - pending
+    const approvalRate = reviewed > 0 ? Math.round((approved / reviewed) * 100) : 0
+
+    // Calculate weekly trend (last 4 weeks)
+    const weeklyTrend: { week: string; approved: number; modified: number; rejected: number }[] = []
+    const now = new Date()
+
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now)
+      weekStart.setDate(weekStart.getDate() - (i + 1) * 7)
+      const weekEnd = new Date(now)
+      weekEnd.setDate(weekEnd.getDate() - i * 7)
+
+      const weekPlans = relevantPlans.filter(p => {
+        const planDate = new Date(p.date)
+        return planDate >= weekStart && planDate < weekEnd
+      })
+
+      weeklyTrend.push({
+        week: weekStart.toISOString().split('T')[0],
+        approved: weekPlans.filter(p => p.status === 'approved').length,
+        modified: weekPlans.filter(p => p.status === 'modified').length,
+        rejected: weekPlans.filter(p => p.status === 'rejected').length,
+      })
+    }
+
+    return {
+      totals: {
+        total,
+        approved,
+        modified,
+        rejected,
+        pending,
+        approvalRate,
+      },
+      weeklyTrend,
+    }
+  },
+})

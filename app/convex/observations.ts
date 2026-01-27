@@ -338,3 +338,148 @@ export const getAvailableDates = query({
     )
   },
 })
+
+/**
+ * Get recovery tracking data for all paddocks.
+ * Returns per-paddock NDVI recovery since last graze.
+ */
+export const getRecoveryTracker = query({
+  args: { farmExternalId: v.string() },
+  handler: async (ctx, args) => {
+    // 1. Get farm by externalId (Clerk org ID)
+    const farm = await ctx.db.query('farms')
+      .withIndex('by_externalId', q => q.eq('externalId', args.farmExternalId))
+      .first()
+    if (!farm) return []
+
+    // 2. Get paddocks
+    const paddocks = await ctx.db.query('paddocks')
+      .withIndex('by_farm', q => q.eq('farmId', farm._id))
+      .collect()
+
+    // 3. Get all observations for the farm
+    const observations = await ctx.db.query('observations')
+      .withIndex('by_farm', q => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    // 4. Get grazing events
+    const grazingEvents = await ctx.db.query('grazingEvents')
+      .withIndex('by_farm', q => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    // 5. Calculate recovery % per paddock
+    const now = Date.now()
+    const results = paddocks.map(paddock => {
+      // Find the most recent grazing event for this paddock
+      const paddockGrazingEvents = grazingEvents
+        .filter(e => e.paddockExternalId === paddock.externalId)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+      const lastGrazeEvent = paddockGrazingEvents[0]
+      const lastGrazedDate = lastGrazeEvent?.date || paddock.lastGrazed
+
+      // Get paddock observations sorted by date
+      const paddockObs = observations
+        .filter(o => o.paddockExternalId === paddock.externalId && o.isValid)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+      // Current (most recent) NDVI
+      const currentObs = paddockObs[0]
+      const currentNdvi = currentObs?.ndviMean ?? paddock.ndvi
+
+      // Find NDVI at time of last graze (or closest observation after)
+      let ndviAtGraze: number | null = null
+      if (lastGrazedDate) {
+        const obsAfterGraze = paddockObs
+          .filter(o => new Date(o.date) >= new Date(lastGrazedDate))
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        ndviAtGraze = obsAfterGraze[0]?.ndviMean ?? null
+      }
+
+      // Calculate rest days since last graze
+      const restDays = lastGrazedDate
+        ? Math.floor((now - new Date(lastGrazedDate).getTime()) / (1000 * 60 * 60 * 24))
+        : paddock.restDays
+
+      // Calculate recovery percentage
+      // Recovery assumes NDVI drops after grazing and recovers toward ~0.6 (healthy pasture)
+      // recoveryPct = (current - atGraze) / (target - atGraze) * 100
+      // If no graze data, use a simpler heuristic
+      let recoveryPct = 0
+      const targetNdvi = 0.55 // Target NDVI for "fully recovered"
+      const minNdvi = 0.25 // Assumed NDVI floor after heavy grazing
+
+      if (ndviAtGraze !== null && ndviAtGraze < targetNdvi) {
+        const recovered = currentNdvi - ndviAtGraze
+        const toRecover = targetNdvi - ndviAtGraze
+        recoveryPct = Math.min(100, Math.max(0, (recovered / toRecover) * 100))
+      } else if (currentNdvi > 0) {
+        // Fallback: estimate based on current NDVI relative to target
+        recoveryPct = Math.min(100, Math.max(0, ((currentNdvi - minNdvi) / (targetNdvi - minNdvi)) * 100))
+      }
+
+      return {
+        paddockId: paddock.externalId,
+        paddockName: paddock.name,
+        currentNdvi: Math.round(currentNdvi * 100) / 100,
+        recoveryPct: Math.round(recoveryPct),
+        restDays,
+        lastGrazed: lastGrazedDate || null,
+        status: paddock.status,
+      }
+    })
+
+    // Sort by recovery percentage (lowest first - needs attention)
+    return results.sort((a, b) => a.recoveryPct - b.recoveryPct)
+  },
+})
+
+/**
+ * Get farm-wide NDVI trend aggregated by date.
+ */
+export const getFarmNDVITrend = query({
+  args: {
+    farmExternalId: v.string(),
+    days: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const days = args.days ?? 90
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+
+    const observations = await ctx.db
+      .query('observations')
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    // Filter by date and valid observations
+    const filtered = observations.filter(o =>
+      o.isValid && new Date(o.date) >= cutoff
+    )
+
+    if (filtered.length === 0) return []
+
+    // Aggregate by date - average NDVI across all paddocks
+    const dateMap = new Map<string, { total: number; count: number }>()
+
+    for (const obs of filtered) {
+      const existing = dateMap.get(obs.date)
+      if (existing) {
+        existing.total += obs.ndviMean
+        existing.count += 1
+      } else {
+        dateMap.set(obs.date, { total: obs.ndviMean, count: 1 })
+      }
+    }
+
+    // Convert to array and sort by date ascending
+    const result = Array.from(dateMap.entries())
+      .map(([date, { total, count }]) => ({
+        date,
+        ndvi: Math.round((total / count) * 1000) / 1000,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    return result
+  },
+})
