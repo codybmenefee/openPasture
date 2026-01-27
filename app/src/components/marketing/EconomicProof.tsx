@@ -1,62 +1,76 @@
 export function EconomicProof() {
   return (
-    <section className="py-24 bg-slate-950">
+    <section className="py-12 bg-[#233038]" aria-labelledby="economic-proof-heading">
       <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800 rounded-2xl p-10 md:p-14">
-            <div className="text-center space-y-8">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-100">
-                The Economics Are Clear
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-gradient-to-br from-[#1a2429] to-[#1a2429]/50 border border-[#075056]/30 rounded-xl p-6 md:p-8">
+            <div className="text-center space-y-5">
+              <h2
+                id="economic-proof-heading"
+                className="text-2xl md:text-3xl font-bold text-[#FDF6E3] text-balance"
+              >
+                This Is How Pastured Livestock Wins
               </h2>
 
-              <div className="space-y-2">
-                <p className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+              <div className="space-y-1">
+                <p className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#075056] to-[#FF5B04] bg-clip-text text-transparent">
                   $1,000+
                 </p>
-                <p className="text-xl text-slate-400">
-                  more per acre, per year
-                </p>
+                <p className="text-base text-[#D3DBDD]">more per acre, per year</p>
               </div>
 
-              <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+              <p className="text-sm text-[#D3DBDD] max-w-xl mx-auto">
                 Through healthier soil, longer grazing seasons, and fewer inputs
               </p>
 
               {/* Comparison bars */}
-              <div className="pt-8 space-y-6 max-w-xl mx-auto">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Continuous Grazing</span>
+              <div className="pt-4 space-y-4 max-w-md mx-auto" role="img" aria-label="Comparison of grazing methods showing continuous grazing at baseline, manual rotational at +$400/acre, and AI-optimized rotational at +$1,000+/acre">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#D3DBDD]">Continuous Grazing (Industrial)</span>
                     <span className="text-red-400">Baseline</span>
                   </div>
-                  <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full w-[30%] bg-gradient-to-r from-red-500/60 to-red-600/60 rounded-full" />
+                  <div className="h-3 bg-[#233038] rounded-full overflow-hidden">
+                    <div
+                      className="h-full w-[30%] bg-gradient-to-r from-red-500/60 to-red-600/60 rounded-full transition-all duration-500"
+                      aria-hidden="true"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Manual Rotational</span>
-                    <span className="text-amber-400">+$400/acre</span>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#D3DBDD]">Manual Rotational</span>
+                    <span className="text-[#F4D47C]">+$400/acre</span>
                   </div>
-                  <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full w-[55%] bg-gradient-to-r from-amber-500/60 to-amber-600/60 rounded-full" />
+                  <div className="h-3 bg-[#233038] rounded-full overflow-hidden">
+                    <div
+                      className="h-full w-[55%] bg-gradient-to-r from-[#F4D47C]/60 to-[#F4D47C]/80 rounded-full transition-all duration-500"
+                      aria-hidden="true"
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">AI-Optimized Rotational</span>
-                    <span className="text-emerald-400">+$1,000+/acre</span>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-[#D3DBDD]">AI-Optimized Rotational</span>
+                    <span className="text-[#FF5B04]">+$1,000+/acre</span>
                   </div>
-                  <div className="h-4 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full w-[90%] bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" />
+                  <div className="h-3 bg-[#233038] rounded-full overflow-hidden">
+                    <div
+                      className="h-full w-[90%] bg-gradient-to-r from-[#075056] to-[#FF5B04] rounded-full transition-all duration-500"
+                      aria-hidden="true"
+                    />
                   </div>
                 </div>
               </div>
 
-              <p className="text-sm text-slate-500 pt-4">
+              <p className="text-xs text-[#D3DBDD]/70 pt-2">
                 Based on research comparing grazing management intensity and profitability
+              </p>
+
+              <p className="text-sm text-[#FF5B04]/80 font-medium">
+                This is why we exist: to make the optimized tier accessible to every operation.
               </p>
             </div>
           </div>

@@ -1,50 +1,50 @@
 import { Link } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
 import { LogIn } from 'lucide-react'
 
 export function MarketingHeader() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/95 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80">
+    <header className="sticky top-0 z-50 w-full border-b border-[#075056]/30 bg-[#233038]/95 backdrop-blur supports-[backdrop-filter]:bg-[#233038]/80">
       <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <Link to="/marketing" className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-slate-100">Morning Farm Brief</span>
+        <div className="flex h-12 items-center justify-between">
+          <Link
+            to="/marketing"
+            className="flex items-center space-x-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
+          >
+            <span className="text-lg font-bold text-[#FDF6E3]">OpenPasture</span>
           </Link>
 
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-4" aria-label="Main navigation">
             <a
               href="#how-it-works"
-              className="text-sm text-slate-400 hover:text-slate-200 transition-colors hidden sm:inline-block"
+              className="text-xs text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors hidden sm:inline-block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
               How It Works
             </a>
             <a
               href="#features"
-              className="text-sm text-slate-400 hover:text-slate-200 transition-colors hidden sm:inline-block"
+              className="text-xs text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors hidden sm:inline-block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
               Features
             </a>
             <Link
               to="/investors"
-              className="text-sm text-slate-400 hover:text-slate-200 transition-colors hidden md:inline-block"
+              className="text-xs text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors hidden md:inline-block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
               For Investors
             </Link>
             <Link
               to="/technology"
-              className="text-sm text-slate-400 hover:text-slate-200 transition-colors hidden md:inline-block"
+              className="text-xs text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors hidden md:inline-block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
               Technology
             </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100"
-              onClick={() => window.location.href = '/onboarding'}
+            <Link
+              to="/onboarding"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-medium border border-[#075056]/30 bg-transparent px-2.5 py-1.5 text-[#D3DBDD] hover:bg-[#075056]/20 hover:text-[#FDF6E3] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
-              <LogIn className="mr-2 h-4 w-4" />
+              <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
               Get Started
-            </Button>
+            </Link>
           </nav>
         </div>
       </div>
