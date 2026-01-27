@@ -57,6 +57,8 @@ interface FarmMapProps {
   initialSectionFeature?: Feature<Polygon>
   initialSectionId?: string
   initialPaddockId?: string
+  initialNoGrazeZoneId?: string
+  initialWaterSourceId?: string
   showToolbar?: boolean
   toolbarPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   compactToolbar?: boolean
@@ -452,6 +454,8 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   initialSectionFeature,
   initialSectionId,
   initialPaddockId,
+  initialNoGrazeZoneId,
+  initialWaterSourceId,
   showToolbar = true,
   toolbarPosition = 'top-left',
   compactToolbar = false,
@@ -1102,44 +1106,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             '#6b7280',
           ],
           'line-width': 2,
-        },
-      })
-
-      // Add NDVI heat layer (gradient based on NDVI value)
-      map.addLayer({
-        id: 'ndvi-heat',
-        type: 'fill',
-        source: 'paddocks',
-        layout: {
-          visibility: 'none',
-        },
-        paint: {
-          'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['get', 'ndvi'],
-            0.0, '#d73027',   // Red - bare/stressed
-            0.2, '#fc8d59',   // Orange - sparse
-            0.4, '#fee08b',   // Yellow - recovering
-            0.5, '#d9ef8b',   // Light green - healthy
-            0.6, '#91cf60',   // Green - graze-ready
-            0.8, '#1a9850',   // Dark green - dense
-          ],
-          'fill-opacity': 0.7,
-        },
-      })
-
-      // Add NDVI heat outline for definition
-      map.addLayer({
-        id: 'ndvi-heat-outline',
-        type: 'line',
-        source: 'paddocks',
-        layout: {
-          visibility: 'none',
-        },
-        paint: {
-          'line-color': '#374151',
-          'line-width': 1,
         },
       })
 
@@ -1903,8 +1869,28 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     const getFeatureIdAtPoint = (point: maplibregl.Point) => {
       if (!draw) return null
       const ids = draw.getFeatureIdsAt({ x: point.x, y: point.y })
-      const firstValid = ids.find((id) => id !== undefined && id !== null && id !== '')
-      return firstValid !== undefined ? String(firstValid) : null
+        .filter((id): id is string => id !== undefined && id !== null && id !== '')
+      if (ids.length === 0) return null
+
+      // Priority order matches visual z-index: sections > waterPolygon > noGrazeZone > paddock
+      // Higher number = higher priority (selected first when overlapping)
+      const priorityOrder: Record<string, number> = {
+        section: 4,
+        waterPolygon: 3,
+        noGrazeZone: 2,
+        paddock: 1,
+      }
+
+      // Sort by priority (highest first) and return the top one
+      ids.sort((a, b) => {
+        const parsedA = parseTypedFeatureId(a)
+        const parsedB = parseTypedFeatureId(b)
+        const priorityA = priorityOrder[parsedA?.entityType ?? ''] ?? 0
+        const priorityB = priorityOrder[parsedB?.entityType ?? ''] ?? 0
+        return priorityB - priorityA
+      })
+
+      return ids[0]
     }
 
     const isVertexHit = (point: maplibregl.Point) => {
@@ -2256,10 +2242,30 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     try {
       loadGeometriesToDraw(draw, features)
       log('[UnifiedDraw] Draw control loaded', { featureCount: draw.getAll().features.length })
+
+      // Select initial feature immediately after loading (ensures feature exists)
+      let typedIdToSelect: string | null = null
+      if (entityType === 'paddock' && initialPaddockId) {
+        typedIdToSelect = createTypedFeatureId('paddock', initialPaddockId)
+      } else if (entityType === 'section' && initialSectionId) {
+        typedIdToSelect = createTypedFeatureId('section', initialSectionId)
+      } else if (entityType === 'noGrazeZone' && initialNoGrazeZoneId) {
+        typedIdToSelect = createTypedFeatureId('noGrazeZone', initialNoGrazeZoneId)
+      } else if (entityType === 'waterPolygon' && initialWaterSourceId) {
+        typedIdToSelect = createTypedFeatureId('waterPolygon', initialWaterSourceId)
+      }
+
+      if (typedIdToSelect) {
+        const existing = draw.get(typedIdToSelect)
+        if (existing) {
+          log('[UnifiedDraw] Selecting initial feature:', typedIdToSelect)
+          draw.changeMode('direct_select', { featureId: typedIdToSelect })
+        }
+      }
     } catch (err) {
       log('[UnifiedDraw] Draw reload failed:', err)
     }
-  }, [draw, isEditActive, paddocks, noGrazeZones, waterSources, sections, resetCounter])
+  }, [draw, isEditActive, paddocks, noGrazeZones, waterSources, sections, resetCounter, entityType, initialPaddockId, initialSectionId, initialNoGrazeZoneId, initialWaterSourceId])
 
   // Select initial feature when entering edit mode
   useEffect(() => {
@@ -2272,8 +2278,11 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       typedIdToSelect = createTypedFeatureId('paddock', initialPaddockId)
     } else if (entityType === 'section' && initialSectionId) {
       typedIdToSelect = createTypedFeatureId('section', initialSectionId)
+    } else if (entityType === 'noGrazeZone' && initialNoGrazeZoneId) {
+      typedIdToSelect = createTypedFeatureId('noGrazeZone', initialNoGrazeZoneId)
+    } else if (entityType === 'waterPolygon' && initialWaterSourceId) {
+      typedIdToSelect = createTypedFeatureId('waterPolygon', initialWaterSourceId)
     }
-    // For noGrazeZone and waterPolygon, we wait for click selection
 
     if (typedIdToSelect) {
       try {
@@ -2292,7 +2301,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         log.debug('Mode change to simple_select failed', { error: String(error) })
       }
     }
-  }, [draw, isEditActive, entityType, initialPaddockId, initialSectionId])
+  }, [draw, isEditActive, entityType, initialPaddockId, initialSectionId, initialNoGrazeZoneId, initialWaterSourceId])
 
   // Focus map on the section bounds when editing sections
   // Only focus when the section ID changes, not when geometry updates during vertex editing
@@ -2521,28 +2530,6 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   }, [mapInstance, isMapLoaded, selectedSectionId])
 
 
-  // Toggle NDVI heat layer
-  // When satellite raster is available, hide the paddock aggregate fills
-  // and show the real satellite heatmap instead
-  useEffect(() => {
-    if (!isMapReady()) return
-    const map = mapInstance!
-    if (!map) return
-
-    const ndviLayers = ['ndvi-heat', 'ndvi-heat-outline']
-    // Only show paddock aggregate fills if NDVI Heat is on AND no satellite raster available
-    const showPaddockFills = showNdviHeat && !ndviHeatmapTile
-    ndviLayers.forEach(layerId => {
-      if (map.getLayer(layerId)) {
-        map.setLayoutProperty(
-          layerId,
-          'visibility',
-          showPaddockFills ? 'visible' : 'none'
-        )
-      }
-    })
-  }, [mapInstance, isMapLoaded, showNdviHeat, ndviHeatmapTile])
-
   // Toggle labels visibility
   useEffect(() => {
     if (!isMapReady()) return
@@ -2625,7 +2612,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         />
       )}
 
-      {/* NDVI Heatmap layer - renders below paddocks when NDVI Heat toggle is on */}
+      {/* NDVI Heatmap layer - satellite raster only, no fallback to per-paddock fills */}
       {ndviHeatmapTile && showNdviHeat && (
         <RasterTileLayer
           map={mapInstance}
