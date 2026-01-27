@@ -21,39 +21,43 @@ export const setInitialAnimalLocation = mutation({
     sectionAreaHectares: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const today = new Date().toISOString().split('T')[0]
-    const now = new Date().toISOString()
+    // Use yesterday's date so the user can immediately generate a new plan for today
+    const now = new Date()
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
+    const nowStr = now.toISOString()
 
-    // 1. Create grazing event (establishes current paddock)
+    // 1. Create grazing event (establishes where animals were yesterday)
     await ctx.db.insert('grazingEvents', {
       farmExternalId: args.farmExternalId,
       paddockExternalId: args.paddockExternalId,
-      date: today,
+      date: yesterdayStr,
       durationDays: 1,
       notes: 'Initial location set during onboarding',
-      createdAt: now,
+      createdAt: nowStr,
     })
 
-    // 2. If section drawn, create day-0 approved plan
+    // 2. If section drawn, create yesterday's approved plan
     if (args.sectionGeometry) {
       await ctx.db.insert('plans', {
         farmExternalId: args.farmExternalId,
-        date: today,
+        date: yesterdayStr,
         primaryPaddockExternalId: args.paddockExternalId,
         alternativePaddockExternalIds: [],
         confidenceScore: 100,
         reasoning: ['Initial location set by farmer during onboarding'],
         status: 'approved',
-        approvedAt: now,
+        approvedAt: nowStr,
         approvedBy: 'onboarding',
         sectionGeometry: args.sectionGeometry,
         sectionAreaHectares: args.sectionAreaHectares,
         sectionJustification: 'Initial grazing area set by farmer',
-        createdAt: now,
-        updatedAt: now,
+        createdAt: nowStr,
+        updatedAt: nowStr,
       })
     }
 
-    return { success: true, date: today }
+    return { success: true, date: yesterdayStr }
   },
 })

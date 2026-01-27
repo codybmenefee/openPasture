@@ -21,6 +21,8 @@ interface AnimalLocationStepProps {
 const SECTION_PREVIEW_SOURCE = 'animal-location-section-preview'
 const SECTION_PREVIEW_FILL = 'animal-location-section-fill'
 const SECTION_PREVIEW_OUTLINE = 'animal-location-section-outline'
+const START_POINT_SOURCE = 'animal-location-start-point'
+const START_POINT_MARKER = 'animal-location-start-marker'
 
 type StepPhase = 'select-paddock' | 'draw-section' | 'confirm'
 
@@ -69,7 +71,7 @@ export function AnimalLocationStep({
             source: SECTION_PREVIEW_SOURCE,
             paint: {
               'fill-color': '#f59e0b',
-              'fill-opacity': 0.3,
+              'fill-opacity': 0.4,
             },
           })
 
@@ -79,8 +81,28 @@ export function AnimalLocationStep({
             source: SECTION_PREVIEW_SOURCE,
             paint: {
               'line-color': '#f59e0b',
-              'line-width': 2,
+              'line-width': 3,
               'line-dasharray': [4, 2],
+            },
+          })
+        }
+
+        // Add start point marker source and layer
+        if (!map.getSource(START_POINT_SOURCE)) {
+          map.addSource(START_POINT_SOURCE, {
+            type: 'geojson',
+            data: emptyCollection,
+          })
+
+          map.addLayer({
+            id: START_POINT_MARKER,
+            type: 'circle',
+            source: START_POINT_SOURCE,
+            paint: {
+              'circle-radius': 10,
+              'circle-color': '#ffffff',
+              'circle-stroke-color': '#f59e0b',
+              'circle-stroke-width': 3,
             },
           })
         }
@@ -109,6 +131,12 @@ export function AnimalLocationStep({
           if (map.getSource(SECTION_PREVIEW_SOURCE)) {
             map.removeSource(SECTION_PREVIEW_SOURCE)
           }
+          if (map.getLayer(START_POINT_MARKER)) {
+            map.removeLayer(START_POINT_MARKER)
+          }
+          if (map.getSource(START_POINT_SOURCE)) {
+            map.removeSource(START_POINT_SOURCE)
+          }
         }
       } catch {
         // Map may be destroyed
@@ -123,10 +151,46 @@ export function AnimalLocationStep({
     try {
       if (!map.getStyle()) return
 
+      // Ensure source exists
+      if (!map.getSource(SECTION_PREVIEW_SOURCE)) {
+        map.addSource(SECTION_PREVIEW_SOURCE, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        })
+      }
+
+      // Ensure layers exist
+      if (!map.getLayer(SECTION_PREVIEW_FILL)) {
+        map.addLayer({
+          id: SECTION_PREVIEW_FILL,
+          type: 'fill',
+          source: SECTION_PREVIEW_SOURCE,
+          paint: {
+            'fill-color': '#f59e0b',
+            'fill-opacity': 0.4,
+          },
+        })
+      }
+      if (!map.getLayer(SECTION_PREVIEW_OUTLINE)) {
+        map.addLayer({
+          id: SECTION_PREVIEW_OUTLINE,
+          type: 'line',
+          source: SECTION_PREVIEW_SOURCE,
+          paint: {
+            'line-color': '#f59e0b',
+            'line-width': 3,
+            'line-dasharray': [4, 2],
+          },
+        })
+      }
+
       const source = map.getSource(SECTION_PREVIEW_SOURCE) as GeoJSONSource | undefined
       if (!source) return
 
       if (geometry) {
+        // Move preview layers to top for visibility
+        map.moveLayer(SECTION_PREVIEW_FILL)
+        map.moveLayer(SECTION_PREVIEW_OUTLINE)
         source.setData({
           type: 'FeatureCollection',
           features: [geometry],
@@ -136,6 +200,55 @@ export function AnimalLocationStep({
           type: 'FeatureCollection',
           features: [],
         })
+      }
+    } catch {
+      // Map in transition
+    }
+  }, [map])
+
+  // Update start point marker
+  const updateStartPointMarker = useCallback((point: [number, number] | null) => {
+    if (!map) return
+    try {
+      if (!map.getStyle()) return
+
+      // Ensure layer exists (may have been removed or not yet added)
+      if (!map.getSource(START_POINT_SOURCE)) {
+        map.addSource(START_POINT_SOURCE, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        })
+      }
+      if (!map.getLayer(START_POINT_MARKER)) {
+        map.addLayer({
+          id: START_POINT_MARKER,
+          type: 'circle',
+          source: START_POINT_SOURCE,
+          paint: {
+            'circle-radius': 10,
+            'circle-color': '#ffffff',
+            'circle-stroke-color': '#f59e0b',
+            'circle-stroke-width': 3,
+          },
+        })
+      }
+
+      const source = map.getSource(START_POINT_SOURCE) as GeoJSONSource | undefined
+      if (!source) return
+
+      if (point) {
+        // Move layer to top to ensure visibility
+        map.moveLayer(START_POINT_MARKER)
+        source.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'Point', coordinates: point },
+          }],
+        })
+      } else {
+        source.setData({ type: 'FeatureCollection', features: [] })
       }
     } catch {
       // Map in transition
@@ -209,12 +322,14 @@ export function AnimalLocationStep({
 
         if (!stateRef.startPoint) {
           setStartPoint(clickPoint)
+          updateStartPointMarker(clickPoint)
         } else {
           // Complete the square
           const square = createSquare(stateRef.startPoint, clickPoint)
           if (square) {
             setSectionGeometry(square)
             updatePreview(square)
+            updateStartPointMarker(null)
             setIsDrawing(false)
             setStartPoint(null)
             setPhase('confirm')
@@ -257,7 +372,7 @@ export function AnimalLocationStep({
       map.off('mousemove', handleMouseMove)
       map.getCanvas().style.cursor = ''
     }
-  }, [map, phase, isDrawing, startPoint, paddocks, handlePaddockSelect, createSquare, updatePreview])
+  }, [map, phase, isDrawing, startPoint, paddocks, handlePaddockSelect, createSquare, updatePreview, updateStartPointMarker])
 
   // Start drawing a section
   const handleStartDrawSection = useCallback(() => {
@@ -266,7 +381,8 @@ export function AnimalLocationStep({
     setStartPoint(null)
     setSectionGeometry(null)
     updatePreview(null)
-  }, [updatePreview])
+    updateStartPointMarker(null)
+  }, [updatePreview, updateStartPointMarker])
 
   // Cancel section drawing
   const handleCancelDrawing = useCallback(() => {
@@ -274,8 +390,9 @@ export function AnimalLocationStep({
     setStartPoint(null)
     setSectionGeometry(null)
     updatePreview(null)
+    updateStartPointMarker(null)
     setPhase('confirm')
-  }, [updatePreview])
+  }, [updatePreview, updateStartPointMarker])
 
   // Clear section and go back to confirm
   const handleClearSection = useCallback(() => {

@@ -120,6 +120,8 @@ function GISRoute() {
   })
   // Drawing entity type - for creating NEW entities via draw mode
   const [drawEntityType, setDrawEntityType] = useState<DrawEntityType>('paddock')
+  // Track when user has explicitly entered edit mode for a section
+  const [sectionEditModeActive, setSectionEditModeActive] = useState(false)
 
   // Derived state from the typed feature ID
   const parsedFeatureId = useMemo(() => {
@@ -130,8 +132,8 @@ function GISRoute() {
   const selectedEntityType = parsedFeatureId?.entityType as 'paddock' | 'section' | undefined
   const selectedEntityId = parsedFeatureId?.entityId
 
-  // Track whether we're in edit mode for a section (derived from entity type)
-  const isEditingSection = selectedEntityType === 'section'
+  // Track whether we're actively editing a section (user clicked "Edit Section" button)
+  const isEditingSection = selectedEntityType === 'section' && sectionEditModeActive
 
   // Track when we're intentionally completing the boundary edit (to prevent re-triggering)
   const boundaryCompleteRef = useRef(false)
@@ -477,13 +479,12 @@ function GISRoute() {
       open: false,
       featureId: null,
     })
+    setSectionEditModeActive(false)
   }, [])
 
   // Handle entering edit mode for a section (from the "Update Section" button)
-  // isEditingSection is now derived from selectedEntityType === 'section'
   const handleEnterSectionEditMode = useCallback(() => {
-    // Just ensure draw entity type is set to section
-    // The section feature should already be in editDrawerState
+    setSectionEditModeActive(true)
     setDrawEntityType('section')
   }, [])
 
