@@ -1,32 +1,78 @@
 import { useState, useMemo } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { 
-  HistoryTimeline, 
-  PerformanceTable, 
+import { useQuery } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
+import { useFarmContext } from '@/lib/farm'
+import {
+  HistoryTimeline,
   DateRangeSelector,
-  getDateRangeBounds,
-  type DateRange 
+  type DateRange
 } from '@/components/history'
-import { historyEntries, paddockPerformance, getHistoryStats } from '@/data/mock/history'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowRight, Grid3X3 } from 'lucide-react'
+import { LoadingSpinner } from '@/components/ui/loading'
+import { ErrorState } from '@/components/ui/error'
 
 export const Route = createFileRoute('/_app/history')({
   component: HistoryPage,
 })
 
 function HistoryPage() {
-  const [dateRange, setDateRange] = useState<DateRange>('week')
-  
-  const filteredEntries = useMemo(() => {
-    const { start, end } = getDateRangeBounds(dateRange)
-    return historyEntries.filter(entry => {
-      const date = new Date(entry.date)
-      return date >= start && date <= end
-    })
-  }, [dateRange])
-  
-  const stats = getHistoryStats()
+  const { activeFarmId, isLoading: farmLoading } = useFarmContext()
+  const [dateRange, setDateRange] = useState<DateRange>('month')
+
+  // Calculate days based on date range
+  const days = dateRange === 'week' ? 7
+    : dateRange === 'month' ? 30
+    : dateRange === 'quarter' ? 90
+    : 365
+
+  // Fetch plans from Convex
+  const plans = useQuery(
+    api.intelligence.getPlanHistory,
+    activeFarmId ? { farmExternalId: activeFarmId, days } : 'skip'
+  )
+
+  // Fetch paddocks for name lookup
+  const paddocks = useQuery(
+    api.intelligence.getPaddocksForFarm,
+    activeFarmId ? { farmExternalId: activeFarmId } : 'skip'
+  )
+
+  // Build paddock name lookup map
+  const paddockNameMap = useMemo(() => {
+    if (!paddocks) return new Map<string, string>()
+    return new Map(paddocks.map(p => [p.externalId, p.name]))
+  }, [paddocks])
+
+  // Simple stats from real data
+  const stats = useMemo(() => {
+    if (!plans) return null
+    return {
+      total: plans.length,
+      approved: plans.filter(p => p.status === 'approved').length,
+      modified: plans.filter(p => p.status === 'modified').length,
+      pending: plans.filter(p => p.status === 'pending').length,
+    }
+  }, [plans])
+
+  if (farmLoading || plans === undefined || paddocks === undefined) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <LoadingSpinner message="Loading history..." />
+      </div>
+    )
+  }
+
+  if (!activeFarmId) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+        <ErrorState
+          title="No farm selected"
+          message="Please select a farm to view grazing history."
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -39,57 +85,41 @@ function HistoryPage() {
         <DateRangeSelector value={dateRange} onValueChange={setDateRange} />
       </div>
 
-      {/* Stats summary - updated with section/transition breakdown */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Decisions</p>
-            <p className="text-2xl font-semibold">{stats.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Grid3X3 className="h-3.5 w-3.5" />
-              <span>Section Rotations</span>
-            </div>
-            <p className="text-2xl font-semibold">{stats.sectionRotations}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <ArrowRight className="h-3.5 w-3.5" />
-              <span>Paddock Transitions</span>
-            </div>
-            <p className="text-2xl font-semibold">{stats.paddockTransitions}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Approved</p>
-            <p className="text-2xl font-semibold text-green-600">{stats.approved}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Modified</p>
-            <p className="text-2xl font-semibold text-amber-600">{stats.modified}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Approval Rate</p>
-            <p className="text-2xl font-semibold">{stats.approvalRate}%</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats summary */}
+      {stats && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Total Plans</p>
+              <p className="text-2xl font-semibold">{stats.total}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Approved</p>
+              <p className="text-2xl font-semibold text-green-600">{stats.approved}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Modified</p>
+              <p className="text-2xl font-semibold text-amber-600">{stats.modified}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm text-muted-foreground">Pending</p>
+              <p className="text-2xl font-semibold text-blue-600">{stats.pending}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <HistoryTimeline entries={filteredEntries} />
-        <PerformanceTable data={paddockPerformance} />
-      </div>
+      {/* Timeline - full width now */}
+      <HistoryTimeline
+        plans={plans}
+        paddockNameMap={paddockNameMap}
+      />
     </div>
   )
 }
