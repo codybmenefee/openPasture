@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -19,12 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { FloatingPanel } from '@/components/ui/floating-panel'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface PaddockEditDrawerProps {
   paddock: Paddock
+  open: boolean
   onClose: () => void
 }
 
@@ -57,8 +58,8 @@ function buildFormState(paddock: Paddock): PaddockFormState {
   }
 }
 
-export function PaddockEditDrawer({ paddock, onClose }: PaddockEditDrawerProps) {
-  const { updatePaddockMetadata, deletePaddock } = useGeometry()
+export function PaddockEditDrawer({ paddock, open, onClose }: PaddockEditDrawerProps) {
+  const { deletePaddock } = useGeometry()
   const { label } = useAreaUnit()
   const [form, setForm] = useState<PaddockFormState>(() => buildFormState(paddock))
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -75,22 +76,6 @@ export function PaddockEditDrawer({ paddock, onClose }: PaddockEditDrawerProps) 
     [form.status]
   )
 
-  const handleSave = () => {
-    updatePaddockMetadata(paddock.id, {
-      name: form.name.trim() || paddock.name,
-      status: form.status,
-      ndvi: form.ndvi,
-      restDays: form.restDays,
-      area: form.area,
-      waterAccess: form.waterAccess,
-      lastGrazed: form.lastGrazed,
-    })
-  }
-
-  const handleReset = () => {
-    setForm(buildFormState(paddock))
-  }
-
   const handleDelete = () => {
     deletePaddock(paddock.id)
     setDeleteDialogOpen(false)
@@ -98,21 +83,20 @@ export function PaddockEditDrawer({ paddock, onClose }: PaddockEditDrawerProps) 
   }
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-start justify-between border-b p-4">
-        <div>
-          <h2 className="font-semibold text-base">Edit {paddock.name}</h2>
-          <p className="text-xs text-muted-foreground">Paddock {paddock.id.replace('p', '')}</p>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 -mt-1 -mr-1">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
+    <>
+      <FloatingPanel
+        open={open}
+        onOpenChange={(isOpen) => !isOpen && onClose()}
+        title={`Edit ${paddock.name}`}
+        subtitle={`Paddock ${paddock.id.replace('p', '')}`}
+        defaultWidth={340}
+        defaultHeight={520}
+        minWidth={300}
+        maxWidth={450}
+        minHeight={400}
+        initialPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 360 : 800, y: 64 }}
+      >
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground uppercase tracking-wide">Name</label>
             <Input
@@ -210,11 +194,8 @@ export function PaddockEditDrawer({ paddock, onClose }: PaddockEditDrawerProps) 
           </div>
         </div>
 
-        <Separator className="my-4" />
-
-        {/* Danger Zone */}
-        <div className="space-y-2">
-          <label className="text-xs text-destructive uppercase tracking-wide">Danger Zone</label>
+        {/* Fixed footer */}
+        <div className="border-t p-4">
           <Button
             variant="destructive"
             size="sm"
@@ -225,19 +206,7 @@ export function PaddockEditDrawer({ paddock, onClose }: PaddockEditDrawerProps) 
             Delete Paddock
           </Button>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Button className="flex-1" onClick={handleSave}>
-            Save Changes
-          </Button>
-          <Button variant="outline" className="flex-1" onClick={handleReset}>
-            Reset
-          </Button>
-        </div>
-      </div>
+      </FloatingPanel>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -259,6 +228,6 @@ export function PaddockEditDrawer({ paddock, onClose }: PaddockEditDrawerProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }

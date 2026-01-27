@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
+import { FloatingPanel } from '@/components/ui/floating-panel'
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface WaterSourceEditPanelProps {
   source: WaterSource
-  onSave: (id: string, updates: { name?: string; type?: WaterSourceType; status?: WaterSourceStatus; description?: string }) => void
+  open: boolean
   onDelete: (id: string) => void
   onClose: () => void
 }
@@ -46,7 +46,7 @@ const statusStyles: Record<WaterSourceStatus, { bg: string; border: string; text
 
 export function WaterSourceEditPanel({
   source,
-  onSave,
+  open,
   onDelete,
   onClose,
 }: WaterSourceEditPanelProps) {
@@ -80,15 +80,6 @@ export function WaterSourceEditPanel({
 
   const currentStatusStyles = statusStyles[status] ?? statusStyles.active
 
-  const handleSave = () => {
-    onSave(source.id, {
-      name: name.trim() || source.name,
-      type,
-      status,
-      description: description.trim() || undefined,
-    })
-  }
-
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this water source?')) {
       onDelete(source.id)
@@ -96,22 +87,19 @@ export function WaterSourceEditPanel({
   }
 
   return (
-    <aside className="w-80 border-l border-border bg-card p-4 overflow-y-auto">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="font-semibold text-lg">Edit Water Source</h2>
-          <p className="text-sm text-muted-foreground">
-            {source.geometryType === 'point' ? 'Point marker' : 'Area'}
-          </p>
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <Separator className="my-4" />
-
-      <div className="space-y-4">
+    <FloatingPanel
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+      title="Edit Water Source"
+      subtitle={source.geometryType === 'point' ? 'Point marker' : 'Area'}
+      defaultWidth={340}
+      defaultHeight={520}
+      minWidth={300}
+      maxWidth={450}
+      minHeight={400}
+      initialPosition={{ x: typeof window !== 'undefined' ? window.innerWidth - 360 : 800, y: 64 }}
+    >
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground uppercase tracking-wide">Name</label>
           <Input
@@ -187,18 +175,21 @@ export function WaterSourceEditPanel({
             Water sources are factored into grazing recommendations to ensure livestock have adequate access.
           </p>
         </div>
+
       </div>
 
-      <Separator className="my-4" />
-
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={handleSave}>
-          Save Changes
-        </Button>
-        <Button variant="destructive" size="icon" onClick={handleDelete}>
+      {/* Fixed footer */}
+      <div className="border-t p-4">
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full gap-2"
+          onClick={handleDelete}
+        >
           <Trash2 className="h-4 w-4" />
+          Delete Water Source
         </Button>
       </div>
-    </aside>
+    </FloatingPanel>
   )
 }

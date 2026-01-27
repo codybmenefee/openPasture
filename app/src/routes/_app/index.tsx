@@ -15,7 +15,7 @@ import { NoGrazeEditPanel } from '@/components/map/NoGrazeEditPanel'
 import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
 import { SatelliteFetchBanner } from '@/components/map/SatelliteFetchBanner'
 import { BoundarySavedDialog } from '@/components/map/BoundarySavedDialog'
-import type { NoGrazeZone, WaterSource, WaterSourceType, NoGrazeZoneType, WaterSourceStatus } from '@/lib/types'
+import type { NoGrazeZone, WaterSource } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
 import { getFormattedDate } from '@/data/mock/plan'
 import { PaddockEditDrawer } from '@/components/map/PaddockEditDrawer'
@@ -67,9 +67,7 @@ function GISRoute() {
     pendingChanges,
     getNoGrazeZoneById,
     getWaterSourceById,
-    updateNoGrazeZoneMetadata,
     deleteNoGrazeZone,
-    updateWaterSourceMetadata,
     deleteWaterSource,
   } = useGeometry()
   const { startDraw, cancelDraw, isDrawingBoundary, existingGeometry } = useFarmBoundary()
