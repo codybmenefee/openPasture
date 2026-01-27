@@ -58,6 +58,9 @@ export const setInitialAnimalLocation = mutation({
       })
     }
 
+    // Note: Satellite fetch job is triggered earlier in updateFarmBoundary
+    // so imagery processing starts as soon as boundary is drawn
+
     return { success: true, date: yesterdayStr }
   },
 })

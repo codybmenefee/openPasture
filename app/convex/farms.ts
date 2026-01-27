@@ -1,6 +1,7 @@
 import { mutationGeneric as mutation, queryGeneric as query } from 'convex/server'
 import { v } from 'convex/values'
 import area from '@turf/area'
+import { api } from './_generated/api'
 import {
   DEFAULT_FARM_EXTERNAL_ID,
   DEFAULT_USER_EXTERNAL_ID,
@@ -311,6 +312,13 @@ export const updateFarmBoundary = mutation({
       coordinates: [centerLng, centerLat],
       totalArea: hectares,
       updatedAt: now,
+    })
+
+    // Trigger satellite fetch job immediately so imagery processing starts early
+    // Duplicate prevention is built into createForOnboardingComplete
+    await ctx.runMutation(api.satelliteFetchJobs.createForOnboardingComplete, {
+      farmExternalId: args.farmExternalId,
+      provider: 'sentinel2',
     })
 
     return {
