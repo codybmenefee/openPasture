@@ -1,6 +1,7 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { DEFAULT_FARM_EXTERNAL_ID } from './seedData'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 
 export const getTodayPlan = query({
@@ -541,7 +542,6 @@ export const updatePlanSectionGeometry = mutation({
     }
 
     // Calculate area in hectares using the same formula as other parts of the codebase
-    const HECTARES_PER_SQUARE_METER = 1 / 10000
     let sectionAreaHectares = 0
     try {
       // Simple polygon area calculation using the shoelace formula
@@ -581,5 +581,33 @@ export const updatePlanSectionGeometry = mutation({
     })
 
     return args.planId
+  },
+})
+
+/**
+ * Delete old plans (sections) older than a specified date.
+ */
+export const deleteOldPlans = mutation({
+  args: {
+    farmExternalId: v.string(),
+    beforeDate: v.string(), // YYYY-MM-DD format - delete plans older than this date
+  },
+  handler: async (ctx, args) => {
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .collect()
+
+    let deleted = 0
+    for (const plan of plans) {
+      if (plan.date < args.beforeDate) {
+        await ctx.db.delete(plan._id)
+        deleted++
+        console.log('[deleteOldPlans] Deleted plan', plan._id, 'date:', plan.date)
+      }
+    }
+
+    console.log('[deleteOldPlans] Deleted', deleted, 'plans older than', args.beforeDate)
+    return { deleted }
   },
 })

@@ -6,6 +6,7 @@ import type { Paddock, Section, SectionAlternative } from '@/lib/types'
 import { MapPin, ChevronDown, ChevronUp, ArrowRight, Focus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useGeometry } from '@/lib/geometry'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface BriefCardProps {
   currentPaddockId: string
@@ -50,6 +51,7 @@ export function BriefCard({
   hideActions = false,
 }: BriefCardProps) {
   const { getPaddockById } = useGeometry()
+  const { format } = useAreaUnit()
   const currentPaddock = getPaddockById(currentPaddockId)
   const daysRemaining = totalDaysPlanned - daysInCurrentPaddock
   const [showAlternatives, setShowAlternatives] = useState(false)
@@ -127,7 +129,7 @@ export function BriefCard({
           {activeSection && (
             <div className="bg-muted/50 rounded-md p-1.5 xl:p-2">
               <span className="text-muted-foreground block text-[9px] xl:text-[10px] uppercase tracking-wide">Section</span>
-              <span className="font-semibold text-xs xl:text-sm">{activeSection.targetArea.toFixed(1)} ha</span>
+              <span className="font-semibold text-xs xl:text-sm">{format(activeSection.targetArea)}</span>
             </div>
           )}
           <div className="bg-muted/50 rounded-md p-1.5 xl:p-2">
@@ -236,7 +238,7 @@ export function BriefCard({
                     <span className="text-[10px] text-muted-foreground">{confidence}%</span>
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-0.5">
-                    {section?.targetArea.toFixed(1)} ha - AI-optimized
+                    {section ? format(section.targetArea) : ''} - AI-optimized
                   </p>
                 </button>
 
@@ -259,7 +261,7 @@ export function BriefCard({
                       <span className="text-[10px] text-muted-foreground">{alt.confidence}%</span>
                     </div>
                     <p className="text-[9px] text-muted-foreground mt-0.5">
-                      {alt.targetArea.toFixed(1)} ha - {alt.reasoning.split(' - ')[1] || alt.reasoning}
+                      {format(alt.targetArea)} - {alt.reasoning.split(' - ')[1] || alt.reasoning}
                     </p>
                   </button>
                 ))}

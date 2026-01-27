@@ -10,6 +10,7 @@ import {
   sampleGrazingEvents,
   sampleObservations,
 } from './seedData'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 const polygonFeature = v.object({
   type: v.literal('Feature'),
@@ -19,8 +20,6 @@ const polygonFeature = v.object({
     coordinates: v.array(v.array(v.array(v.number()))),
   }),
 })
-
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 export const getFarm = query({
   args: { farmId: v.optional(v.string()) },

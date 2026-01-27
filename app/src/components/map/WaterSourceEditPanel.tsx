@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { WaterSource, WaterSourceType, WaterSourceStatus } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface WaterSourceEditPanelProps {
   source: WaterSource
@@ -49,6 +50,7 @@ export function WaterSourceEditPanel({
   onDelete,
   onClose,
 }: WaterSourceEditPanelProps) {
+  const { label, format } = useAreaUnit()
   const [name, setName] = useState(source.name)
   const [type, setType] = useState<WaterSourceType>(source.type)
   const [status, setStatus] = useState<WaterSourceStatus>(source.status ?? 'active')
@@ -153,10 +155,10 @@ export function WaterSourceEditPanel({
 
         {source.geometryType === 'polygon' && (
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area (ha)</label>
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area ({label})</label>
             <Input
               type="text"
-              value={source.area != null ? source.area.toFixed(2) : 'N/A'}
+              value={source.area != null ? format(source.area, 2) : 'N/A'}
               disabled
               className="bg-muted"
             />

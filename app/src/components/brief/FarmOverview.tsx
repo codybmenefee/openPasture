@@ -15,6 +15,7 @@ import {
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
 import { useFarm } from '@/lib/convex/useFarm'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 type StatusGroup = 'ready' | 'recovering' | 'grazed'
 
@@ -69,6 +70,7 @@ function getStatusLabel(status: PaddockStatus): string {
 export function FarmOverview() {
   const { paddocks } = useGeometry()
   const { farm } = useFarm()
+  const { format } = useAreaUnit()
   const counts = paddocks.reduce((acc, paddock) => {
     acc[paddock.status] = (acc[paddock.status] || 0) + 1
     return acc
@@ -97,7 +99,7 @@ export function FarmOverview() {
           </div>
 
           <div className="text-[10px] xl:text-xs text-muted-foreground">
-            {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ?? '—'} ha
+            {farm?.paddockCount ?? paddocks.length} paddocks / {farm?.totalArea ? format(farm.totalArea) : '—'}
           </div>
 
           <div className="grid grid-cols-3 gap-1 xl:gap-1.5 text-center">
@@ -147,7 +149,7 @@ export function FarmOverview() {
                   <div>
                     <p className="text-sm font-medium">{paddock.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {paddock.area} ha / {paddock.restDays} days rest
+                      {format(paddock.area)} / {paddock.restDays} days rest
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">

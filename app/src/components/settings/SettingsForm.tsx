@@ -5,11 +5,19 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ThresholdSlider } from './ThresholdSlider'
 import { IntegrationCard } from './IntegrationCard'
-import type { FarmSettings } from '@/lib/types'
+import type { FarmSettings, AreaUnit } from '@/lib/types'
 import { useFarm } from '@/lib/convex/useFarm'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface SettingsFormProps {
   settings: FarmSettings
@@ -20,6 +28,7 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
   const navigate = useNavigate()
   const { farm } = useFarm()
   const { hasBoundary, boundaryArea } = useFarmBoundary()
+  const { format } = useAreaUnit()
 
   const handleEditBoundary = () => {
     navigate({ to: '/', search: { editBoundary: 'true' } })
@@ -54,11 +63,10 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
             <label className="text-sm font-medium">Total Area</label>
             <div className="flex items-center gap-2">
               <Input
-                value={farm?.totalArea ?? ''}
+                value={farm?.totalArea ? format(farm.totalArea) : ''}
                 readOnly
-                className="bg-muted w-24"
+                className="bg-muted w-32"
               />
-              <span className="text-sm text-muted-foreground">hectares</span>
             </div>
           </div>
         </CardContent>
@@ -79,7 +87,7 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
                 <div>
                   <p className="text-sm font-medium">Boundary defined</p>
                   <p className="text-xs text-muted-foreground">
-                    {boundaryArea} hectares
+                    {boundaryArea ? format(boundaryArea) : ''}
                   </p>
                 </div>
               </div>
@@ -106,6 +114,33 @@ export function SettingsForm({ settings, onChange }: SettingsFormProps) {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Unit Preferences */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium">Unit Preferences</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Area Units</label>
+            <Select
+              value={settings.areaUnit ?? 'hectares'}
+              onValueChange={(value) => updateSetting('areaUnit', value as AreaUnit)}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hectares">Hectares (ha)</SelectItem>
+                <SelectItem value="acres">Acres (ac)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Choose how area measurements are displayed throughout the app
+            </p>
+          </div>
         </CardContent>
       </Card>
 

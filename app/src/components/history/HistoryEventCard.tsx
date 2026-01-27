@@ -2,6 +2,7 @@ import { Check, Edit, Clock, ArrowRight, Grid3X3 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { HistoryEntry } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface HistoryEventCardProps {
   entry: HistoryEntry
@@ -43,6 +44,7 @@ const statusConfig = {
 }
 
 export function HistoryEventCard({ entry, isLast, onClick }: HistoryEventCardProps) {
+  const { format } = useAreaUnit()
   const config = statusConfig[entry.planStatus]
   const StatusIcon = config.icon
   
@@ -142,7 +144,7 @@ export function HistoryEventCard({ entry, isLast, onClick }: HistoryEventCardPro
           <div className="flex gap-4 mt-1">
             <span>Confidence: {entry.confidence}%</span>
             {entry.sectionArea && (
-              <span>Section: {entry.sectionArea.toFixed(1)} ha</span>
+              <span>Section: {format(entry.sectionArea)}</span>
             )}
           </div>
         </div>

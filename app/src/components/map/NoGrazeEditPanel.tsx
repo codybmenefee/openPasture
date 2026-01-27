@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { NoGrazeZone, NoGrazeZoneType } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface NoGrazeEditPanelProps {
   zone: NoGrazeZone
@@ -37,6 +38,7 @@ const typeInfoStyles: Record<string, { bg: string; border: string; text: string 
 }
 
 export function NoGrazeEditPanel({ zone, onSave, onDelete, onClose }: NoGrazeEditPanelProps) {
+  const { label, format } = useAreaUnit()
   const [name, setName] = useState(zone.name)
   const [type, setType] = useState<NoGrazeZoneType>(zone.type)
   const [description, setDescription] = useState(zone.description ?? '')
@@ -114,10 +116,10 @@ export function NoGrazeEditPanel({ zone, onSave, onDelete, onClose }: NoGrazeEdi
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground uppercase tracking-wide">Area (ha)</label>
+          <label className="text-xs text-muted-foreground uppercase tracking-wide">Area ({label})</label>
           <Input
             type="text"
-            value={zone.area.toFixed(2)}
+            value={format(zone.area, 2)}
             disabled
             className="bg-muted"
           />

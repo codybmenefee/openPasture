@@ -6,10 +6,9 @@ import difference from '@turf/difference'
 import intersect from '@turf/intersect'
 import { featureCollection } from '@turf/helpers'
 import type { Feature, MultiPolygon, Polygon } from 'geojson'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 // NOTE: Braintrust logging is done at the action level (grazingAgentDirect.ts)
 // Mutations cannot use Node.js APIs, so we don't import Braintrust here
-
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 interface PaddockData {
   externalId: string

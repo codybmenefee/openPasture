@@ -194,6 +194,9 @@ export interface MapPreferences {
   showNDVIHeatmap?: boolean
 }
 
+// Area unit type
+export type AreaUnit = 'hectares' | 'acres'
+
 // Settings types
 export interface FarmSettings {
   minNDVIThreshold: number
@@ -205,6 +208,7 @@ export interface FarmSettings {
   virtualFenceProvider?: string
   apiKey?: string
   mapPreferences?: MapPreferences
+  areaUnit?: AreaUnit
 }
 
 // Analytics types

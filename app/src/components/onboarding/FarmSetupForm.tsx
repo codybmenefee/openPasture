@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2 } from 'lucide-react'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface FarmData {
   name: string
@@ -25,6 +26,7 @@ export function FarmSetupForm({
   isSubmitting = false,
   error,
 }: FarmSetupFormProps) {
+  const { unitName } = useAreaUnit()
   const [formData, setFormData] = useState<FarmData>(initialData || {
     name: '',
     location: '',
@@ -90,7 +92,7 @@ export function FarmSetupForm({
                 className="w-32"
                 disabled={isSubmitting}
               />
-              <span className="text-sm text-muted-foreground">hectares</span>
+              <span className="text-sm text-muted-foreground">{unitName}</span>
             </div>
           </div>
 

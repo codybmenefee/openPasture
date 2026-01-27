@@ -87,6 +87,7 @@ export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
     virtualFenceProvider: doc.virtualFenceProvider,
     apiKey: doc.apiKey,
     mapPreferences: doc.mapPreferences ?? { showRGBSatellite: false },
+    areaUnit: (doc as any).areaUnit ?? 'hectares',
   }
 }
 

@@ -2,6 +2,7 @@ import { mutationGeneric as mutation, queryGeneric as query } from 'convex/serve
 import { v } from 'convex/values'
 import area from '@turf/area'
 import type { Feature, Polygon } from 'geojson'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 const polygonFeature = v.object({
   type: v.literal('Feature'),
@@ -28,8 +29,6 @@ const geometryChange = v.object({
   timestamp: v.string(),
   metadata: v.optional(v.any()),
 })
-
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 function calculateAreaHectares(feature: Feature<Polygon>, decimals = 1): number {
   const squareMeters = area(feature)

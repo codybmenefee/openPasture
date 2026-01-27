@@ -1,6 +1,8 @@
 import type { SubscriptionTier } from '../../lib/hooks/useSubscription'
 import { useSubscription } from '../../lib/hooks/useSubscription'
 import { useStorageUsage } from '../../lib/hooks/useSatelliteTiles'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
+import { ACRES_PER_HECTARE } from '@/lib/areaUnits'
 
 interface SubscriptionCardProps {
   /**
@@ -90,6 +92,24 @@ const PLAN_DETAILS: Record<
  * Displays current subscription plan and usage metrics.
  * Includes upgrade/downgrade options and link to billing portal.
  */
+/**
+ * Transforms features list to add hectare equivalents when user prefers hectares.
+ */
+function transformFeatures(features: string[], preferHectares: boolean): string[] {
+  if (!preferHectares) return features
+
+  return features.map(feature => {
+    // Transform "Up to X acres" to "Up to X acres (Y ha)"
+    const acreMatch = feature.match(/Up to (\d+) acres/)
+    if (acreMatch) {
+      const acres = parseInt(acreMatch[1], 10)
+      const hectares = (acres / ACRES_PER_HECTARE).toFixed(1)
+      return feature.replace(/Up to \d+ acres/, `Up to ${acres} acres (${hectares} ha)`)
+    }
+    return feature
+  })
+}
+
 export function SubscriptionCard({
   farmId,
   farmAcreage = 0,
@@ -97,6 +117,8 @@ export function SubscriptionCard({
 }: SubscriptionCardProps) {
   const { subscription, isLoading, tier, isActive } = useSubscription(farmId)
   const { usage, isLoading: usageLoading } = useStorageUsage(farmId)
+  const { unit } = useAreaUnit()
+  const preferHectares = unit === 'hectares'
 
   if (isLoading) {
     return (
@@ -106,6 +128,13 @@ export function SubscriptionCard({
 
   const planDetails = PLAN_DETAILS[tier]
   const acreageUsage = (farmAcreage / (subscription?.acreageLimit ?? 5)) * 100
+
+  // Transform features to include hectare equivalents when user prefers hectares
+  const displayFeatures = transformFeatures(planDetails.features, preferHectares)
+
+  // Convert farm acreage (in acres) to hectares for display
+  const farmHectares = farmAcreage / ACRES_PER_HECTARE
+  const limitHectares = (subscription?.acreageLimit ?? 5) / ACRES_PER_HECTARE
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>
@@ -136,9 +165,12 @@ export function SubscriptionCard({
           {/* Acreage */}
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-600">Acreage</span>
+              <span className="text-gray-600">Land Area</span>
               <span className="text-gray-900 font-medium">
-                {farmAcreage.toFixed(1)} / {subscription?.acreageLimit ?? 5} acres
+                {preferHectares
+                  ? `${farmHectares.toFixed(1)} / ${limitHectares.toFixed(1)} ha`
+                  : `${farmAcreage.toFixed(1)} / ${subscription?.acreageLimit ?? 5} ac`
+                }
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -181,7 +213,7 @@ export function SubscriptionCard({
       <div className="px-6 py-4 border-b border-gray-100">
         <h4 className="text-sm font-medium text-gray-700 mb-3">Plan Features</h4>
         <ul className="space-y-2">
-          {planDetails.features.map((feature, idx) => (
+          {displayFeatures.map((feature, idx) => (
             <li key={idx} className="flex items-start gap-2 text-sm">
               <svg
                 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5"

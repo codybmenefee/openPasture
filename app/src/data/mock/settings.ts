@@ -10,4 +10,5 @@ export const defaultSettings: FarmSettings = {
   virtualFenceProvider: '',
   apiKey: '',
   mapPreferences: { showRGBSatellite: false, showNDVIHeatmap: false },
+  areaUnit: 'hectares',
 }

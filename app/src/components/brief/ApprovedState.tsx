@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { SatelliteMiniMap } from './SatelliteMiniMap'
 import { PaddockMiniMap } from './PaddockMiniMap'
 import type { Paddock, Section } from '@/lib/types'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface ApprovedStateProps {
   paddock: Paddock
@@ -38,6 +39,7 @@ export function ApprovedState({
   sectionJustification,
   paddockGrazedPercentage,
 }: ApprovedStateProps) {
+  const { format } = useAreaUnit()
   const daysRemaining = totalDaysPlanned - daysInCurrentPaddock
 
   return (
@@ -119,7 +121,7 @@ export function ApprovedState({
                   <div className="grid grid-cols-2 gap-1 text-[10px]">
                     <div>
                       <span className="text-muted-foreground">Area:</span>{' '}
-                      <span className="font-medium">{section.targetArea.toFixed(1)} ha</span>
+                      <span className="font-medium">{format(section.targetArea)}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Coverage:</span>{' '}
@@ -195,7 +197,7 @@ export function ApprovedState({
               <span className="font-medium">
                 {isPaddockTransition
                   ? `${totalDaysPlanned}d in ${paddock.name}`
-                  : `${section?.targetArea.toFixed(1) || '~3.5'} ha today`
+                  : `${section ? format(section.targetArea) : '~3.5 ha'} today`
                 }
               </span>
             </p>
@@ -235,7 +237,7 @@ export function ApprovedState({
           <div className="grid grid-cols-3 gap-1.5 text-[10px]">
             <div>
               <p className="text-muted-foreground">Area</p>
-              <p className="font-medium">{paddock.area} ha</p>
+              <p className="font-medium">{format(paddock.area)}</p>
             </div>
             <div>
               <p className="text-muted-foreground">NDVI</p>

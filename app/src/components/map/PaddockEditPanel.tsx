@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import type { Paddock, PaddockStatus } from '@/lib/types'
 import { useGeometry } from '@/lib/geometry'
+import { useAreaUnit } from '@/lib/hooks/useAreaUnit'
 
 interface PaddockEditPanelProps {
   paddock: Paddock
@@ -50,6 +51,7 @@ function buildFormState(paddock: Paddock): PaddockFormState {
 
 export function PaddockEditPanel({ paddock, onClose }: PaddockEditPanelProps) {
   const { updatePaddockMetadata } = useGeometry()
+  const { label } = useAreaUnit()
   const [form, setForm] = useState<PaddockFormState>(() => buildFormState(paddock))
 
   useEffect(() => {
@@ -155,7 +157,7 @@ export function PaddockEditPanel({ paddock, onClose }: PaddockEditPanelProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area (ha)</label>
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Area ({label})</label>
             <Input
               type="number"
               min={0}

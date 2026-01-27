@@ -1,9 +1,9 @@
 import type { Feature, Polygon } from 'geojson'
 import area from '@turf/area'
+import { HECTARES_PER_SQUARE_METER } from './lib/areaConstants'
 
 const BASE_LNG = -87.0403892
 const BASE_LAT = 35.6389946
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 
 export const DEFAULT_FARM_EXTERNAL_ID = 'farm-1'
 export const DEFAULT_USER_EXTERNAL_ID = 'dev-user-1'
@@ -17,6 +17,7 @@ export const defaultFarmSettings = {
   pushNotifications: false,
   virtualFenceProvider: '',
   apiKey: '',
+  areaUnit: 'hectares' as const,
 }
 
 function calculateAreaHectares(feature: Feature<Polygon>, decimals = 1): number {

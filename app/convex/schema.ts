@@ -121,6 +121,8 @@ export default defineSchema({
     })),
     // Livestock settings for animal unit calculations
     livestockSettings: v.optional(livestockSettings),
+    // Area unit preference (hectares or acres)
+    areaUnit: v.optional(v.union(v.literal('hectares'), v.literal('acres'))),
     // Imagery check tracking for smart scheduling
     lastImageryCheckAt: v.optional(v.string()),   // When we last checked for new imagery (ISO timestamp)
     lastNewImageryDate: v.optional(v.string()),   // Date of newest imagery found (YYYY-MM-DD)

@@ -15,6 +15,8 @@ const livestockSettingsShape = v.object({
   dailyDMPerAU: v.number(),
 })
 
+const areaUnitShape = v.optional(v.union(v.literal('hectares'), v.literal('acres')))
+
 const settingsShape = {
   minNDVIThreshold: v.number(),
   minRestPeriod: v.number(),
@@ -25,6 +27,7 @@ const settingsShape = {
   virtualFenceProvider: v.optional(v.string()),
   apiKey: v.optional(v.string()),
   mapPreferences: v.optional(mapPreferencesShape),
+  areaUnit: areaUnitShape,
 }
 
 export const getSettings = query({

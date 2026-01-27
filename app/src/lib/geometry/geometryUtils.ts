@@ -3,9 +3,9 @@ import area from '@turf/area'
 import intersect from '@turf/intersect'
 import { featureCollection, polygon } from '@turf/helpers'
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import { HECTARES_PER_SQUARE_METER } from '@/lib/areaUnits'
 
 const DEFAULT_TOLERANCE = 1e-8
-const HECTARES_PER_SQUARE_METER = 1 / 10000
 const AREA_DECIMALS = 1
 
 export function calculateAreaHectares(feature: Feature<Polygon | MultiPolygon>, decimals = AREA_DECIMALS): number {
