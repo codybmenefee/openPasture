@@ -6,6 +6,7 @@ import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithC
 import { FarmProvider } from '@/lib/farm'
 import { useAppAuth } from '@/lib/auth'
 import { useEffect } from 'react'
+import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
 
 export const Route = createFileRoute('/_app')({
   component: AppLayout,
@@ -51,15 +52,18 @@ function AppLayout() {
   return (
     <FarmProvider>
       <GeometryProviderWithConvex>
-        <div className="flex h-screen bg-background text-foreground">
-          <Sidebar />
-          <div className="flex flex-1 flex-col overflow-hidden">
+        <TutorialProvider>
+          <div className="flex h-screen flex-col bg-background text-foreground">
             <Header />
-            <main className="flex-1 overflow-auto">
-              <Outlet />
-            </main>
+            <div className="flex flex-1 overflow-hidden">
+              <Sidebar />
+              <main className="flex-1 overflow-auto">
+                <Outlet />
+              </main>
+            </div>
           </div>
-        </div>
+          <TutorialOverlay />
+        </TutorialProvider>
       </GeometryProviderWithConvex>
     </FarmProvider>
   )

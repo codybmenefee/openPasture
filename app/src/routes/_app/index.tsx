@@ -480,20 +480,10 @@ function GISRoute() {
     }
   }, [getWaterSourceById])
 
-  const handleNoGrazeZoneSave = useCallback((id: string, updates: { name?: string; type?: NoGrazeZoneType; description?: string }) => {
-    updateNoGrazeZoneMetadata(id, updates)
-    setSelectedNoGrazeZone(null)
-  }, [updateNoGrazeZoneMetadata])
-
   const handleNoGrazeZoneDelete = useCallback((id: string) => {
     deleteNoGrazeZone(id)
     setSelectedNoGrazeZone(null)
   }, [deleteNoGrazeZone])
-
-  const handleWaterSourceSave = useCallback((id: string, updates: { name?: string; type?: WaterSourceType; status?: WaterSourceStatus; description?: string }) => {
-    updateWaterSourceMetadata(id, updates)
-    setSelectedWaterSource(null)
-  }, [updateWaterSourceMetadata])
 
   const handleWaterSourceDelete = useCallback((id: string) => {
     deleteWaterSource(id)
@@ -824,7 +814,7 @@ function GISRoute() {
         minWidth={320}
         maxWidth={600}
         minHeight={300}
-        initialPosition={{ x: 44, y: 44 }}
+        initialPosition={{ x: 54, y: 64 }}
       >
         <MorningBrief
           farmExternalId={activeFarmId}
@@ -909,7 +899,6 @@ function GISRoute() {
         <NoGrazeEditPanel
           zone={selectedNoGrazeZone}
           open={true}
-          onSave={handleNoGrazeZoneSave}
           onDelete={handleNoGrazeZoneDelete}
           onClose={() => setSelectedNoGrazeZone(null)}
         />
@@ -920,7 +909,6 @@ function GISRoute() {
         <WaterSourceEditPanel
           source={selectedWaterSource}
           open={true}
-          onSave={handleWaterSourceSave}
           onDelete={handleWaterSourceDelete}
           onClose={() => setSelectedWaterSource(null)}
         />
