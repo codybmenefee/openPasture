@@ -1,8 +1,7 @@
 # Contributing
 
-Thanks for helping improve Grazing Intelligence Demo. This project is focused
-on the Morning Farm Brief experience and the supporting grazing intelligence
-workflow.
+Thanks for helping improve OpenPasture. This project is focused on the Morning
+Farm Brief experience and adaptive grazing intelligence.
 
 ## Development Setup
 

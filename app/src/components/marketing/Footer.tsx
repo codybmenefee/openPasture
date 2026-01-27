@@ -106,7 +106,7 @@ export function Footer() {
 
         <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-500">
           <p>
-            © {new Date().getFullYear()} Grazing Intelligence. Licensed under{' '}
+            © {new Date().getFullYear()} OpenPasture. Licensed under{' '}
             <a
               href="https://www.apache.org/licenses/LICENSE-2.0"
               target="_blank"

@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import { createSquareFromCorners } from '@/lib/geometry'
+import { createLogger } from '@/lib/logger'
 import type { Feature, Polygon } from 'geojson'
 import type { Map as MapLibreMap, GeoJSONSource } from 'maplibre-gl'
+
+const log = createLogger('boundary')
 
 interface FarmBoundaryDrawerProps {
   map: MapLibreMap | null
@@ -142,8 +145,8 @@ export function FarmBoundaryDrawer({
             map.removeSource(PREVIEW_SOURCE_ID)
           }
         }
-      } catch {
-        // Map may already be destroyed
+      } catch (error) {
+        log.debug('Cleanup skipped - map may be destroyed', { error: String(error) })
       }
     }
   }, [map])
@@ -170,8 +173,8 @@ export function FarmBoundaryDrawer({
           features: [],
         })
       }
-    } catch {
-      // Map may be in transitional state during save/navigation
+    } catch (error) {
+      log.debug('Preview update skipped - map in transition', { error: String(error) })
     }
   }, [map])
 
@@ -205,8 +208,8 @@ export function FarmBoundaryDrawer({
           features: [],
         })
       }
-    } catch {
-      // Map may be in transitional state during save/navigation
+    } catch (error) {
+      log.debug('Corner markers update skipped - map in transition', { error: String(error) })
     }
   }, [map, getCornerPoints])
 
@@ -239,8 +242,8 @@ export function FarmBoundaryDrawer({
         [[minLng, minLat], [maxLng, maxLat]],
         { padding: 100, duration: 500 }
       )
-    } catch {
-      // Map may be in transitional state
+    } catch (error) {
+      log.debug('Edit mode init skipped - map in transition', { error: String(error) })
     }
   }, [map, existingBoundary, step, updatePreview, updateCornerMarkers])
 
@@ -398,20 +401,20 @@ export function FarmBoundaryDrawer({
   }, [drawnGeometry, saveBoundary, updatePreview, updateCornerMarkers, onBoundarySaved, onComplete])
 
   const handleConfirm = useCallback(async () => {
-    console.log('[FarmBoundaryDrawer] handleConfirm called, drawnGeometry:', !!drawnGeometry)
+    log('handleConfirm called', { hasGeometry: !!drawnGeometry })
     if (!drawnGeometry) return
 
     await saveBoundary(drawnGeometry)
     updatePreview(null)
     updateCornerMarkers(null)
-    console.log('[FarmBoundaryDrawer] Calling onBoundarySaved, callback exists:', !!onBoundarySaved)
+    log('Calling onBoundarySaved', { hasCallback: !!onBoundarySaved })
     // Await the callback to ensure paddock is created before navigation
     if (onBoundarySaved) {
       await onBoundarySaved(drawnGeometry)
     }
     // Small delay to allow the map to stabilize before navigation
     await new Promise(resolve => setTimeout(resolve, 100))
-    console.log('[FarmBoundaryDrawer] Calling onComplete')
+    log('Calling onComplete')
     onComplete?.()
   }, [drawnGeometry, saveBoundary, updatePreview, updateCornerMarkers, onBoundarySaved, onComplete])
 

@@ -1,6 +1,6 @@
-# Grazing Intelligence Demo
+# OpenPasture
 
-An intelligence and orchestration layer for adaptive grazing. This system translates satellite-derived land signals into clear daily grazing decisions.
+An open-source intelligence and orchestration layer for adaptive grazing. This system translates satellite-derived land signals into clear daily grazing decisions.
 
 ## Overview
 
@@ -158,4 +158,4 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTI
 
 ---
 
-*Building the intelligence layer for regenerative grazing.*
+*OpenPasture - Building the intelligence layer for regenerative grazing.*

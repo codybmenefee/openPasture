@@ -22,6 +22,9 @@ import type { Id } from "./_generated/dataModel"
 import { z } from "zod"
 import { sanitizeForBraintrust } from "../lib/braintrustSanitize"
 import { logLLMCall, logToolCall } from "../lib/braintrust"
+import { createLogger } from "./lib/logger"
+
+const log = createLogger('grazingAgent')
 
 // OTel Tracer type - using any to avoid importing @opentelemetry/api in non-node context
 type OTelTracer = any
@@ -89,7 +92,7 @@ async function runGrazingAgentCore(
   anthropicClient: any,
   tracer?: OTelTracer
 ): Promise<PlanGenerationResult> {
-    console.log('[runGrazingAgent] START - Input:', {
+    log('START - Input', {
       farmExternalId,
       farmName,
       activePaddockId,
@@ -108,7 +111,7 @@ async function runGrazingAgentCore(
     // Data fetching complete
     const dataFetchDuration = Date.now() - dataFetchStart
 
-  console.log('[runGrazingAgent] Data fetched:', {
+  log('Data fetched', {
     dataFetchDurationMs: dataFetchDuration,
     allPaddocksCount: allPaddocks?.length,
     currentPaddock: {
@@ -125,7 +128,7 @@ async function runGrazingAgentCore(
   const currentNdvi = currentPaddock?.ndviMean ?? 0
   const threshold = settings.minNDVIThreshold
 
-  console.log('[runGrazingAgent] Decision logic:', {
+  log('Decision logic', {
     currentNdvi,
     threshold,
     comparison: currentNdvi >= threshold ? 'meets threshold' : 'below threshold',
@@ -134,20 +137,12 @@ async function runGrazingAgentCore(
   let targetPaddock: any = currentPaddock
   let recommendation = "graze"
   
-  // #region debug log
-  fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:75',message:'Decision logic start',data:{currentNdvi,threshold,allPaddocksCount:allPaddocks?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  
   // Always select a paddock - never recommend rest
   if (currentNdvi < threshold) {
     // Find best alternative paddock (prefer those meeting threshold, but use best available if none)
     const alternativesAboveThreshold = allPaddocks?.filter((p: any) => p.ndviMean >= threshold) ?? []
-    console.log('[runGrazingAgent] Current NDVI below threshold, found', alternativesAboveThreshold.length, 'alternatives above threshold')
-    
-    // #region debug log
-    fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:82',message:'Alternatives check',data:{alternativesCount:alternativesAboveThreshold.length,alternatives:alternativesAboveThreshold.map((p:any)=>({id:p.externalId,ndvi:p.ndviMean}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
+    log('Current NDVI below threshold', { alternativesAboveThreshold: alternativesAboveThreshold.length })
+
     if (alternativesAboveThreshold.length > 0) {
       // Move to best alternative that meets threshold
       alternativesAboveThreshold.sort((a: any, b: any) => {
@@ -156,16 +151,12 @@ async function runGrazingAgentCore(
       })
       targetPaddock = alternativesAboveThreshold[0]
       recommendation = "move"
-      console.log('[runGrazingAgent] DECISION: Move to alternative paddock (meets threshold):', {
+      log('DECISION: Move to alternative paddock (meets threshold)', {
         paddockId: targetPaddock?.externalId,
         name: targetPaddock?.name,
         ndviMean: targetPaddock?.ndviMean,
         restDays: targetPaddock?.restDays,
       })
-      
-      // #region debug log
-      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:92',message:'Decision: move to alternative',data:{recommendation,targetPaddockId:targetPaddock?.externalId,targetNdvi:targetPaddock?.ndviMean},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     } else {
       // No paddocks meet threshold - find best available (highest NDVI)
       const allSorted = [...(allPaddocks || [])].sort((a: any, b: any) => {
@@ -173,49 +164,29 @@ async function runGrazingAgentCore(
         return b.restDays - a.restDays
       })
       const bestAvailable = allSorted[0]
-      
-      // #region debug log
-      fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:100',message:'Best available check',data:{bestAvailableId:bestAvailable?.externalId,bestAvailableNdvi:bestAvailable?.ndviMean,currentPaddockId:currentPaddock?.externalId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+
       if (bestAvailable && bestAvailable.externalId !== currentPaddock?.externalId) {
         targetPaddock = bestAvailable
         recommendation = "move"
-        console.log('[runGrazingAgent] DECISION: Move to best available paddock (below threshold but best option):', {
+        log('DECISION: Move to best available paddock (below threshold but best option)', {
           paddockId: targetPaddock?.externalId,
           name: targetPaddock?.name,
           ndviMean: targetPaddock?.ndviMean,
           restDays: targetPaddock?.restDays,
         })
-        
-        // #region debug log
-        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:109',message:'Decision: move to best available',data:{recommendation,targetPaddockId:targetPaddock?.externalId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       } else {
         // Stay in current paddock - it's the best available
         recommendation = "graze"
-        console.log('[runGrazingAgent] DECISION: Continue in current paddock (best available, below threshold):', {
+        log('DECISION: Continue in current paddock (best available, below threshold)', {
           paddockId: currentPaddock?.externalId,
           ndviMean: currentNdvi,
           note: 'Will create section with low NDVI warning in justification',
         })
-        
-        // #region debug log
-        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:118',message:'Decision: continue in current',data:{recommendation,targetPaddockId:currentPaddock?.externalId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       }
     }
   } else {
-    console.log('[runGrazingAgent] DECISION: Graze in current paddock - NDVI meets threshold')
-    
-    // #region debug log
-    fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:126',message:'Decision: graze (meets threshold)',data:{recommendation,targetPaddockId:currentPaddock?.externalId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
+    log('DECISION: Graze in current paddock - NDVI meets threshold')
   }
-  
-  // #region debug log
-  fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:129',message:'Final decision',data:{recommendation,targetPaddockId:targetPaddock?.externalId,targetNdvi:targetPaddock?.ndviMean},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   // Runtime assertion: Never allow "rest" recommendation (old code path)
   if (recommendation === "rest" || !targetPaddock) {
@@ -240,7 +211,7 @@ async function runGrazingAgentCore(
     ? currentGrazedPercentage
     : await ctx.runQuery(api.grazingAgentTools.calculatePaddockGrazedPercentage, { farmExternalId, paddockId: targetPaddock?.externalId || 'p1' })
 
-  console.log('[runGrazingAgent] Target paddock data:', {
+  log('Target paddock data', {
     targetPaddockId: targetPaddock?.externalId,
     targetPaddockName: targetPaddock?.name,
     previousSectionsCount: previousSections?.length,
@@ -253,7 +224,7 @@ async function runGrazingAgentCore(
   })
 
   // Fetch NDVI grid for the target paddock
-  console.log('[runGrazingAgent] Fetching NDVI grid for target paddock...')
+  log('Fetching NDVI grid for target paddock...')
   let ndviGridText = 'NDVI grid unavailable - using aggregate paddock NDVI values'
   try {
     const ndviGrid = await ctx.runAction(api.ndviGrid.generateNDVIGrid, {
@@ -262,13 +233,13 @@ async function runGrazingAgentCore(
     })
     if (ndviGrid.hasData) {
       ndviGridText = ndviGrid.gridText
-      console.log('[runGrazingAgent] NDVI grid generated successfully')
+      log('NDVI grid generated successfully')
     } else {
-      console.log('[runGrazingAgent] NDVI grid not available:', ndviGrid.error)
+      log('NDVI grid not available', { error: ndviGrid.error })
       ndviGridText = ndviGrid.gridText // Contains fallback message
     }
   } catch (error: any) {
-    console.error('[runGrazingAgent] Error generating NDVI grid:', error.message)
+    log.error('Error generating NDVI grid', { error: error.message })
     // Continue with aggregate NDVI values
   }
 
@@ -276,10 +247,6 @@ async function runGrazingAgentCore(
   const mostRecentSection = previousSections && previousSections.length > 0
     ? previousSections[0] // Already sorted by date descending
     : null
-
-  // #region debug log
-  fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:196',message:'Target paddock geometry check',data:{targetPaddockId:targetPaddock?.externalId,hasGeometry:!!targetPaddock?.geometry,geometryPreview:targetPaddock?.geometry?JSON.stringify(targetPaddock.geometry).substring(0,200):'null'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   // Build data quality warnings section if any paddocks have warnings
   const dataQualityWarnings = allPaddocks
@@ -356,12 +323,6 @@ ${JSON.stringify(allPaddocks?.map((p: any) => ({
 
 CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
 
-  // #region debug log
-  const promptPreview = prompt.substring(0, 1000) + (prompt.length > 1000 ? '...' : '')
-  const targetGeometryInPrompt = targetPaddock?.geometry ? JSON.stringify(targetPaddock.geometry).substring(0, 300) : 'MISSING'
-  fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:314',message:'LLM prompt check',data:{promptLength:prompt.length,promptPreview,targetPaddockId:targetPaddock?.externalId,targetGeometryInPrompt:targetGeometryInPrompt.substring(0,300),hasTargetGeometry:!!targetPaddock?.geometry},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-
     const result = await generateText({
       model: anthropicClient(GRAZING_AGENT_MODEL) as any,
     system: GRAZING_SYSTEM_PROMPT,
@@ -412,7 +373,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
     const toolCalls = (result as any).toolCalls || []
     const usage = (result as any).usage || (result as any).experimental_providerMetadata?.anthropic?.usage
 
-    console.log('[runGrazingAgent] LLM response received:', {
+    log('LLM response received', {
       textLength: finalText?.length,
       toolCallsCount: toolCalls.length,
       toolNames: toolCalls.map((tc: any) => tc.toolName),
@@ -450,7 +411,8 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
       for (const toolCall of toolCalls) {
         const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
 
-        console.log('[runGrazingAgent] Executing tool:', toolCall.toolName, {
+        log('Executing tool', {
+          toolName: toolCall.toolName,
           hasSectionGeometry: !!args.sectionGeometry,
           targetPaddockId: args.targetPaddockId,
           sectionAreaHectares: args.sectionAreaHectares,
@@ -459,23 +421,11 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
           sectionCoordinatesCount: args.sectionGeometry?.coordinates?.[0]?.length || 0,
         })
 
-        // #region debug log
-        fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:322',message:'LLM generated section geometry',data:{targetPaddockId:args.targetPaddockId,hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?.type,sectionCoordinatesPreview:args.sectionGeometry?.coordinates?JSON.stringify(args.sectionGeometry.coordinates[0]).substring(0,200):'null',coordinateCount:args.sectionGeometry?.coordinates?.[0]?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
-
         const toolStartTime = Date.now()
         try {
             if (toolCall.toolName === "createPlanWithSection") {
-          // #region debug log
-          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:288',message:'Tool call validation',data:{hasSectionGeometry:!!args.sectionGeometry,sectionGeometryType:args.sectionGeometry?typeof args.sectionGeometry:'null',targetPaddockId:args.targetPaddockId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
-
           // Validate that sectionGeometry is provided
           if (!args.sectionGeometry) {
-            // #region debug log
-            fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:293',message:'Validation failed: no sectionGeometry',data:{args:JSON.stringify(args).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
-
             // Log tool call error to Braintrust
             logToolCall({
               parentSpanId: llmSpanId,
@@ -492,7 +442,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
           // Validate section NDVI before saving to ensure high-quality sections
           let sectionNDVI = { mean: 0, meetsThreshold: false, threshold: threshold }
           try {
-            console.log('[runGrazingAgent] Validating section NDVI...')
+            log('Validating section NDVI...')
             sectionNDVI = await ctx.runAction(api.ndviGrid.calculateSectionNDVI, {
               farmExternalId,
               paddockExternalId: args.targetPaddockId || targetPaddock?.externalId || 'p1',
@@ -506,7 +456,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
               input: {
                 sectionGeometry: JSON.stringify(args.sectionGeometry).substring(0, 200),
                 paddockId: args.targetPaddockId,
-                iteration: 1, // TODO: Track actual iteration when loop is implemented
+                iteration: 1, // Note: Hardcoded until multi-iteration loops are implemented
               },
               output: {
                 mean: sectionNDVI.mean,
@@ -516,7 +466,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
               durationMs: Date.now() - toolStartTime,
             })
 
-            console.log('[runGrazingAgent] Section NDVI validation:', {
+            log('Section NDVI validation', {
               mean: sectionNDVI.mean,
               threshold: sectionNDVI.threshold,
               meetsThreshold: sectionNDVI.meetsThreshold,
@@ -531,16 +481,12 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
             if (!sectionNDVI.meetsThreshold && sectionNDVI.mean > 0) {
               const warningNote = ` [NDVI Warning: Section average ${sectionNDVI.mean.toFixed(2)} is below threshold ${sectionNDVI.threshold}. Consider reviewing grid placement.]`
               args.sectionJustification = (args.sectionJustification || '') + warningNote
-              console.log('[runGrazingAgent] Added NDVI warning to justification')
+              log('Added NDVI warning to justification')
             }
           } catch (ndviError: any) {
-            console.warn('[runGrazingAgent] NDVI validation failed (continuing):', ndviError.message)
+            log.warn('NDVI validation failed (continuing)', { error: ndviError.message })
             // Continue with section creation even if NDVI validation fails
           }
-
-          // #region debug log
-          fetch('http://127.0.0.1:7249/ingest/2e230f40-eca6-4d99-9954-1225e31e8a0d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'grazingAgentDirect.ts:299',message:'Calling createPlanWithSection mutation',data:{hasSectionGeometry:true,targetPaddockId:args.targetPaddockId,sectionNDVI:sectionNDVI.mean,meetsThreshold:sectionNDVI.meetsThreshold},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
 
               const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args as any)
               createdPlanId = planId
@@ -558,7 +504,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
                 durationMs: Date.now() - toolStartTime,
               })
 
-              console.log('[runGrazingAgent] createPlanWithSection SUCCESS - PlanId created:', {
+              log('createPlanWithSection SUCCESS - PlanId created', {
                 planId: planId.toString(),
                 planIdType: typeof planId,
                 hasSectionGeometry: !!args.sectionGeometry,
@@ -582,7 +528,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
                 durationMs: Date.now() - toolStartTime,
               })
 
-              console.log('[runGrazingAgent] finalizePlan SUCCESS:', result)
+              log('finalizePlan SUCCESS', { result })
               planFinalized = true
             }
           } catch (toolError: any) {
@@ -597,7 +543,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
               })
             }
 
-            console.error('[runGrazingAgent] Tool execution ERROR:', {
+            log.error('Tool execution ERROR', {
               toolName: toolCall.toolName,
               error: toolError,
               args: JSON.stringify(args).substring(0, 200),
@@ -607,7 +553,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
           }
       }
     } else {
-      console.warn('[runGrazingAgent] WARNING: No tool calls returned from LLM')
+      log.warn('WARNING: No tool calls returned from LLM')
     }
 
     const finalResult = { 
@@ -616,7 +562,7 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
       planId: createdPlanId,
     }
 
-    console.log('[runGrazingAgent] END - Summary:', {
+    log('END - Summary', {
       planCreated,
       planFinalized,
       planId: createdPlanId?.toString(),

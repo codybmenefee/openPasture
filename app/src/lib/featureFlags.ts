@@ -22,8 +22,7 @@ export type Feature = (typeof FEATURES)[keyof typeof FEATURES]
  * Feature availability by tier.
  */
 export const TIER_FEATURES: Record<string, Feature[]> = {
-  // TODO: Remove RAW_IMAGERY from free tier after debugging
-  free: [FEATURES.HISTORICAL_SATELLITE, FEATURES.NDVI_HEATMAP, FEATURES.RAW_IMAGERY],
+  free: [FEATURES.HISTORICAL_SATELLITE, FEATURES.NDVI_HEATMAP],
   starter: [
     FEATURES.HISTORICAL_SATELLITE,
     FEATURES.NDVI_HEATMAP,

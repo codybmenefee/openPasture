@@ -168,7 +168,7 @@ export function useStorageUsage(_farmId: string | undefined): {
   } | null
   isLoading: boolean
 } {
-  // TODO: Wire up to Convex when functions accept external IDs
+  // Note: Returns stub data; wire up to Convex when tile usage tracking is implemented
   return {
     usage: null,
     isLoading: false,

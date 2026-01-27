@@ -76,8 +76,9 @@ export type MorningBriefContext = {
  * 3. Delegates to runGrazingAgent (internal/legacy implementation)
  * 4. Returns standardized result format
  * 
- * TODO: Use trigger-specific prompts from lib/agent/triggers.ts
- * TODO: Migrate runGrazingAgent logic fully into gateway for better control
+ * Future enhancements:
+ * - Use trigger-specific prompts from lib/agent/triggers.ts
+ * - Migrate runGrazingAgent logic into gateway for better control
  */
 export const agentGateway = action({
   args: {

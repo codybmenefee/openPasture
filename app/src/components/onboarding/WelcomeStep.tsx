@@ -13,7 +13,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
       </div>
       
       <h1 className="text-3xl font-bold mb-4">
-        Welcome to Grazing Intelligence
+        Welcome to OpenPasture
       </h1>
       
       <p className="text-lg text-muted-foreground max-w-md mb-8">

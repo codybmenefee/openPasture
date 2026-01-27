@@ -1,8 +1,19 @@
 {
-  "name": "app",
+  "name": "@openpasture/app",
+  "description": "AI-powered adaptive grazing management platform - web application",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codybmenefee/pan",
+    "directory": "app"
+  },
+  "homepage": "https://github.com/codybmenefee/pan#readme",
+  "bugs": {
+    "url": "https://github.com/codybmenefee/pan/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

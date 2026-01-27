@@ -2,6 +2,9 @@ import { httpRouter } from 'convex/server'
 import { httpAction } from './_generated/server'
 import type { ActionCtx } from './_generated/server'
 import { api, internal } from './_generated/api'
+import { createLogger } from './lib/logger'
+
+const log = createLogger('http')
 
 const http = httpRouter()
 
@@ -70,7 +73,7 @@ http.route({
       return new Response('Invalid JSON', { status: 400 })
     }
 
-    console.log(`Received Clerk billing webhook: ${payload.type}`)
+    log(`Received Clerk billing webhook: ${payload.type}`)
 
     try {
       switch (payload.type) {
@@ -100,12 +103,12 @@ http.route({
         }
 
         default:
-          console.log(`Unhandled webhook type: ${payload.type}`)
+          log(`Unhandled webhook type: ${payload.type}`)
       }
 
       return new Response('OK', { status: 200 })
     } catch (error) {
-      console.error('Webhook handler error:', error)
+      log.error('Webhook handler error', { error: String(error) })
       return new Response('Internal error', { status: 500 })
     }
   }),
@@ -123,7 +126,7 @@ async function handleSubscriptionUpdate(
   })
 
   if (!farm) {
-    console.error(`Farm not found for org: ${data.organization_id}`)
+    log.error(`Farm not found for org: ${data.organization_id}`)
     return
   }
 
@@ -143,7 +146,7 @@ async function handleSubscriptionUpdate(
     currentPeriodEnd: data.current_period_end,
   })
 
-  console.log(`Subscription synced for farm ${farm._id}: ${tier} (${status})`)
+  log(`Subscription synced for farm ${farm._id}: ${tier} (${status})`)
 }
 
 async function handleSubscriptionDeleted(
@@ -155,7 +158,7 @@ async function handleSubscriptionDeleted(
   })
 
   if (!farm) {
-    console.error(`Farm not found for org: ${data.organization_id}`)
+    log.error(`Farm not found for org: ${data.organization_id}`)
     return
   }
 
@@ -163,12 +166,12 @@ async function handleSubscriptionDeleted(
     farmId: farm._id,
   })
 
-  console.log(`Subscription canceled for farm ${farm._id}`)
+  log(`Subscription canceled for farm ${farm._id}`)
 }
 
 function handleInvoicePaid(data: InvoiceData) {
   // Invoice paid - subscription should already be updated
-  console.log(`Invoice paid: ${data.id} for org ${data.organization_id}`)
+  log(`Invoice paid: ${data.id} for org ${data.organization_id}`)
 }
 
 async function handlePaymentFailed(
@@ -183,7 +186,7 @@ async function handlePaymentFailed(
   if (farm) {
     // The subscription.updated webhook should handle this,
     // but we log it for monitoring
-    console.log(`Payment failed for farm ${farm._id}`)
+    log(`Payment failed for farm ${farm._id}`)
   }
 }
 
@@ -248,7 +251,7 @@ http.route({
         },
       })
     } catch (error) {
-      console.error('Tile proxy error:', error)
+      log.error('Tile proxy error', { error: String(error) })
       return new Response('Failed to fetch tile', {
         status: 500,
         headers: corsHeaders(),
@@ -323,8 +326,8 @@ http.route({
       })
     }
 
-    console.log(`Received satellite-complete webhook for farm ${payload.farmExternalId}`)
-    console.log(`  Provider: ${payload.provider}, Success: ${payload.success}`)
+    log(`Received satellite-complete webhook for farm ${payload.farmExternalId}`)
+    log(`  Provider: ${payload.provider}, Success: ${payload.success}`)
 
     try {
       // Complete the job and create notification (for Sentinel-2 only)
@@ -345,7 +348,7 @@ http.route({
         },
       })
     } catch (error) {
-      console.error('Satellite webhook error:', error)
+      log.error('Satellite webhook error', { error: String(error) })
       return new Response('Internal error', {
         status: 500,
         headers: corsHeaders(),
@@ -403,8 +406,8 @@ http.route({
     const provider = payload.provider ?? 'sentinel2'
     const triggeredBy = payload.triggeredBy ?? 'manual'
 
-    console.log(`Received trigger-pipeline webhook for farm ${payload.farmExternalId}`)
-    console.log(`  Provider: ${provider}, TriggeredBy: ${triggeredBy}`)
+    log(`Received trigger-pipeline webhook for farm ${payload.farmExternalId}`)
+    log(`  Provider: ${provider}, TriggeredBy: ${triggeredBy}`)
 
     try {
       let jobId: string
@@ -444,7 +447,7 @@ http.route({
         },
       })
     } catch (error) {
-      console.error('Trigger pipeline webhook error:', error)
+      log.error('Trigger pipeline webhook error', { error: String(error) })
       return new Response('Internal error', {
         status: 500,
         headers: corsHeaders(),

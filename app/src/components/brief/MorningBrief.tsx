@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { Geometry } from 'geojson'
+import type { Geometry, Polygon } from 'geojson'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { BriefCard } from './BriefCard'
 import { FarmOverview } from './FarmOverview'
@@ -19,6 +19,16 @@ import { cn } from '@/lib/utils'
 
 const LOW_CONFIDENCE_THRESHOLD = 70
 
+/** Plan document fields used by planSectionToSection */
+interface PlanDocument {
+  _id: string
+  date: string
+  primaryPaddockExternalId?: string
+  sectionGeometry?: Polygon
+  sectionAreaHectares?: number
+  reasoning?: string[]
+}
+
 interface MorningBriefProps {
   farmExternalId: string
   compact?: boolean
@@ -30,7 +40,7 @@ interface MorningBriefProps {
   onCancelModify?: () => void
 }
 
-function planSectionToSection(plan: any): Section | undefined {
+function planSectionToSection(plan: PlanDocument | null | undefined): Section | undefined {
   if (!plan?.sectionGeometry) {
     return undefined
   }

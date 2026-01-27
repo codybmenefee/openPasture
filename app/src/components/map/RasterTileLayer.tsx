@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('rasterTile')
 
 interface RasterTileLayerProps {
   /**
@@ -128,8 +131,8 @@ export function RasterTileLayer({
         if (map.getSource(sourceId)) {
           map.removeSource(sourceId)
         }
-      } catch {
-        // Map may already be destroyed during navigation
+      } catch (error) {
+        log.debug('Layer cleanup skipped - map may be destroyed', { error: String(error) })
       }
     }
   }, [map, tileUrl, bounds, sourceId, beforeLayerId])

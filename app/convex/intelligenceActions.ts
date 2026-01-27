@@ -91,7 +91,7 @@ export const generateDailyPlan = action({
 
     console.log('[generateDailyPlan] Calling agent gateway with context (optimization: passing data to avoid duplicate queries)...')
     // Call agent gateway with event-specific context to avoid duplicate queries
-    // TODO: Get userId from auth context when available
+    // Note: userId is passed as parameter; can be obtained from Convex auth when fully integrated
     const gatewayResult = await ctx.runAction(api.grazingAgentGateway.agentGateway, {
       trigger: 'morning_brief',
       farmId: data.farm._id,

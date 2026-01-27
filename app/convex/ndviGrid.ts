@@ -13,9 +13,12 @@ import { v } from 'convex/values'
 import { api } from './_generated/api'
 import bbox from '@turf/bbox'
 import type { Feature, Polygon } from 'geojson'
+import { createLogger } from './lib/logger'
 
 // Import geotiff - using external packages config in convex.json
 import * as geotiffModule from 'geotiff'
+
+const log = createLogger('ndviGrid')
 
 const GRID_SIZE = 10
 
@@ -47,7 +50,7 @@ export const generateNDVIGrid = action({
     captureDate: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<NDVIGridResult> => {
-    console.log('[generateNDVIGrid] START:', {
+    log('[generateNDVIGrid] START:', {
       farmExternalId: args.farmExternalId,
       paddockExternalId: args.paddockExternalId,
       captureDate: args.captureDate,
@@ -60,7 +63,7 @@ export const generateNDVIGrid = action({
     })
 
     if (!paddockData || !paddockData.geometry) {
-      console.error('[generateNDVIGrid] Paddock not found or has no geometry')
+      log.error('[generateNDVIGrid] Paddock not found or has no geometry')
       return {
         gridText: 'Error: Paddock not found',
         gridValues: [],
@@ -76,7 +79,7 @@ export const generateNDVIGrid = action({
     const paddockGeometry = paddockData.geometry as Feature<Polygon>
     const [minLng, minLat, maxLng, maxLat] = bbox(paddockGeometry)
 
-    console.log('[generateNDVIGrid] Paddock bounds:', {
+    log('[generateNDVIGrid] Paddock bounds:', {
       minLat,
       maxLat,
       minLng,
@@ -89,7 +92,7 @@ export const generateNDVIGrid = action({
     })
 
     if (!farm) {
-      console.error('[generateNDVIGrid] Farm not found')
+      log.error('[generateNDVIGrid] Farm not found')
       return {
         gridText: 'Error: Farm not found',
         gridValues: [],
@@ -108,13 +111,13 @@ export const generateNDVIGrid = action({
     })
 
     if (!availableDates || availableDates.length === 0) {
-      console.log('[generateNDVIGrid] No NDVI tiles available')
+      log('[generateNDVIGrid] No NDVI tiles available')
       return createFallbackGrid(args.paddockExternalId, minLat, maxLat, minLng, maxLng, 'No NDVI tiles available')
     }
 
     // Use provided date or most recent
     const targetDate = args.captureDate || availableDates[0].date
-    console.log('[generateNDVIGrid] Using capture date:', targetDate)
+    log('[generateNDVIGrid] Using capture date', { date: targetDate })
 
     // Get the NDVI tile
     const tile = await ctx.runQuery(api.satelliteTiles.getTileByExternalId, {
@@ -124,11 +127,11 @@ export const generateNDVIGrid = action({
     })
 
     if (!tile || !tile.r2Url) {
-      console.log('[generateNDVIGrid] No NDVI tile found for date:', targetDate)
+      log('[generateNDVIGrid] No NDVI tile found for date', { date: targetDate })
       return createFallbackGrid(args.paddockExternalId, minLat, maxLat, minLng, maxLng, `No NDVI tile for ${targetDate}`)
     }
 
-    console.log('[generateNDVIGrid] Fetching GeoTIFF from R2:', {
+    log('[generateNDVIGrid] Fetching GeoTIFF from R2:', {
       r2Key: tile.r2Key,
       tileBounds: tile.bounds,
     })
@@ -161,7 +164,7 @@ export const generateNDVIGrid = action({
       const tileMinLat = tileBounds.south
       const tileMaxLat = tileBounds.north
 
-      console.log('[generateNDVIGrid] GeoTIFF metadata:', {
+      log('[generateNDVIGrid] GeoTIFF metadata:', {
         width,
         height,
         tileBounds,
@@ -212,7 +215,7 @@ export const generateNDVIGrid = action({
       // 5. Generate text representation
       const gridText = formatGridAsText(gridValues, minLat, maxLat, minLng, maxLng)
 
-      console.log('[generateNDVIGrid] SUCCESS - Grid generated')
+      log('[generateNDVIGrid] SUCCESS - Grid generated')
 
       return {
         gridText,
@@ -223,7 +226,7 @@ export const generateNDVIGrid = action({
         hasData: true,
       }
     } catch (error: any) {
-      console.error('[generateNDVIGrid] Error parsing GeoTIFF:', error)
+      log.error('[generateNDVIGrid] Error parsing GeoTIFF:', error)
       return createFallbackGrid(
         args.paddockExternalId,
         minLat,
@@ -282,7 +285,7 @@ function createFallbackGrid(
   maxLng: number,
   reason: string
 ): NDVIGridResult {
-  console.log('[generateNDVIGrid] Creating fallback grid:', reason)
+  log('[generateNDVIGrid] Creating fallback grid', { reason })
 
   // Create a uniform grid with placeholder values
   const fallbackValue = 0.45 // Default moderate NDVI
@@ -328,7 +331,7 @@ export const calculateSectionNDVI = action({
     sampleCount: number
     error?: string
   }> => {
-    console.log('[calculateSectionNDVI] START:', {
+    log('[calculateSectionNDVI] START:', {
       farmExternalId: args.farmExternalId,
       paddockExternalId: args.paddockExternalId,
       captureDate: args.captureDate,
@@ -355,7 +358,7 @@ export const calculateSectionNDVI = action({
     })
 
     if (!availableDates || availableDates.length === 0) {
-      console.log('[calculateSectionNDVI] No NDVI tiles available, using paddock NDVI')
+      log('[calculateSectionNDVI] No NDVI tiles available, using paddock NDVI')
       // Fallback to paddock aggregate NDVI
       const paddockData = await ctx.runQuery(api.paddocks.getPaddockByExternalId, {
         farmExternalId: args.farmExternalId,
@@ -471,7 +474,7 @@ export const calculateSectionNDVI = action({
       const min = Math.min(...ndviValues)
       const max = Math.max(...ndviValues)
 
-      console.log('[calculateSectionNDVI] SUCCESS:', {
+      log('[calculateSectionNDVI] SUCCESS:', {
         mean: mean.toFixed(3),
         min: min.toFixed(3),
         max: max.toFixed(3),
@@ -489,7 +492,7 @@ export const calculateSectionNDVI = action({
         sampleCount: ndviValues.length,
       }
     } catch (error: any) {
-      console.error('[calculateSectionNDVI] Error:', error)
+      log.error('[calculateSectionNDVI] Error:', error)
       return {
         mean: 0.45,
         min: 0.45,
