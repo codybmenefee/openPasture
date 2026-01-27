@@ -43,7 +43,7 @@ export function ApprovedState({
   const daysRemaining = totalDaysPlanned - daysInCurrentPaddock
 
   return (
-    <div className="p-2 space-y-2">
+    <div className="h-full overflow-y-auto p-2 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Success banner */}
       <div className="flex items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 p-2">
         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">

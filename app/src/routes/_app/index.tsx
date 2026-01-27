@@ -610,7 +610,7 @@ function GISRoute() {
         properties: {},
         geometry: geometry as Polygon,
       }
-      mapRef.current?.focusOnGeometry(feature, 120)
+      mapRef.current?.focusOnGeometry(feature, 120, true) // force=true to override user interaction tracking
     }
   }, [])
 
