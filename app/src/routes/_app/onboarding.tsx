@@ -65,10 +65,19 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleNext = () => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+  const handleNext = () => {
+    // Set flag when advancing from Welcome to Farm Setup to prevent early redirect
+    if (currentStep === 0) {
+      sessionStorage.setItem('onboardingInProgress', 'true')
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+  }
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
 
-  const handleDevSkip = () => navigate({ to: '/' })
+  const handleDevSkip = () => {
+    sessionStorage.removeItem('onboardingInProgress')
+    navigate({ to: '/' })
+  }
 
   const handleFarmSetup = async (data: FarmData) => {
     setFarmData(data)
@@ -133,6 +142,9 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
     livestock: LivestockData,
     geoFence: GeoFenceData
   ) => {
+    // Clear the onboarding-in-progress flag before navigation
+    sessionStorage.removeItem('onboardingInProgress')
+
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
       navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
@@ -279,7 +291,13 @@ function ClerkOnboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleNext = () => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+  const handleNext = () => {
+    // Set flag when advancing from Welcome to Farm Setup to prevent early redirect
+    if (currentStep === 0) {
+      sessionStorage.setItem('onboardingInProgress', 'true')
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+  }
   const handleBack = () => setCurrentStep((prev) => Math.max(prev - 1, 0))
 
   const handleFarmSetup = async (data: FarmData) => {
@@ -353,6 +371,9 @@ function ClerkOnboarding() {
     livestock: LivestockData,
     geoFence: GeoFenceData
   ) => {
+    // Clear the onboarding-in-progress flag before navigation
+    sessionStorage.removeItem('onboardingInProgress')
+
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
       navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })

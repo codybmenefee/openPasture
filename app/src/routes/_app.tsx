@@ -45,7 +45,9 @@ function AppLayout() {
       navigate({ to: '/onboarding' })
     }
     // If user is on onboarding but doesn't need it anymore (org was created), redirect to home
-    if (!needsOnboarding && isOnboarding) {
+    // BUT only if onboarding is not actively in progress (user hasn't completed all steps yet)
+    const onboardingInProgress = sessionStorage.getItem('onboardingInProgress') === 'true'
+    if (!needsOnboarding && isOnboarding && !onboardingInProgress) {
       console.log('[AppLayout] Onboarding complete, redirecting to home')
       navigate({ to: '/', search: { onboarded: 'true', editBoundary: 'true' } })
     }

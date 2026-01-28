@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useMutation } from 'convex/react'
-import { Check, MapPin, ChevronRight, Pencil, X } from 'lucide-react'
+import { Check, MapPin, Pencil, X } from 'lucide-react'
 import { api } from '../../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -447,44 +447,20 @@ export function AnimalLocationStep({
   // Render paddock selection phase
   if (phase === 'select-paddock') {
     return (
-      <Card className="absolute top-3 left-1/2 -translate-x-1/2 z-20 shadow-lg max-w-md">
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">Where are your animals today?</p>
-                <p className="text-muted-foreground text-xs mt-1">
-                  Click a paddock on the map or select from the list below.
-                </p>
-              </div>
-            </div>
-
-            {paddocks.length > 0 ? (
-              <div className="max-h-48 overflow-y-auto border rounded-md">
-                {paddocks.map((paddock) => (
-                  <button
-                    key={paddock.id}
-                    onClick={() => handlePaddockSelect(paddock)}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center justify-between border-b last:border-b-0"
-                  >
-                    <span>{paddock.name}</span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground text-center py-4">
-                No paddocks found. Create paddocks first.
-              </div>
-            )}
-
-            {onSkip && (
-              <Button variant="ghost" size="sm" onClick={onSkip} className="text-xs">
-                Skip for now
-              </Button>
-            )}
+      <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
+        <CardContent className="p-3 flex items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
+            <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           </div>
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Where are your animals?</span>
+            {' · '}Click a paddock on the map
+          </div>
+          {onSkip && (
+            <Button variant="ghost" size="sm" onClick={onSkip} className="shrink-0 text-xs">
+              Skip
+            </Button>
+          )}
         </CardContent>
       </Card>
     )
@@ -493,24 +469,16 @@ export function AnimalLocationStep({
   // Render section drawing phase
   if (phase === 'draw-section' && isDrawing) {
     return (
-      <Card className="absolute top-3 left-1/2 -translate-x-1/2 z-20 shadow-lg">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>
-                  {startPoint
-                    ? 'Click the opposite corner to complete the section'
-                    : 'Click to set the first corner'}
-                </span>
-              </div>
-            </div>
-            <Button size="sm" variant="ghost" onClick={handleCancelDrawing}>
-              <X className="h-4 w-4" />
-              <span className="ml-1">Cancel</span>
-            </Button>
-          </div>
+      <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
+        <CardContent className="p-3 flex items-center gap-3">
+          <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="text-xs">
+            {startPoint ? 'Click opposite corner' : 'Click first corner'}
+          </span>
+          <Button size="sm" variant="ghost" onClick={handleCancelDrawing} className="shrink-0 gap-1">
+            <X className="h-3.5 w-3.5" />
+            Cancel
+          </Button>
         </CardContent>
       </Card>
     )
@@ -518,94 +486,57 @@ export function AnimalLocationStep({
 
   // Render confirmation phase
   return (
-    <Card className="absolute top-3 left-1/2 -translate-x-1/2 z-20 shadow-lg max-w-md">
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-start gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Confirm animal location</p>
-              <p className="text-muted-foreground text-xs mt-1">
-                Your animals are in <span className="font-medium text-foreground">{selectedPaddock?.name}</span>
-                {sectionGeometry && (
-                  <> within a <span className="font-medium text-foreground">{sectionArea?.toFixed(2)} ha</span> section</>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Section drawing option */}
+    <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
+      <CardContent className="p-3 flex items-center gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
+          <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Animals in {selectedPaddock?.name}</span>
+          {sectionGeometry && <> · {sectionArea?.toFixed(2)} ha section</>}
+        </div>
+        {error && (
+          <span className="text-xs text-destructive">{error}</span>
+        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToPaddockSelect}
+            disabled={isSaving}
+            className="h-8 px-2"
+          >
+            Back
+          </Button>
           {!sectionGeometry ? (
             <Button
               variant="outline"
               size="sm"
               onClick={handleStartDrawSection}
-              className="gap-2"
+              className="h-8 gap-1.5"
             >
-              <Pencil className="h-3.5 w-3.5" />
-              Draw exact section (optional)
+              <Pencil className="h-3 w-3" />
+              Section
             </Button>
           ) : (
-            <div className="flex items-center gap-2">
-              <div className="flex-1 text-xs text-muted-foreground">
-                Section drawn: {sectionArea?.toFixed(2)} hectares
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClearSection}
-                className="text-xs h-7 px-2"
-              >
-                Clear
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStartDrawSection}
-                className="text-xs h-7 px-2"
-              >
-                Redraw
-              </Button>
-            </div>
-          )}
-
-          {error && (
-            <div className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded">
-              {error}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={handleBackToPaddockSelect}
-              disabled={isSaving}
+              onClick={handleClearSection}
+              className="h-8 px-2"
             >
-              Back
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleConfirm}
-              disabled={isSaving}
-              className="flex-1 gap-2"
-            >
-              <Check className="h-4 w-4" />
-              {isSaving ? 'Saving...' : 'Confirm Location'}
-            </Button>
-          </div>
-
-          {onSkip && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSkip}
-              className="text-xs text-muted-foreground"
-              disabled={isSaving}
-            >
-              Skip for now
+              Clear
             </Button>
           )}
+          <Button
+            size="sm"
+            onClick={handleConfirm}
+            disabled={isSaving}
+            className="h-8 gap-1.5"
+          >
+            <Check className="h-3.5 w-3.5" />
+            {isSaving ? 'Saving...' : 'Confirm'}
+          </Button>
         </div>
       </CardContent>
     </Card>
