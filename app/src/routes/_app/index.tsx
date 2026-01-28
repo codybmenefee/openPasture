@@ -3,7 +3,7 @@ import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Beef, Calendar, CheckCircle, Focus, Save, Satellite } from 'lucide-react'
+import { Beef, Calendar, CheckCircle, Crosshair, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalPanel } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
@@ -35,6 +35,7 @@ import { LivestockDrawer } from '@/components/livestock'
 import { useFarmBoundary } from '@/lib/hooks/useFarmBoundary'
 import { useFarmSettings } from '@/lib/convex/useFarmSettings'
 import { useAvailableDates, useAvailableTileDates } from '@/lib/hooks/useSatelliteTiles'
+import { useTutorial, getTutorialCompleted } from '@/components/onboarding/tutorial'
 import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 
@@ -62,7 +63,8 @@ function GISRoute() {
   console.log('[_app/index] Rendering GISRoute')
   const navigate = useNavigate()
   const search = useSearch({ from: '/_app/' })
-  const { activeFarmId, isLoading } = useFarmContext()
+  const { activeFarmId, activeFarm, isLoading } = useFarmContext()
+  const hasFarmBoundary = activeFarm?.geometry != null
   const { plan } = useTodayPlan(activeFarmId || '')
   const {
     getPaddockById,
@@ -76,6 +78,7 @@ function GISRoute() {
     deleteWaterSource,
   } = useGeometry()
   const { startDraw, cancelDraw, isDrawingBoundary, existingGeometry } = useFarmBoundary()
+  const { startTutorial } = useTutorial()
 
   const mapRef = useRef<FarmMapHandle>(null)
   // Daily plan modal closed by default - user can open it when ready
@@ -742,13 +745,23 @@ function GISRoute() {
           farmExternalId={activeFarmId}
           map={mapInstance}
           onComplete={() => {
-            // Clear the query param and show the daily plan
+            // Clear the query param
             navigate({ to: '/', search: {} })
+            // Trigger tutorial if not completed
+            if (!getTutorialCompleted()) {
+              startTutorial()
+            }
+            // Show the daily plan
             setBriefOpen(true)
           }}
           onSkip={() => {
-            // Allow skipping - just clear the param
+            // Allow skipping - clear the param
             navigate({ to: '/', search: {} })
+            // Trigger tutorial if not completed
+            if (!getTutorialCompleted()) {
+              startTutorial()
+            }
+            // Show the daily plan
             setBriefOpen(true)
           }}
         />
@@ -842,6 +855,19 @@ function GISRoute() {
             <span className="text-green-100">{ndviImageryInfo.provider}</span>
           </div>
         </div>
+      )}
+
+      {/* Target button - center on farm boundary */}
+      {hasFarmBoundary && (
+        <Button
+          size="icon"
+          variant="outline"
+          className="absolute top-2 right-10 z-20 h-8 w-8 rounded-full shadow-lg bg-background"
+          onClick={() => mapRef.current?.focusOnFarmBoundary()}
+          title="Center on farm boundary"
+        >
+          <Crosshair className="h-4 w-4" />
+        </Button>
       )}
 
       {/* Add menu - top right */}
