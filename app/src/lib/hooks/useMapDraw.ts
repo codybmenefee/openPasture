@@ -308,6 +308,7 @@ export function useMapDraw({
         } else if (entityType === 'section' && feature.geometry.type === 'Polygon') {
           updateSection(entityId, feature as Feature<Polygon>)
         } else if (entityType === 'noGrazeZone' && feature.geometry.type === 'Polygon') {
+          console.log('[useMapDraw] handleUpdate - noGrazeZone:', { entityId, hasPolygonGeometry: feature.geometry.type === 'Polygon' })
           updateNoGrazeZone(entityId, feature as Feature<Polygon>)
         } else if ((entityType === 'waterPoint' || entityType === 'waterPolygon')) {
           updateWaterSource(entityId, feature as Feature<Point | Polygon>)

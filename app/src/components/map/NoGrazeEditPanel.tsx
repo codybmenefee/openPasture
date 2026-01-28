@@ -43,6 +43,14 @@ export function NoGrazeEditPanel({ zone, open, onDelete, onClose }: NoGrazeEditP
   const [type, setType] = useState<NoGrazeZoneType>(zone.type)
   const [description, setDescription] = useState(zone.description ?? '')
 
+  // Debug: Log mount/update
+  useEffect(() => {
+    console.log('[NoGrazeEditPanel] Mounted/updated:', { zoneId: zone.id, name: zone.name, type: zone.type })
+    return () => {
+      console.log('[NoGrazeEditPanel] Unmounting:', { zoneId: zone.id })
+    }
+  }, [zone.id, zone.name, zone.type])
+
   useEffect(() => {
     setName(zone.name)
     setType(zone.type)
@@ -62,8 +70,12 @@ export function NoGrazeEditPanel({ zone, open, onDelete, onClose }: NoGrazeEditP
   const infoStyles = typeInfoStyles[type] ?? typeInfoStyles.other
 
   const handleDelete = () => {
+    console.log('[NoGrazeEditPanel] Delete clicked:', { zoneId: zone.id })
     if (confirm('Are you sure you want to delete this no-graze zone?')) {
+      console.log('[NoGrazeEditPanel] Delete confirmed, calling onDelete:', { zoneId: zone.id })
       onDelete(zone.id)
+    } else {
+      console.log('[NoGrazeEditPanel] Delete cancelled by user')
     }
   }
 

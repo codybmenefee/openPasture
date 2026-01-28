@@ -394,16 +394,20 @@ export function GeometryProvider({
   const updateSection = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
       const targetArea = calculateAreaHectares(geometry)
+      // Capture original geometry before updating state
+      const section = sections.find((s) => s.id === id)
+      const originalGeometry = section?.geometry
+
       setSections((prev) =>
         prev.map((s) => (s.id === id ? { ...s, geometry, targetArea } : s))
       )
 
-      const section = sections.find((s) => s.id === id)
       recordChange({
         id,
         entityType: 'section',
         changeType: 'update',
         geometry,
+        originalGeometry, // Store original for rationale dialog
         parentId: section?.paddockId,
         timestamp: new Date().toISOString(),
       })
@@ -464,6 +468,7 @@ export function GeometryProvider({
 
   const updateNoGrazeZone = useCallback(
     (id: string, geometry: Feature<Polygon>) => {
+      console.log('[GeometryContext] updateNoGrazeZone:', { id, area: calculateAreaHectares(geometry) })
       const area = calculateAreaHectares(geometry)
       setNoGrazeZones((prev) =>
         prev.map((z) => (z.id === id ? { ...z, geometry, area, updatedAt: new Date().toISOString() } : z))
@@ -482,6 +487,7 @@ export function GeometryProvider({
 
   const updateNoGrazeZoneMetadata = useCallback(
     (id: string, metadata: Partial<Omit<NoGrazeZone, 'id' | 'farmId' | 'geometry' | 'createdAt' | 'updatedAt'>>) => {
+      console.log('[GeometryContext] updateNoGrazeZoneMetadata:', { id, metadata })
       setNoGrazeZones((prev) =>
         prev.map((z) => (z.id === id ? { ...z, ...metadata, updatedAt: new Date().toISOString() } : z))
       )
@@ -491,20 +497,30 @@ export function GeometryProvider({
 
   const deleteNoGrazeZone = useCallback(
     (id: string) => {
-      setNoGrazeZones((prev) => prev.filter((z) => z.id !== id))
+      console.log('[GeometryContext] deleteNoGrazeZone:', { id })
+      const zoneExists = noGrazeZones.find((z) => z.id === id)
+      console.log('[GeometryContext] deleteNoGrazeZone - zone exists:', { found: !!zoneExists, zoneName: zoneExists?.name })
+      setNoGrazeZones((prev) => {
+        const filtered = prev.filter((z) => z.id !== id)
+        console.log('[GeometryContext] deleteNoGrazeZone - zones after filter:', { before: prev.length, after: filtered.length })
+        return filtered
+      })
       recordChange({
         id,
         entityType: 'noGrazeZone',
         changeType: 'delete',
         timestamp: new Date().toISOString(),
       })
+      console.log('[GeometryContext] deleteNoGrazeZone - change recorded')
     },
-    [recordChange]
+    [recordChange, noGrazeZones]
   )
 
   const getNoGrazeZoneById = useCallback(
     (id: string): NoGrazeZone | undefined => {
-      return noGrazeZones.find((z) => z.id === id)
+      const result = noGrazeZones.find((z) => z.id === id)
+      console.log('[GeometryContext] getNoGrazeZoneById:', { id, found: !!result, zoneName: result?.name })
+      return result
     },
     [noGrazeZones]
   )

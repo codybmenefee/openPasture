@@ -1536,12 +1536,15 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     // No-graze zone click handler - in edit mode, single click switches to editing that zone
     const handleNoGrazeZoneClick = (e: MapEvent) => {
+      console.log('[FarmMap] handleNoGrazeZoneClick fired:', { hasFeatures: !!e.features, featureCount: e.features?.length })
       if (e.features && e.features[0]) {
         const zoneId = e.features[0].properties?.id as string | undefined
         const geometry = e.features[0].geometry
+        console.log('[FarmMap] handleNoGrazeZoneClick:', { zoneId, isEditActive, geometryType: geometry?.type })
         if (zoneId) {
           // In edit mode, single click switches to editing this entity
           if (isEditActive && geometry?.type === 'Polygon') {
+            console.log('[FarmMap] No-graze zone single-click (edit mode) - calling onEditRequest:', { zoneId })
             log('[FarmMap] No-graze zone single-click (edit mode):', { zoneId })
             onEditRequest?.({
               entityType: 'noGrazeZone',
@@ -1553,6 +1556,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
               },
             })
           } else {
+            console.log('[FarmMap] No-graze zone click (non-edit mode) - calling onNoGrazeZoneClick:', { zoneId })
             onNoGrazeZoneClick?.(zoneId)
           }
         }
@@ -1561,12 +1565,14 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     // No-graze zone double-click handler - enter edit mode when not already editing
     const handleNoGrazeZoneDblClick = (e: MapEvent) => {
+      console.log('[FarmMap] handleNoGrazeZoneDblClick fired:', { isEditActive, hasFeatures: !!e.features })
       // In edit mode, single-click already handles switching - double-click does nothing extra
       if (isEditActive) return
       if (e.features && e.features[0]) {
         e.preventDefault()
         const zoneId = e.features[0].properties?.id as string | undefined
         const geom = e.features[0].geometry
+        console.log('[FarmMap] No-graze zone double-click:', { zoneId, geometryType: geom?.type })
         log('[FarmMap] No-graze zone double-click:', { zoneId, geometryType: geom?.type })
         if (zoneId && geom?.type === 'Polygon') {
           const geometry: Feature<Polygon> = {
@@ -1577,6 +1583,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           // Focus on double-click and reset interaction flag
           fitPolygonBounds(geometry, 120)
           userHasInteractedRef.current = false
+          console.log('[FarmMap] No-graze zone double-click - calling onEditRequest:', { zoneId })
           onEditRequest?.({
             entityType: 'noGrazeZone',
             noGrazeZoneId: zoneId,
@@ -2270,6 +2277,14 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       return
     }
 
+    console.log('[FarmMap:UnifiedDraw] Loading all geometries into draw:', {
+      paddocks: paddocks.length,
+      noGrazeZones: noGrazeZones.length,
+      noGrazeZoneIds: noGrazeZones.map(z => ({ id: z.id, name: z.name })),
+      waterPolygons: waterSources.filter(s => s.geometryType === 'polygon').length,
+      sections: sections.length,
+      total: features.length,
+    })
     log('[UnifiedDraw] Loading all geometries into draw:', {
       paddocks: paddocks.length,
       noGrazeZones: noGrazeZones.length,
@@ -2282,6 +2297,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
     try {
       loadGeometriesToDraw(draw, features)
+      console.log('[FarmMap:UnifiedDraw] Draw control loaded', { featureCount: draw.getAll().features.length })
       log('[UnifiedDraw] Draw control loaded', { featureCount: draw.getAll().features.length })
 
       // Select initial feature immediately after loading (ensures feature exists)
@@ -2298,12 +2314,16 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
       if (typedIdToSelect) {
         const existing = draw.get(typedIdToSelect)
+        console.log('[FarmMap:UnifiedDraw] Attempting to select feature:', { typedIdToSelect, exists: !!existing })
         if (existing) {
           log('[UnifiedDraw] Selecting initial feature:', typedIdToSelect)
           draw.changeMode('direct_select', { featureId: typedIdToSelect })
+        } else {
+          console.log('[FarmMap:UnifiedDraw] Feature not found for selection:', typedIdToSelect)
         }
       }
     } catch (err) {
+      console.log('[FarmMap:UnifiedDraw] Draw reload failed:', err)
       log('[UnifiedDraw] Draw reload failed:', err)
     }
   }, [draw, isEditActive, paddocks, noGrazeZones, waterSources, sections, resetCounter, entityType, initialPaddockId, initialSectionId, initialNoGrazeZoneId, initialWaterSourceId])

@@ -120,9 +120,19 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
       }
 
       // Handle no-graze zone changes
-      for (const change of changes.filter((c) => c.entityType === 'noGrazeZone')) {
+      // Track IDs of newly added zones to skip subsequent update/delete for temp IDs
+      const noGrazeZoneChanges = changes.filter((c) => c.entityType === 'noGrazeZone')
+      console.log('[GeometryProviderWithConvex] Processing noGrazeZone changes:', { count: noGrazeZoneChanges.length, changes: noGrazeZoneChanges.map(c => ({ id: c.id, changeType: c.changeType })) })
+      const newlyAddedNoGrazeZoneIds = new Set(
+        noGrazeZoneChanges
+          .filter((c) => c.changeType === 'add')
+          .map((c) => c.id)
+      )
+      for (const change of noGrazeZoneChanges) {
+        console.log('[GeometryProviderWithConvex] Processing noGrazeZone change:', { changeType: change.changeType, id: change.id })
         if (change.changeType === 'add' && change.geometry) {
           const metadata = change.metadata as { name?: string; type?: string; area?: number } | undefined
+          console.log('[GeometryProviderWithConvex] Creating noGrazeZone:', { id: change.id, metadata })
           await createNoGrazeZone({
             farmId,
             name: metadata?.name ?? 'New No-graze Zone',
@@ -131,19 +141,38 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
             geometry: change.geometry,
           })
         } else if (change.changeType === 'update') {
+          // Skip updates for entities that were just added (the add already has final geometry)
+          if (newlyAddedNoGrazeZoneIds.has(change.id)) {
+            console.log('[GeometryProviderWithConvex] Skipping update for newly added noGrazeZone:', { id: change.id })
+            continue
+          }
           const metadata = change.metadata as { area?: number } | undefined
+          console.log('[GeometryProviderWithConvex] Updating noGrazeZone:', { id: change.id })
           await updateNoGrazeZone({
             id: change.id as any,
             geometry: change.geometry,
             area: metadata?.area,
           })
         } else if (change.changeType === 'delete') {
+          // Skip deletes for entities that were just added (never persisted to Convex)
+          if (newlyAddedNoGrazeZoneIds.has(change.id)) {
+            console.log('[GeometryProviderWithConvex] Skipping delete for newly added noGrazeZone:', { id: change.id })
+            continue
+          }
+          console.log('[GeometryProviderWithConvex] Deleting noGrazeZone:', { id: change.id })
           await removeNoGrazeZone({ id: change.id as any })
         }
       }
 
       // Handle water source changes
-      for (const change of changes.filter((c) => c.entityType === 'waterPoint' || c.entityType === 'waterPolygon')) {
+      // Track IDs of newly added water sources to skip subsequent update/delete for temp IDs
+      const waterSourceChanges = changes.filter((c) => c.entityType === 'waterPoint' || c.entityType === 'waterPolygon')
+      const newlyAddedWaterSourceIds = new Set(
+        waterSourceChanges
+          .filter((c) => c.changeType === 'add')
+          .map((c) => c.id)
+      )
+      for (const change of waterSourceChanges) {
         const geometryType = change.entityType === 'waterPoint' ? 'point' : 'polygon'
         if (change.changeType === 'add' && change.geometry) {
           const metadata = change.metadata as { name?: string; type?: WaterSourceType; area?: number } | undefined
@@ -156,6 +185,8 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
             area: metadata?.area,
           })
         } else if (change.changeType === 'update') {
+          // Skip updates for entities that were just added (the add already has final geometry)
+          if (newlyAddedWaterSourceIds.has(change.id)) continue
           const metadata = change.metadata as { area?: number } | undefined
           await updateWaterSource({
             id: change.id as any,
@@ -163,6 +194,8 @@ export function GeometryProviderWithConvex({ children }: GeometryProviderWithCon
             area: metadata?.area,
           })
         } else if (change.changeType === 'delete') {
+          // Skip deletes for entities that were just added (never persisted to Convex)
+          if (newlyAddedWaterSourceIds.has(change.id)) continue
           await removeWaterSource({ id: change.id as any })
         }
       }
