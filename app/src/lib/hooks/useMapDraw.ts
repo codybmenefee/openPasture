@@ -429,6 +429,12 @@ export function useMapDraw({
       const draw = drawRef.current
       if (!draw) return
 
+      // Don't intercept keyboard events when user is typing in an input/textarea
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return
+      }
+
       const actualMode = draw.getMode()
       if (actualMode !== 'direct_select') return
       if (e.key !== 'Delete' && e.key !== 'Backspace') return
