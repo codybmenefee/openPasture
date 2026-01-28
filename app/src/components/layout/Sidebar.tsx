@@ -1,7 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router'
 import { Map, History, Settings, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ThemeToggle } from './ThemeToggle'
 import { Separator } from '@/components/ui/separator'
 import {
   Tooltip,
@@ -79,8 +78,6 @@ export function Sidebar() {
               <p>Settings</p>
             </TooltipContent>
           </Tooltip>
-
-          <ThemeToggle />
         </div>
       </aside>
     </TooltipProvider>
