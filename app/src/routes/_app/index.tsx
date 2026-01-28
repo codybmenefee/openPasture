@@ -3,7 +3,7 @@ import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Beef, Calendar, CheckCircle, Crosshair, Focus, Save, Satellite } from 'lucide-react'
+import { Calendar, CheckCircle, Crosshair, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalPanel } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
@@ -14,7 +14,6 @@ import { MapAddMenu } from '@/components/map/MapAddMenu'
 import { DragPreview, type DragEntityType } from '@/components/map/DragPreview'
 import { NoGrazeEditPanel } from '@/components/map/NoGrazeEditPanel'
 import { WaterSourceEditPanel } from '@/components/map/WaterSourceEditPanel'
-import { SatelliteFetchBanner } from '@/components/map/SatelliteFetchBanner'
 import { BoundarySavedDialog } from '@/components/map/BoundarySavedDialog'
 import type { NoGrazeZone, WaterSource } from '@/lib/types'
 import { MorningBrief } from '@/components/brief/MorningBrief'
@@ -792,9 +791,8 @@ function GISRoute() {
           variant="outline"
           size="sm"
           onClick={() => setLivestockDrawerOpen(true)}
-          className="gap-1 h-7 text-xs shadow-lg bg-white"
+          className="h-7 text-xs shadow-lg bg-white"
         >
-          <Beef className="h-3.5 w-3.5" />
           Livestock
         </Button>
       </div>
@@ -1023,9 +1021,6 @@ function GISRoute() {
           isOverMap={dragState.isOverMap}
         />
       )}
-
-      {/* Satellite fetch processing banner */}
-      <SatelliteFetchBanner />
 
       {/* Boundary saved dialog - offer to refresh satellite imagery */}
       <BoundarySavedDialog
