@@ -112,6 +112,7 @@ export function Header() {
       <DailyPlanButton />
       <div className="flex-1 flex justify-center">
         <span className="text-sm font-semibold tracking-tight">OpenPasture</span>
+        <span className="ml-1.5 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">beta</span>
       </div>
       <div className="flex items-center gap-2">
         <DevToolsDropdown />
