@@ -3,7 +3,7 @@ import { api } from '../../../convex/_generated/api'
 import type { Feature } from '../featureFlags'
 import { FEATURES, tierHasFeature } from '../featureFlags'
 
-export type SubscriptionTier = 'free' | 'starter' | 'professional' | 'enterprise'
+export type SubscriptionTier = 'free' | 'homesteader' | 'producer' | 'commercial'
 export type SubscriptionStatus = 'active' | 'past_due' | 'canceled'
 
 export interface Subscription {
@@ -100,9 +100,9 @@ export function useFeatureFlag(
   const minimumTier =
     Object.entries({
       free: ['historical_satellite', 'ndvi_heatmap'],
-      starter: ['raw_imagery', 'evi_index', 'ndwi_index', 'export_data'],
-      professional: ['premium_providers', 'api_access'],
-    }).find(([_, features]) => features.includes(feature))?.[0] ?? 'professional'
+      homesteader: ['raw_imagery', 'evi_index', 'ndwi_index', 'export_data'],
+      producer: ['premium_providers', 'api_access'],
+    }).find(([_, features]) => features.includes(feature))?.[0] ?? 'producer'
 
   return {
     hasAccess: hasFeature(feature),

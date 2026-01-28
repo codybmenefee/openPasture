@@ -18,6 +18,7 @@ import { Route as PublicResearchRouteImport } from './routes/_public/research'
 import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
 import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
 import { Route as PublicDocsRouteImport } from './routes/_public/docs'
+import { Route as AppUpgradeRouteImport } from './routes/_app/upgrade'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppOnboardingRouteImport } from './routes/_app/onboarding'
 import { Route as AppMapRouteImport } from './routes/_app/map'
@@ -70,6 +71,11 @@ const PublicDocsRoute = PublicDocsRouteImport.update({
   path: '/docs',
   getParentRoute: () => PublicRoute,
 } as any)
+const AppUpgradeRoute = AppUpgradeRouteImport.update({
+  id: '/upgrade',
+  path: '/upgrade',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof AppMapRoute
   '/onboarding': typeof AppOnboardingRoute
   '/settings': typeof AppSettingsRoute
+  '/upgrade': typeof AppUpgradeRoute
   '/docs': typeof PublicDocsRouteWithChildren
   '/investors': typeof PublicInvestorsRoute
   '/marketing': typeof PublicMarketingRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/map': typeof AppMapRoute
   '/onboarding': typeof AppOnboardingRoute
   '/settings': typeof AppSettingsRoute
+  '/upgrade': typeof AppUpgradeRoute
   '/investors': typeof PublicInvestorsRoute
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_app/map': typeof AppMapRoute
   '/_app/onboarding': typeof AppOnboardingRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/upgrade': typeof AppUpgradeRoute
   '/_public/docs': typeof PublicDocsRouteWithChildren
   '/_public/investors': typeof PublicInvestorsRoute
   '/_public/marketing': typeof PublicMarketingRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/onboarding'
     | '/settings'
+    | '/upgrade'
     | '/docs'
     | '/investors'
     | '/marketing'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/onboarding'
     | '/settings'
+    | '/upgrade'
     | '/investors'
     | '/marketing'
     | '/research'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/_app/map'
     | '/_app/onboarding'
     | '/_app/settings'
+    | '/_app/upgrade'
     | '/_public/docs'
     | '/_public/investors'
     | '/_public/marketing'
@@ -291,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicDocsRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_app/upgrade': {
+      id: '/_app/upgrade'
+      path: '/upgrade'
+      fullPath: '/upgrade'
+      preLoaderRoute: typeof AppUpgradeRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -356,6 +375,7 @@ interface AppRouteChildren {
   AppMapRoute: typeof AppMapRoute
   AppOnboardingRoute: typeof AppOnboardingRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppUpgradeRoute: typeof AppUpgradeRoute
   AppIndexRoute: typeof AppIndexRoute
   AppPaddocksIdRoute: typeof AppPaddocksIdRoute
 }
@@ -366,6 +386,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMapRoute: AppMapRoute,
   AppOnboardingRoute: AppOnboardingRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppUpgradeRoute: AppUpgradeRoute,
   AppIndexRoute: AppIndexRoute,
   AppPaddocksIdRoute: AppPaddocksIdRoute,
 }

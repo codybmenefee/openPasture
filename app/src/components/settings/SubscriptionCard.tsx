@@ -40,55 +40,53 @@ const PLAN_DETAILS: Record<
   free: {
     name: 'Free',
     price: '$0/mo',
-    description: 'Basic satellite monitoring for small properties',
+    description: 'Get started with satellite monitoring',
     color: 'gray',
     features: [
-      'Sentinel-2 indices (NDVI)',
+      'Latest satellite imagery',
+      'NDVI, EVI & vegetation indices',
+      '10m resolution (Sentinel-2)',
+      'Updates every 3-5 days',
       'Up to 5 acres',
-      '1 year data retention',
-      'Historical satellite viewer',
     ],
   },
-  starter: {
-    name: 'Starter',
+  homesteader: {
+    name: 'Homesteader',
     price: '$10/mo',
-    description: 'Full satellite imagery for growing operations',
+    description: 'Full features for small operations',
     color: 'blue',
     features: [
-      'Everything in Free',
-      'Raw satellite imagery',
-      'EVI & NDWI indices',
+      'Historical satellite data',
+      'Daily satellite imagery',
+      '3m resolution imagery',
       'Up to 25 acres',
-      '1 year raw imagery retention',
       'Data export',
     ],
   },
-  professional: {
-    name: 'Professional',
+  producer: {
+    name: 'Producer',
     price: '$50/mo',
-    description: 'High-resolution imagery for professional farms',
+    description: 'Everything you need to scale',
     color: 'purple',
     features: [
-      'Everything in Starter',
-      'PlanetScope (3m resolution)',
+      'Everything in Homesteader',
       'Up to 100 acres',
-      '3 year retention',
-      'API access',
       'Priority support',
+      'API access',
+      'Advanced analytics',
     ],
   },
-  enterprise: {
-    name: 'Enterprise',
+  commercial: {
+    name: 'Commercial',
     price: 'Custom',
-    description: 'Unlimited capabilities for large operations',
+    description: 'Tailored solutions for large operations',
     color: 'amber',
     features: [
-      'Everything in Professional',
+      'Everything in Producer',
       'Unlimited acreage',
-      'Unlimited retention',
       'Custom integrations',
-      'Dedicated support',
-      'SLA guarantee',
+      'Dedicated account manager',
+      'Custom data retention',
     ],
   },
 }
@@ -241,7 +239,7 @@ export function SubscriptionCard({
               <Button variant="outline" asChild className="flex-1">
                 <a href="/billing">Manage Billing</a>
               </Button>
-              {tier !== 'enterprise' && (
+              {tier !== 'commercial' && (
                 <Button variant="secondary" asChild>
                   <a href="/upgrade">Upgrade</a>
                 </Button>
@@ -263,9 +261,9 @@ export function SubscriptionBadge({ farmId }: { farmId: string }) {
 
   const colorClasses: Record<SubscriptionTier, string> = {
     free: 'bg-muted text-muted-foreground',
-    starter: 'bg-blue-500/20 text-blue-400',
-    professional: 'bg-purple-500/20 text-purple-400',
-    enterprise: 'bg-amber-500/20 text-amber-400',
+    homesteader: 'bg-blue-500/20 text-blue-400',
+    producer: 'bg-purple-500/20 text-purple-400',
+    commercial: 'bg-amber-500/20 text-amber-400',
   }
 
   return (
@@ -284,7 +282,7 @@ export function SubscriptionBadge({ farmId }: { farmId: string }) {
  * Plan comparison grid for upgrade page.
  */
 export function PlanComparisonGrid({ currentTier }: { currentTier: SubscriptionTier }) {
-  const tiers: SubscriptionTier[] = ['free', 'starter', 'professional', 'enterprise']
+  const tiers: SubscriptionTier[] = ['free', 'homesteader', 'producer', 'commercial']
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -318,10 +316,10 @@ export function PlanComparisonGrid({ currentTier }: { currentTier: SubscriptionT
             </ul>
             {!isCurrent && (
               <Button
-                variant={tier === 'enterprise' ? 'outline' : 'default'}
+                variant={tier === 'commercial' ? 'outline' : 'default'}
                 className="w-full"
               >
-                {tier === 'enterprise' ? 'Contact Sales' : 'Select Plan'}
+                {tier === 'commercial' ? 'Contact Sales' : 'Select Plan'}
               </Button>
             )}
           </Card>

@@ -22,22 +22,22 @@ const PLAN_DETAILS: Record<
   free: {
     name: 'Free',
     price: '$0/mo',
-    features: ['Sentinel-2 NDVI', 'Up to 5 acres', '1 year retention'],
+    features: ['Latest imagery', '10m resolution', 'Up to 5 acres'],
   },
-  starter: {
-    name: 'Starter',
+  homesteader: {
+    name: 'Homesteader',
     price: '$10/mo',
-    features: ['Raw imagery', 'EVI & NDWI', 'Up to 25 acres', 'Data export'],
+    features: ['Historical data', '3m resolution', 'Up to 25 acres'],
   },
-  professional: {
-    name: 'Professional',
+  producer: {
+    name: 'Producer',
     price: '$50/mo',
-    features: ['PlanetScope 3m', 'Up to 100 acres', 'API access', 'Priority support'],
+    features: ['Up to 100 acres', 'Priority support', 'API access'],
   },
-  enterprise: {
-    name: 'Enterprise',
+  commercial: {
+    name: 'Commercial',
     price: 'Custom',
-    features: ['Unlimited acreage', 'Custom integrations', 'Dedicated support', 'SLA'],
+    features: ['Unlimited acreage', 'Custom integrations', 'Dedicated support'],
   },
 }
 
@@ -68,9 +68,9 @@ export function PlanSummary({ farmId, farmAcreage = 0 }: PlanSummaryProps) {
 
   const colorClasses: Record<SubscriptionTier, string> = {
     free: 'bg-muted text-muted-foreground',
-    starter: 'bg-blue-500/20 text-blue-400',
-    professional: 'bg-purple-500/20 text-purple-400',
-    enterprise: 'bg-amber-500/20 text-amber-400',
+    homesteader: 'bg-blue-500/20 text-blue-400',
+    producer: 'bg-purple-500/20 text-purple-400',
+    commercial: 'bg-amber-500/20 text-amber-400',
   }
 
   return (

@@ -64,11 +64,11 @@ export function HistoricalDatePicker({
     switch (tier) {
       case 'free':
         return 12
-      case 'starter':
+      case 'homesteader':
         return 12
-      case 'professional':
+      case 'producer':
         return 36
-      case 'enterprise':
+      case 'commercial':
         return Infinity
       default:
         return 12

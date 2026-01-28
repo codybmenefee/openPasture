@@ -23,7 +23,7 @@ export type Feature = (typeof FEATURES)[keyof typeof FEATURES]
  */
 export const TIER_FEATURES: Record<string, Feature[]> = {
   free: [FEATURES.HISTORICAL_SATELLITE, FEATURES.NDVI_HEATMAP],
-  starter: [
+  homesteader: [
     FEATURES.HISTORICAL_SATELLITE,
     FEATURES.NDVI_HEATMAP,
     FEATURES.RAW_IMAGERY,
@@ -31,7 +31,7 @@ export const TIER_FEATURES: Record<string, Feature[]> = {
     FEATURES.NDWI_INDEX,
     FEATURES.EXPORT_DATA,
   ],
-  professional: [
+  producer: [
     FEATURES.HISTORICAL_SATELLITE,
     FEATURES.NDVI_HEATMAP,
     FEATURES.RAW_IMAGERY,
@@ -41,7 +41,7 @@ export const TIER_FEATURES: Record<string, Feature[]> = {
     FEATURES.EXPORT_DATA,
     FEATURES.API_ACCESS,
   ],
-  enterprise: [
+  commercial: [
     FEATURES.HISTORICAL_SATELLITE,
     FEATURES.NDVI_HEATMAP,
     FEATURES.RAW_IMAGERY,
@@ -65,7 +65,7 @@ export function tierHasFeature(tier: string, feature: Feature): boolean {
  * Get the minimum tier required for a feature.
  */
 export function getMinimumTierForFeature(feature: Feature): string {
-  const tiers = ['free', 'starter', 'professional', 'enterprise']
+  const tiers = ['free', 'homesteader', 'producer', 'commercial']
 
   for (const tier of tiers) {
     if (TIER_FEATURES[tier]?.includes(feature)) {
@@ -73,7 +73,7 @@ export function getMinimumTierForFeature(feature: Feature): string {
     }
   }
 
-  return 'enterprise' // Default to highest tier if not found
+  return 'commercial' // Default to highest tier if not found
 }
 
 /**
@@ -100,31 +100,31 @@ export const FEATURE_INFO: Record<
   [FEATURES.RAW_IMAGERY]: {
     name: 'Raw Satellite Imagery',
     description: 'Access full-resolution RGB satellite tiles',
-    minimumTier: 'starter',
+    minimumTier: 'homesteader',
   },
   [FEATURES.PREMIUM_PROVIDERS]: {
     name: 'Premium Providers',
     description: 'Access high-resolution PlanetScope imagery (3m)',
-    minimumTier: 'professional',
+    minimumTier: 'producer',
   },
   [FEATURES.EVI_INDEX]: {
     name: 'EVI Index',
     description: 'Enhanced Vegetation Index for canopy analysis',
-    minimumTier: 'starter',
+    minimumTier: 'homesteader',
   },
   [FEATURES.NDWI_INDEX]: {
     name: 'NDWI Index',
     description: 'Water index for soil moisture monitoring',
-    minimumTier: 'starter',
+    minimumTier: 'homesteader',
   },
   [FEATURES.EXPORT_DATA]: {
     name: 'Data Export',
     description: 'Export observation data as CSV or JSON',
-    minimumTier: 'starter',
+    minimumTier: 'homesteader',
   },
   [FEATURES.API_ACCESS]: {
     name: 'API Access',
     description: 'Programmatic access to your farm data',
-    minimumTier: 'professional',
+    minimumTier: 'producer',
   },
 }
