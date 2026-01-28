@@ -769,19 +769,9 @@ def run_pipeline_for_farm(
         except Exception as e:
             logger.error(f"  Error writing to Convex: {e}", exc_info=True)
 
-    # Step 9: Notify completion (for real-time UI updates)
-    # Only notifies if CONVEX_DEPLOYMENT_URL is set
-    # Creates notifications for Sentinel-2 only (free tier)
-    # Planet Labs completions are silent to avoid notification spam
-    if pipeline_config.write_to_convex:
-        notify_completion(
-            farm_external_id=farm_config.external_id,
-            success=write_success and valid_count > 0,
-            provider=source_provider,
-            capture_date=observation_date,
-            error_message=None if write_success else "Failed to write observations",
-            failure_reason=failure_reason,
-        )
+    # Note: Notification is handled by the scheduler via complete_job()
+    # to avoid duplicate notifications. The scheduler calls completeJob
+    # after this function returns, which creates the notification.
 
     return PipelineResult(
         farm_id=farm_config.external_id,

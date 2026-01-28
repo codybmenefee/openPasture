@@ -160,6 +160,11 @@ export const completeJob = mutation({
       throw new Error('Job not found')
     }
 
+    // Prevent duplicate notifications - job already completed
+    if (job.status === 'completed' || job.status === 'failed') {
+      return
+    }
+
     // Update job status
     await ctx.db.patch(args.jobId, {
       status: args.success ? 'completed' : 'failed',
@@ -423,3 +428,4 @@ export const getJob = query({
     return await ctx.db.get(args.jobId)
   },
 })
+

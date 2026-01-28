@@ -259,14 +259,16 @@ class Scheduler:
                 pipeline_config=self.pipeline_config,
             )
 
-            # Complete the job successfully
+            # Complete the job - success only if we got valid observations
+            valid_count = result.get('valid_observations', 0)
             self.convex.complete_job(
                 job_id=job_id,
-                success=True,
+                success=valid_count > 0,
                 capture_date=result.get('observation_date'),
+                error_message=None if valid_count > 0 else "No valid observations",
             )
 
-            logger.info(f"  Job completed: {result.get('valid_observations', 0)} observations")
+            logger.info(f"  Job completed: {valid_count} observations")
             return True
 
         except Exception as e:
