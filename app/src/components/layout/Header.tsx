@@ -1,8 +1,10 @@
 import { BookOpen, HelpCircle, LogOut } from 'lucide-react'
 import { useUser, useClerk } from '@clerk/clerk-react'
 import { FarmSelector } from './FarmSelector'
+import { DailyPlanButton } from './DailyPlanButton'
 import { NotificationBell } from './NotificationBell'
 import { DevToolsDropdown } from './DevToolsDropdown'
+import { SatelliteStatusIcon } from './SatelliteStatusIcon'
 import { Link } from '@tanstack/react-router'
 import { useAppAuth } from '@/lib/auth'
 import { useTutorial } from '@/components/onboarding/tutorial'
@@ -105,13 +107,16 @@ export function Header() {
   }
 
   return (
-    <header className="flex h-10 items-center border-b border-border bg-background pl-1 pr-3 py-2">
+    <header className="flex h-10 items-center border-b border-border bg-background pl-1 pr-3 py-2 gap-2">
       <FarmSelector />
+      <DailyPlanButton />
       <div className="flex-1 flex justify-center">
         <span className="text-sm font-semibold tracking-tight">OpenPasture</span>
       </div>
       <div className="flex items-center gap-2">
         <DevToolsDropdown />
+
+        <SatelliteStatusIcon />
 
         <button
           onClick={handleHelpClick}

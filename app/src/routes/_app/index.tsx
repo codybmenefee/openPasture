@@ -3,7 +3,7 @@ import type { Geometry } from 'geojson'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Calendar, CheckCircle, Crosshair, Focus, Save, Satellite } from 'lucide-react'
+import { Crosshair, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalPanel, HistoricalPanelButton } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { useFarmContext } from '@/lib/farm'
+import { useBriefPanel } from '@/lib/brief'
 import { useGeometry, clipPolygonToPolygon } from '@/lib/geometry'
 import { createTypedFeatureId, parseTypedFeatureId } from '@/lib/hooks'
 import { useTodayPlan } from '@/lib/convex/usePlan'
@@ -62,6 +63,7 @@ function GISRoute() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/_app/' })
   const { activeFarmId, activeFarm, isLoading } = useFarmContext()
+  const { briefOpen, setBriefOpen } = useBriefPanel()
   const hasFarmBoundary = activeFarm?.geometry != null
   const { plan } = useTodayPlan(activeFarmId || '')
   const {
@@ -79,8 +81,6 @@ function GISRoute() {
   const { startTutorial } = useTutorial()
 
   const mapRef = useRef<FarmMapHandle>(null)
-  // Daily plan modal closed by default - user can open it when ready
-  const [briefOpen, setBriefOpen] = useState(false)
   const [mapInstance, setMapInstance] = useState<ReturnType<FarmMapHandle['getMap']>>(null)
 
   // Track when we need to save after creating a paddock during onboarding
@@ -915,33 +915,6 @@ function GISRoute() {
           onToggleLayer={toggleLayer}
         />
       </div>
-
-      {/* Toggle button when panel is closed - below layer selector */}
-      {!briefOpen && (
-        <div className="absolute top-12 left-2 z-10">
-          {plan?.status === 'approved' || plan?.status === 'modified' ? (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setBriefOpen(true)}
-              className="gap-1 h-6 text-xs shadow-lg bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="h-3.5 w-3.5" />
-              Approved
-            </Button>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setBriefOpen(true)}
-              className="gap-1 h-6 text-xs shadow-lg"
-            >
-              <Calendar className="h-3.5 w-3.5" />
-              Daily Plan
-            </Button>
-          )}
-        </div>
-      )}
 
       {/* Paddock Edit Modal */}
       {selectedEntityType === 'paddock' && selectedPaddock && (

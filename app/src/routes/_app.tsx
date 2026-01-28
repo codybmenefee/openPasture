@@ -4,6 +4,7 @@ import { Header } from '@/components/layout/Header'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
 import { FarmProvider } from '@/lib/farm'
+import { BriefPanelProvider } from '@/lib/brief'
 import { useAppAuth } from '@/lib/auth'
 import { useEffect } from 'react'
 import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
@@ -109,21 +110,23 @@ function AppLayout() {
   return (
     <FarmProvider>
       <GeometryProviderWithConvex>
-        <SatelliteAnimationProvider>
-          <TutorialProvider>
-            <div className="flex h-screen flex-col bg-background text-foreground">
-              <Header />
-              <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 overflow-hidden">
-                  <Outlet />
-                </main>
+        <BriefPanelProvider>
+          <SatelliteAnimationProvider>
+            <TutorialProvider>
+              <div className="flex h-screen flex-col bg-background text-foreground">
+                <Header />
+                <div className="flex flex-1 overflow-hidden">
+                  <Sidebar />
+                  <main className="flex-1 overflow-hidden">
+                    <Outlet />
+                  </main>
+                </div>
               </div>
-            </div>
-            <TutorialOverlay />
-            <SatelliteCollapseAnimation />
-          </TutorialProvider>
-        </SatelliteAnimationProvider>
+              <TutorialOverlay />
+              <SatelliteCollapseAnimation />
+            </TutorialProvider>
+          </SatelliteAnimationProvider>
+        </BriefPanelProvider>
       </GeometryProviderWithConvex>
     </FarmProvider>
   )
