@@ -21,7 +21,7 @@ export function SystemArchitectureDiagram() {
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#D3DBDD]">
               <MapPin className="h-3 w-3 text-[#075056]" />
-              <span>GPS tracking</span>
+              <span>Paddock boundaries</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-[#D3DBDD]">
               <FileText className="h-3 w-3 text-[#075056]" />
@@ -54,13 +54,33 @@ export function SystemArchitectureDiagram() {
 
         {/* Layer 3: Learning System */}
         <div className="bg-[#233038]/80 border border-[#F4D47C]/30 rounded-lg p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#F4D47C]" />
-            <h3 className="text-sm font-semibold text-[#FDF6E3]">Learning System</h3>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#F4D47C]" />
+              <h3 className="text-sm font-semibold text-[#FDF6E3]">Learning System</h3>
+            </div>
+            <span className="text-[9px] text-[#F4D47C]/70 uppercase tracking-wider">Feedback Loop</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-[#D3DBDD]">
-            <RefreshCw className="h-3 w-3 text-[#F4D47C]" />
-            <span>Improves from farmer feedback, tracks outcomes, adapts to your land</span>
+          <div className="flex items-start gap-2 text-xs text-[#D3DBDD] mb-2">
+            <RefreshCw className="h-3 w-3 text-[#F4D47C] mt-0.5 flex-shrink-0" />
+            <span>Every farmer correction becomes training data—teaching the AI what experienced farmers actually choose</span>
+          </div>
+          <div className="bg-[#1a2429]/50 rounded p-2 mt-2">
+            <div className="flex items-center gap-4 text-[10px] text-[#D3DBDD]/80">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F4D47C]/50" />
+                Farm state snapshot
+              </span>
+              <span className="text-[#F4D47C]">+</span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#075056]" />
+                Farmer's choice
+              </span>
+              <span className="text-[#F4D47C]">=</span>
+              <span className="flex items-center gap-1 text-[#FDF6E3]/90">
+                Training example
+              </span>
+            </div>
           </div>
         </div>
       </div>

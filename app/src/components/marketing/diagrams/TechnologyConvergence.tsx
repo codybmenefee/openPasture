@@ -1,25 +1,29 @@
-import { Satellite, MapPin, Cpu, Brain, Check } from 'lucide-react'
+import { Satellite, MapPin, Cpu, Brain, Check, Sparkles } from 'lucide-react'
 
 const technologies = [
   {
     icon: Satellite,
     label: 'Daily satellite observation',
     year: '2015+',
+    highlight: false,
   },
   {
     icon: MapPin,
     label: 'GPS-enabled animal tracking',
     year: '2018+',
+    highlight: false,
   },
   {
     icon: Cpu,
     label: 'Cheap sensors & cloud',
     year: '2020+',
+    highlight: false,
   },
   {
     icon: Brain,
-    label: 'AI for multi-variable decisions',
-    year: '2023+',
+    label: 'LLMs that can reason & draw',
+    year: '2022+',
+    highlight: true,
   },
 ]
 
@@ -42,17 +46,33 @@ export function TechnologyConvergence() {
               return (
                 <div key={index} className="relative flex items-center gap-4 pl-10">
                   {/* Circle on timeline */}
-                  <div className="absolute left-2.5 w-3.5 h-3.5 rounded-full bg-[#233038] border-2 border-[#075056] flex items-center justify-center">
-                    <Check className="h-2 w-2 text-[#075056]" />
+                  <div className={`absolute left-2.5 w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                    tech.highlight
+                      ? 'bg-[#FF5B04] border-2 border-[#FF5B04]'
+                      : 'bg-[#233038] border-2 border-[#075056]'
+                  }`}>
+                    {tech.highlight ? (
+                      <Sparkles className="h-2 w-2 text-white" />
+                    ) : (
+                      <Check className="h-2 w-2 text-[#075056]" />
+                    )}
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 flex items-center justify-between bg-[#233038]/50 rounded-md p-2.5">
+                  <div className={`flex-1 flex items-center justify-between rounded-md p-2.5 ${
+                    tech.highlight
+                      ? 'bg-[#FF5B04]/10 border border-[#FF5B04]/30'
+                      : 'bg-[#233038]/50'
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <Icon className="h-3.5 w-3.5 text-[#075056]" />
-                      <span className="text-xs text-[#FDF6E3]/90">{tech.label}</span>
+                      <Icon className={`h-3.5 w-3.5 ${tech.highlight ? 'text-[#FF5B04]' : 'text-[#075056]'}`} />
+                      <span className={`text-xs ${tech.highlight ? 'text-[#FDF6E3] font-medium' : 'text-[#FDF6E3]/90'}`}>
+                        {tech.label}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-[#D3DBDD]/70">{tech.year}</span>
+                    <span className={`text-[10px] ${tech.highlight ? 'text-[#FF5B04]' : 'text-[#D3DBDD]/70'}`}>
+                      {tech.year}
+                    </span>
                   </div>
                 </div>
               )
@@ -63,9 +83,26 @@ export function TechnologyConvergence() {
         <div className="mt-4 pt-3 border-t border-[#075056]/30 text-center">
           <p className="text-xs text-[#FDF6E3]/90">
             These existed separately.{' '}
-            <span className="text-[#FF5B04] font-semibold">Now they're one system.</span>
+            <span className="text-[#FF5B04] font-semibold">The AI made them one system.</span>
           </p>
         </div>
+
+        {/* Expandable detail */}
+        <details className="mt-3">
+          <summary className="text-[10px] text-[#D3DBDD]/70 cursor-pointer hover:text-[#D3DBDD] transition-colors text-center">
+            Why 2022 changed everything
+          </summary>
+          <div className="mt-2 pt-2 border-t border-[#075056]/20 text-[10px] text-[#D3DBDD]/70 space-y-1.5">
+            <p>
+              Before LLMs, you'd need a custom model for each farm's unique conditions—prohibitively expensive.
+            </p>
+            <p>
+              <span className="text-[#FDF6E3]/90">Modern LLMs already know how to reason.</span>{' '}
+              They weigh tradeoffs, understand cause and effect, and can follow complex instructions.
+              We just tell them about your land.
+            </p>
+          </div>
+        </details>
       </div>
     </div>
   )

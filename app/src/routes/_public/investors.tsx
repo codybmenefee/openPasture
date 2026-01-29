@@ -65,18 +65,102 @@ function InvestorsPage() {
         </div>
       </section>
 
-      {/* Section 3: Why Now */}
+      {/* Section 3: Why Now - The AI Breakthrough */}
       <section className="py-10 bg-[#233038]">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-[#FDF6E3]">
-              Why Now: Technology Convergence
+              The AI Breakthrough (2022-2024)
             </h2>
             <p className="text-sm text-[#D3DBDD] text-center mb-6">
-              Four technologies have matured simultaneously, creating a unique moment.
+              Why this wasn't possible before—and why it is now.
             </p>
 
-            <TechnologyConvergence />
+            <div className="bg-[#1a2429]/50 border border-[#075056]/30 rounded-lg p-5 mb-6">
+              <p className="text-sm text-[#FDF6E3]/90 mb-4">
+                Before large language models, automating grazing decisions required building
+                a custom mathematical model for every farm—capturing every variable, every
+                interaction, every edge case. That's prohibitively expensive for each
+                operation's unique conditions.
+              </p>
+
+              <p className="text-sm text-[#FF5B04] font-semibold mb-4">
+                The insight: Modern LLMs already know how to reason.
+              </p>
+
+              <p className="text-sm text-[#FDF6E3]/90 mb-4">
+                They understand cause and effect, weigh tradeoffs, and explain their thinking.
+                They just need context about <em>your</em> land.
+              </p>
+
+              <div className="space-y-2 mb-4">
+                <h4 className="text-xs font-semibold text-[#D3DBDD] uppercase tracking-wide">Our Architecture</h4>
+                <div className="grid gap-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[#075056] font-bold text-xs">1.</span>
+                    <div>
+                      <span className="text-sm text-[#FDF6E3] font-medium">Data Pipeline</span>
+                      <span className="text-sm text-[#D3DBDD]"> → Gather the facts (satellite, weather, history)</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[#075056] font-bold text-xs">2.</span>
+                    <div>
+                      <span className="text-sm text-[#FDF6E3] font-medium">Encoded Wisdom</span>
+                      <span className="text-sm text-[#D3DBDD]"> → Explain grazing principles in the prompt</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-[#075056] font-bold text-xs">3.</span>
+                    <div>
+                      <span className="text-sm text-[#FDF6E3] font-medium">Structured Output</span>
+                      <span className="text-sm text-[#D3DBDD]"> → Let the model draw a polygon and justify its choice</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-[#FDF6E3]/80">
+                This became possible in 2022. It became <em>practical</em> with 2024's frontier models.
+              </p>
+            </div>
+
+            <details className="bg-[#1a2429]/30 border border-[#075056]/20 rounded-lg">
+              <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors">
+                Why Frontier Models Matter
+              </summary>
+              <div className="px-4 pb-4 pt-1">
+                <p className="text-xs text-[#D3DBDD]/80 mb-3">
+                  Earlier language models could understand text but struggled with:
+                </p>
+                <ul className="text-xs text-[#D3DBDD]/80 space-y-1.5 mb-3">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#075056]">•</span>
+                    <span><strong className="text-[#D3DBDD]">Spatial reasoning</strong> — drawing polygons from coordinate data</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#075056]">•</span>
+                    <span><strong className="text-[#D3DBDD]">Multi-factor decisions</strong> — weighing NDVI vs. rest days vs. weather</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#075056]">•</span>
+                    <span><strong className="text-[#D3DBDD]">Structured output</strong> — returning valid GeoJSON consistently</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#075056]">•</span>
+                    <span><strong className="text-[#D3DBDD]">Complex instructions</strong> — following 66-line system prompts</span>
+                  </li>
+                </ul>
+                <p className="text-xs text-[#FDF6E3]/90">
+                  Models like Claude and GPT-4 handle these reliably. The jump from
+                  "sometimes works" to "works consistently" is the difference between a demo and a product.
+                </p>
+              </div>
+            </details>
+
+            <div className="mt-6">
+              <TechnologyConvergence />
+            </div>
           </div>
         </div>
       </section>
@@ -172,7 +256,7 @@ function InvestorsPage() {
               <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-[#FF5B04] mb-1">Integration Partners</h3>
                 <p className="text-xs text-[#D3DBDD]">
-                  GPS collars, satellites, and institutional data providers
+                  Satellite providers, weather services, and farm management platforms
                 </p>
               </div>
             </div>

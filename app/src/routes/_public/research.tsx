@@ -80,9 +80,10 @@ function ResearchPage() {
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-8">
                 <h3 className="text-xl font-semibold text-slate-100 mb-3">
                   Animal Behavior Analytics
+                  <span className="ml-2 text-xs font-normal text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">Roadmap</span>
                 </h3>
                 <p className="text-slate-400 mb-4">
-                  GPS collar data opens new research possibilities in livestock behavior and welfare:
+                  GPS collar integration is on our roadmap and will open new research possibilities in livestock behavior and welfare:
                 </p>
                 <ul className="text-slate-400 space-y-2 text-sm">
                   <li>• Grazing distribution and preference patterns</li>
@@ -124,8 +125,8 @@ function ResearchPage() {
                 <ul className="text-slate-400 space-y-2 text-sm">
                   <li>• Farm-specific time series data</li>
                   <li>• Decision feedback and outcomes</li>
-                  <li>• GPS collar movement data</li>
                   <li>• Economic performance metrics</li>
+                  <li className="text-slate-500">• GPS collar data <span className="text-amber-400/70 text-xs">(planned)</span></li>
                 </ul>
               </div>
             </div>
