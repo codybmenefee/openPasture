@@ -129,6 +129,10 @@ agent-browser screenshot test.png  # Capture screenshot
 
 Note: The app requires authentication. Set `VITE_DEV_AUTH=true` in `.env.local` to bypass Clerk auth during development.
 
+## Style Guidelines
+
+**No emojis.** Never use emojis in code, comments, commit messages, PR descriptions, documentation, or any other output. This is a strict project rule.
+
 ## Design Principles
 
 ### Farmer-Configurable Decision Variables
