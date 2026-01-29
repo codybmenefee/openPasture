@@ -7,6 +7,7 @@ interface ProductShowcaseProps {
   screenshotSrc: string
   screenshotAlt: string
   reverse?: boolean
+  badge?: string
 }
 
 export function ProductShowcase({
@@ -16,6 +17,7 @@ export function ProductShowcase({
   screenshotSrc,
   screenshotAlt,
   reverse = false,
+  badge,
 }: ProductShowcaseProps) {
   return (
     <section className="py-16 md:py-24 bg-[#233038] relative overflow-hidden">
@@ -37,6 +39,11 @@ export function ProductShowcase({
         >
           {/* Text content */}
           <div className={`space-y-6 ${reverse ? 'md:order-2' : 'md:order-1'}`}>
+            {badge && (
+              <span className="inline-block px-2.5 py-1 text-xs font-semibold uppercase tracking-wide bg-[#FF5B04]/20 text-[#FF5B04] rounded-full">
+                {badge}
+              </span>
+            )}
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#FDF6E3] text-balance">
               {title}
             </h2>

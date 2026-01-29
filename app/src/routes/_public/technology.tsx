@@ -162,39 +162,14 @@ function TechnologyPage() {
               </p>
             </div>
 
-            <details className="bg-[#1a2429]/50 border border-[#075056]/20 rounded-lg">
-              <summary className="px-5 py-4 cursor-pointer text-[#FDF6E3] font-semibold hover:text-[#FF5B04] transition-colors">
-                Technical Architecture: How It Actually Works
-              </summary>
-              <div className="px-5 pb-5">
-                <p className="text-[#D3DBDD] mb-4 text-sm">
-                  This is functionally identical to gathering your farm data, dumping it into
-                  ChatGPT, and asking for grazing coordinates you could draw on a map.
-                </p>
-                <p className="text-[#D3DBDD] mb-4 text-sm">
-                  We automated that pipeline:
-                </p>
-                <ol className="text-[#D3DBDD] space-y-2 mb-5 list-decimal list-inside text-sm">
-                  <li><strong className="text-[#FDF6E3]/90">Data Pipeline</strong> → Satellite imagery fetched daily, NDVI calculated, stored</li>
-                  <li><strong className="text-[#FDF6E3]/90">Context Assembly</strong> → Farm state, paddock history, 10x10 NDVI grid, boundaries</li>
-                  <li><strong className="text-[#FDF6E3]/90">Prompt Engineering</strong> → 66-line system prompt encoding grazing philosophy</li>
-                  <li><strong className="text-[#FDF6E3]/90">Tool Use</strong> → LLM outputs structured GeoJSON polygon + justification</li>
-                  <li><strong className="text-[#FDF6E3]/90">Validation</strong> → Coordinates clipped to paddock, overlap checked, NDVI verified</li>
-                </ol>
-                <p className="text-[#D3DBDD] mb-3 text-sm">
-                  The prompt doesn't hard-code decision rules. It explains principles:
-                </p>
-                <ul className="text-[#D3DBDD]/80 text-xs space-y-1 mb-4 font-mono bg-[#233038]/50 rounded-lg p-4 border border-[#075056]/10">
-                  <li>"Higher NDVI (0.60-0.80+) = healthy vegetation, target these areas"</li>
-                  <li>"Draw adjacent to yesterday's section for efficient movement"</li>
-                  <li>"If current paddock NDVI drops below threshold, recommend moving"</li>
-                </ul>
-                <p className="text-[#D3DBDD] text-sm">
-                  The LLM applies these principles to the specific data. Different farm, different
-                  day, same reasoning framework.
-                </p>
-              </div>
-            </details>
+            <div className="text-center mt-6">
+              <Link
+                to="/docs"
+                className="inline-flex items-center gap-2 text-sm text-[#075056] hover:text-[#FF5B04] transition-colors"
+              >
+                Read the full technical architecture in our docs →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -290,31 +265,14 @@ function TechnologyPage() {
               </p>
             </div>
 
-            <details className="bg-[#1a2429]/50 border border-[#075056]/20 rounded-lg">
-              <summary className="px-5 py-4 cursor-pointer text-[#FDF6E3] font-semibold hover:text-[#F4D47C] transition-colors">
-                Technical Detail: How This Becomes Training Data
-              </summary>
-              <div className="px-5 pb-5">
-                <p className="text-[#D3DBDD] mb-4 text-sm">
-                  Each modification creates a supervised fine-tuning example:
-                </p>
-                <ol className="text-[#D3DBDD] space-y-2 mb-4 list-decimal list-inside text-sm">
-                  <li>
-                    <strong className="text-[#FDF6E3]/90">Input:</strong> Farm state snapshot (NDVI grid, grazing history, weather)
-                  </li>
-                  <li>
-                    <strong className="text-[#FDF6E3]/90">Ground Truth:</strong> The farmer's modified polygon coordinates
-                  </li>
-                  <li>
-                    <strong className="text-[#FDF6E3]/90">Training Signal:</strong> Model was wrong → adjust weights to match farmer
-                  </li>
-                </ol>
-                <p className="text-[#D3DBDD] text-sm">
-                  With enough examples, we can fine-tune base models to specialize in
-                  agricultural reasoning while preserving their general capabilities.
-                </p>
-              </div>
-            </details>
+            <div className="text-center mt-6">
+              <Link
+                to="/docs"
+                className="inline-flex items-center gap-2 text-sm text-[#075056] hover:text-[#FF5B04] transition-colors"
+              >
+                Learn more about our training data approach in the docs →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -436,42 +394,100 @@ function TechnologyPage() {
         </div>
       </section>
 
-      {/* Open Data Philosophy */}
+      {/* The Data Advantage */}
       <section className="py-16 md:py-24 bg-[#1a2429]">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">The Data Advantage</h2>
+            <p className="text-lg text-[#D3DBDD] mb-8">
+              Why this compounds over time.
+            </p>
+
+            <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-6 md:p-8 mb-6">
+              <div className="mb-4 pb-4 border-b border-[#075056]/20">
+                <span className="inline-block px-2.5 py-1 text-xs font-semibold uppercase tracking-wide bg-[#FF5B04]/20 text-[#FF5B04] rounded-full">
+                  Beta Users Drive This
+                </span>
+              </div>
+
+              <p className="text-[#FF5B04] font-semibold text-lg mb-4">
+                Beta users are creating the training data that makes this work.
+              </p>
+
+              <p className="text-[#D3DBDD] mb-4">
+                When a farmer modifies our suggestion, they're creating the answer key: here's
+                the farm state, and here's what an experienced farmer actually chose. No academic
+                dataset captures this. No competitor has thousands of these decisions paired with
+                satellite observations.
+              </p>
+
+              <p className="text-[#D3DBDD] mb-4">
+                Every correction improves recommendations for all farmers. This creates a flywheel:
+                more farmers → more corrections → better recommendations → more farmers. Over time,
+                the model learns to think like experienced farmers—mimicking their patterns,
+                respecting local knowledge, adapting to conditions satellites can't see.
+              </p>
+
+              <p className="text-[#075056] font-medium">
+                The data advantage is insurmountable once it's established. And we're building it first.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Built Open */}
+      <section className="py-16 md:py-24 bg-[#233038]">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <Globe className="h-10 w-10 text-[#075056] mx-auto mb-5" />
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">Open Data Philosophy</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[#FDF6E3]">Built Open</h2>
             <p className="text-lg text-[#D3DBDD] mb-10 max-w-2xl mx-auto">
-              We believe in building on open foundations. No proprietary data lock-in.
+              We believe farmers should own their tools. No proprietary lock-in. No dealer-only repairs.
             </p>
 
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+                <h3 className="font-semibold text-[#FDF6E3] mb-2">Open Source Software</h3>
+                <p className="text-sm text-[#D3DBDD]">
+                  Our code is public. Inspect it, fork it, contribute to it.
+                </p>
+              </div>
+
+              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
                 <h3 className="font-semibold text-[#FDF6E3] mb-2">Open Satellite Data</h3>
                 <p className="text-sm text-[#D3DBDD]">
-                  Free tier powered by ESA's Copernicus program—no vendor lock-in
+                  Free tier powered by ESA Copernicus—no vendor lock-in.
                 </p>
               </div>
 
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
-                <h3 className="font-semibold text-[#FDF6E3] mb-2">Commercial Providers</h3>
+              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
+                <h3 className="font-semibold text-[#FDF6E3] mb-2">Open Hardware Specs</h3>
                 <p className="text-sm text-[#D3DBDD]">
-                  Premium tiers unlock higher resolution and faster revisit times
+                  Right to repair. Build, modify, and fix your own equipment.
                 </p>
               </div>
 
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+              <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5">
                 <h3 className="font-semibold text-[#FDF6E3] mb-2">Your Data</h3>
                 <p className="text-sm text-[#D3DBDD]">
-                  Export everything. We don't lock you in.
+                  Export everything. Your farm data belongs to you.
                 </p>
               </div>
             </div>
 
             <div className="mt-10 pt-6 border-t border-[#075056]/30">
               <p className="text-sm text-[#D3DBDD]/70">
-                Free tier data:{' '}
+                Licensed under{' '}
+                <a
+                  href="https://www.apache.org/licenses/LICENSE-2.0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#075056] hover:text-[#FF5B04] hover:underline transition-colors"
+                >
+                  Apache License 2.0
+                </a>
+                {' · Free tier data from '}
                 <a
                   href="https://planetarycomputer.microsoft.com"
                   target="_blank"
@@ -480,7 +496,7 @@ function TechnologyPage() {
                 >
                   Microsoft Planetary Computer
                 </a>
-                {' • '}
+                {' & '}
                 <a
                   href="https://sentinels.copernicus.eu"
                   target="_blank"

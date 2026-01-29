@@ -14,16 +14,15 @@ export function HeroSection() {
       <div className="container mx-auto px-4 pt-8 pb-12 relative z-10">
         <div className="max-w-3xl mx-auto text-center space-y-4">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-[#FDF6E3] text-balance">
-            Pastured Livestock Can Compete.
+            Run More Cattle on the Same Land.
             <br />
             <span className="bg-gradient-to-r from-[#075056] to-[#FF5B04] bg-clip-text text-transparent">
-              We're Building the Platform to Prove It.
+              Let the Grass Tell You When It's Ready.
             </span>
           </h1>
 
           <p className="text-base md:text-lg text-[#D3DBDD] max-w-xl mx-auto leading-relaxed text-balance">
-            OpenPasture automates livestock movement decisions using satellite data and AI.
-            Better margins. Healthier land. Less manual coordination.
+            Satellite data shows what's happening across your operation. AI tells you where to graze today. You make the call.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
@@ -31,7 +30,7 @@ export function HeroSection() {
               to="/onboarding"
               className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md bg-[#075056] hover:bg-[#FF5B04] text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
-              Get Started Free
+              Join the Waitlist
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </Link>
 
@@ -45,7 +44,7 @@ export function HeroSection() {
           </div>
 
           <p className="text-xs text-[#D3DBDD]/70">
-            No credit card required · Free to start · Cancel anytime
+            Free during beta · Limited spots · Join the waitlist
           </p>
         </div>
 

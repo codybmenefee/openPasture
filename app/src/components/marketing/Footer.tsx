@@ -44,16 +44,16 @@ export function Footer() {
             </ul>
           </nav>
 
-          {/* For Stakeholders */}
-          <nav aria-label="Stakeholders">
-            <h3 className="font-semibold mb-2 text-[#FDF6E3] text-sm">For Stakeholders</h3>
+          {/* Learn More */}
+          <nav aria-label="Learn More">
+            <h3 className="font-semibold mb-2 text-[#FDF6E3] text-sm">Learn More</h3>
             <ul className="space-y-1 text-xs text-[#D3DBDD]">
               <li>
                 <Link
                   to="/investors"
                   className={`hover:text-[#FDF6E3] transition-colors ${focusRing}`}
                 >
-                  For Investors
+                  The Thesis
                 </Link>
               </li>
               <li>
@@ -73,7 +73,7 @@ export function Footer() {
             <ul className="space-y-1 text-xs text-[#D3DBDD]">
               <li>
                 <a
-                  href="https://github.com"
+                  href="https://github.com/codybmenefee/pan"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`hover:text-[#FDF6E3] transition-colors ${focusRing}`}
@@ -83,7 +83,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://github.com"
+                  href="https://github.com/codybmenefee/pan"
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`hover:text-[#FDF6E3] transition-colors ${focusRing}`}

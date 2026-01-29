@@ -4,8 +4,12 @@ import {
   HeroSection,
   ProductShowcase,
   HowItWorks,
+  VisionRoadmap,
+  OpenPhilosophy,
+  VirtualFencingDifferentiator,
   CTASection,
   Footer,
+  BetaValueProp,
 } from '@/components/marketing'
 
 function MarketingPage() {
@@ -13,6 +17,7 @@ function MarketingPage() {
     <div className="min-h-screen flex flex-col bg-[#233038] text-[#FDF6E3]">
       <MarketingHeader />
       <HeroSection />
+      <BetaValueProp />
 
       {/* Product Showcase: Daily Brief */}
       <ProductShowcase
@@ -25,6 +30,7 @@ function MarketingPage() {
         ]}
         screenshotSrc="/marketing/daily-brief.png"
         screenshotAlt="Daily Brief panel showing AI-recommended paddock with confidence score and reasoning"
+        badge="Available now"
       />
 
       {/* Product Showcase: Satellite Intelligence */}
@@ -39,6 +45,7 @@ function MarketingPage() {
         screenshotSrc="/marketing/ndvi-map.png"
         screenshotAlt="Map showing NDVI vegetation health overlay with paddock sections highlighted"
         reverse
+        badge="Available now"
       />
 
       {/* Product Showcase: Analytics Dashboard */}
@@ -52,9 +59,13 @@ function MarketingPage() {
         ]}
         screenshotSrc="/marketing/paddock-status.png"
         screenshotAlt="Analytics dashboard showing paddock metrics and recovery tracking"
+        badge="Available now"
       />
 
       <HowItWorks />
+      <VirtualFencingDifferentiator />
+      <VisionRoadmap />
+      <OpenPhilosophy />
       <CTASection />
       <Footer />
     </div>

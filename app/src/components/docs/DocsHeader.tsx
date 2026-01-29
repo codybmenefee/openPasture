@@ -55,7 +55,7 @@ export function DocsHeader({ onMenuClick }: DocsHeaderProps) {
           </Button>
 
           <a
-            href="https://github.com"
+            href="https://github.com/codybmenefee/pan"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center rounded-md p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"

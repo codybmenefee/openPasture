@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, ArrowRight, Factory, Leaf } from 'lucide-react'
+import { ArrowLeft, Factory, Leaf, TrendingUp, Users, Globe, RefreshCw, Lock } from 'lucide-react'
 import { MarketingHeader, Footer } from '@/components/marketing'
 import {
   DecisionScaleDiagram,
@@ -25,17 +25,20 @@ function InvestorsPage() {
           </Link>
 
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-4">
-            Pasture Farming Works.
-            <br />
-            <span className="text-[#D3DBDD]">It Just Couldn't Scale.</span>
+            The Thesis
           </h1>
+
+          <p className="text-xl md:text-2xl font-light text-[#D3DBDD] mb-4">
+            Pasture farming works. It just couldn't scale.
+          </p>
 
           <p className="text-xl md:text-2xl font-light text-[#FF5B04] mb-6">
             Until now.
           </p>
 
           <p className="text-sm text-[#D3DBDD] max-w-xl mx-auto">
-            A thesis-driven look at how AI-powered decision support unlocks the economic potential of regenerative grazing.
+            How AI-automated decision-making unlocks industrial-scale output from regenerative methods—
+            and why this is the inflection point for sustainable livestock.
           </p>
         </div>
       </section>
@@ -125,41 +128,17 @@ function InvestorsPage() {
               </p>
             </div>
 
-            <details className="bg-[#1a2429]/30 border border-[#075056]/20 rounded-lg">
-              <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors">
-                Why Frontier Models Matter
-              </summary>
-              <div className="px-4 pb-4 pt-1">
-                <p className="text-xs text-[#D3DBDD]/80 mb-3">
-                  Earlier language models could understand text but struggled with:
-                </p>
-                <ul className="text-xs text-[#D3DBDD]/80 space-y-1.5 mb-3">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#075056]">•</span>
-                    <span><strong className="text-[#D3DBDD]">Spatial reasoning</strong> — drawing polygons from coordinate data</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#075056]">•</span>
-                    <span><strong className="text-[#D3DBDD]">Multi-factor decisions</strong> — weighing NDVI vs. rest days vs. weather</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#075056]">•</span>
-                    <span><strong className="text-[#D3DBDD]">Structured output</strong> — returning valid GeoJSON consistently</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#075056]">•</span>
-                    <span><strong className="text-[#D3DBDD]">Complex instructions</strong> — following 66-line system prompts</span>
-                  </li>
-                </ul>
-                <p className="text-xs text-[#FDF6E3]/90">
-                  Models like Claude and GPT-4 handle these reliably. The jump from
-                  "sometimes works" to "works consistently" is the difference between a demo and a product.
-                </p>
-              </div>
-            </details>
-
             <div className="mt-6">
               <TechnologyConvergence />
+            </div>
+
+            <div className="mt-4 text-center">
+              <Link
+                to="/technology"
+                className="text-sm text-[#075056] hover:text-[#FF5B04] transition-colors"
+              >
+                Deep dive: How LLMs became agricultural reasoning engines →
+              </Link>
             </div>
           </div>
         </div>
@@ -227,47 +206,214 @@ function InvestorsPage() {
         </div>
       </section>
 
-      {/* Section 6: The Ask */}
-      <section className="py-10 bg-gradient-to-b from-[#1a2429] to-[#075056]/20">
+      {/* Section 6: The Market */}
+      <section className="py-10 bg-[#1a2429]">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[#FDF6E3]">
-              Partnership Opportunities
-            </h2>
-            <p className="text-sm text-[#D3DBDD] mb-6">
-              We're building this in partnership with aligned stakeholders.
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center gap-3 mb-4 justify-center">
+              <TrendingUp className="h-5 w-5 text-[#FF5B04]" />
+              <h2 className="text-2xl md:text-3xl font-bold text-[#FDF6E3]">
+                The Market Opportunity
+              </h2>
+            </div>
+            <p className="text-sm text-[#D3DBDD] text-center mb-6">
+              Regenerative grazing is growing. The tools to scale it are not.
             </p>
 
-            <div className="grid md:grid-cols-3 gap-3 mb-6">
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-[#FF5B04] mb-1">Capital Partners</h3>
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-[#FF5B04] mb-1">654M</div>
                 <p className="text-xs text-[#D3DBDD]">
-                  Scale deployments and expand to new regions
+                  Acres of US grazing land
                 </p>
               </div>
-
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-[#FF5B04] mb-1">Research Collaborators</h3>
+              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-[#FF5B04] mb-1">~880K</div>
                 <p className="text-xs text-[#D3DBDD]">
-                  Validate productivity gains with rigorous measurement
+                  Beef cattle operations in the US
                 </p>
               </div>
-
-              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-[#FF5B04] mb-1">Integration Partners</h3>
+              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-[#FF5B04] mb-1">$9.4B</div>
                 <p className="text-xs text-[#D3DBDD]">
-                  Satellite providers, weather services, and farm management platforms
+                  Global precision livestock market by 2027
                 </p>
               </div>
             </div>
 
-            <Link
-              to="/marketing"
-              className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md bg-[#075056] hover:bg-[#FF5B04] text-[#FDF6E3] font-medium transition-colors"
-            >
-              Get in Touch
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+            <div className="bg-[#233038]/50 border border-[#075056]/20 rounded-lg p-5">
+              <p className="text-sm text-[#D3DBDD] mb-3">
+                The shift toward regenerative practices is accelerating—driven by consumer demand,
+                carbon credit markets, and recognition that industrial methods have hidden costs.
+                But adoption is bottlenecked by the complexity of managing adaptive systems.
+              </p>
+              <p className="text-sm text-[#FF5B04] font-medium mb-3">
+                We remove that bottleneck.
+              </p>
+              <div className="pt-3 border-t border-[#075056]/20">
+                <p className="text-xs text-[#D3DBDD]/80">
+                  <span className="text-[#075056] font-semibold">Currently in beta</span> with early adopter farmers—building the training data flywheel now.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 7: The Platform Vision */}
+      <section className="py-10 bg-[#233038]">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center gap-3 mb-4 justify-center">
+              <Globe className="h-5 w-5 text-[#075056]" />
+              <h2 className="text-2xl md:text-3xl font-bold text-[#FDF6E3]">
+                The Platform Vision
+              </h2>
+            </div>
+            <p className="text-sm text-[#D3DBDD] text-center mb-6">
+              Not just software. An integrated stack for regenerative livestock at scale.
+            </p>
+
+            <div className="bg-[#1a2429] border border-[#075056]/30 rounded-lg p-5 mb-4">
+              <p className="text-sm text-[#FDF6E3] font-medium mb-4">
+                We're building what John Deere built for industrial farming—but for rotational grazing.
+              </p>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <div className="text-xs font-semibold text-[#075056] uppercase tracking-wide mb-2">Software</div>
+                  <p className="text-xs text-[#D3DBDD]">
+                    Decision intelligence, analytics, and automation platform
+                  </p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-[#075056] uppercase tracking-wide mb-2">Sensors</div>
+                  <p className="text-xs text-[#D3DBDD]">
+                    Integration with satellite, collar, soil, and forage measurement systems
+                  </p>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-[#075056] uppercase tracking-wide mb-2">Open Specs</div>
+                  <p className="text-xs text-[#D3DBDD]">
+                    Hardware specifications you can build, repair, and modify yourself
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <p className="text-sm text-[#D3DBDD]">
+                Open source software. Open hardware specs. Farmer-owned data.
+              </p>
+              <p className="text-xs text-[#D3DBDD]/70 mt-2">
+                The opposite of vendor lock-in. The foundation for an ecosystem.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 8: The Moat */}
+      <section className="py-10 bg-[#1a2429]">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center gap-3 mb-4 justify-center">
+              <Lock className="h-5 w-5 text-[#F4D47C]" />
+              <h2 className="text-2xl md:text-3xl font-bold text-[#FDF6E3]">
+                The Moat
+              </h2>
+            </div>
+            <p className="text-sm text-[#D3DBDD] text-center mb-6">
+              Why this compounds over time.
+            </p>
+
+            <div className="space-y-4">
+              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+                <div className="flex items-start gap-3">
+                  <RefreshCw className="h-5 w-5 text-[#F4D47C] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#FDF6E3] mb-2">The Data Flywheel</h3>
+                    <p className="text-xs text-[#D3DBDD] mb-2">
+                      Every farmer interaction creates training data that doesn't exist anywhere else.
+                      No academic dataset captures daily grazing decisions at scale. No competitor
+                      has thousands of farmer corrections paired with satellite observations.
+                    </p>
+                    <p className="text-xs text-[#FF5B04] font-medium">
+                      We're building it. One decision at a time. Across thousands of farms.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#233038] border border-[#075056]/30 rounded-lg p-5">
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-[#075056] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#FDF6E3] mb-2">Community Trust Through Openness</h3>
+                    <p className="text-xs text-[#D3DBDD] mb-2">
+                      Farmers have been burned by proprietary systems and data lock-in.
+                      Our open source approach builds trust that translates to adoption and retention.
+                    </p>
+                    <p className="text-xs text-[#D3DBDD]">
+                      The more farmers on the platform, the better the recommendations for everyone.
+                      Network effects through shared learning.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 9: Get Involved */}
+      <section className="py-10 bg-gradient-to-b from-[#233038] to-[#075056]/20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-2 text-[#FDF6E3]">
+              Learn More
+            </h2>
+            <p className="text-sm text-[#D3DBDD] mb-6">
+              Explore the technology, see it in action, or reach out directly.
+            </p>
+
+            <div className="grid md:grid-cols-3 gap-3 mb-6">
+              <Link
+                to="/technology"
+                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 hover:border-[#075056] transition-colors block"
+              >
+                <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Technology Deep Dive</h3>
+                <p className="text-xs text-[#D3DBDD]">
+                  How the system works
+                </p>
+              </Link>
+
+              <Link
+                to="/research"
+                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 hover:border-[#075056] transition-colors block"
+              >
+                <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Research Partnerships</h3>
+                <p className="text-xs text-[#D3DBDD]">
+                  Validate outcomes with us
+                </p>
+              </Link>
+
+              <Link
+                to="/onboarding"
+                className="bg-[#233038] border border-[#075056]/30 rounded-lg p-4 hover:border-[#075056] transition-colors block"
+              >
+                <h3 className="text-sm font-semibold text-[#FDF6E3] mb-1">Try It Free</h3>
+                <p className="text-xs text-[#D3DBDD]">
+                  See it working today
+                </p>
+              </Link>
+            </div>
+
+            <p className="text-xs text-[#D3DBDD]/70">
+              For partnership inquiries:{' '}
+              <a href="mailto:hello@openpasture.io" className="text-[#075056] hover:text-[#FF5B04] transition-colors">
+                hello@openpasture.io
+              </a>
+            </p>
           </div>
         </div>
       </section>

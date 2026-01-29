@@ -11,6 +11,7 @@ export function MarketingHeader() {
             className="flex items-center space-x-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
           >
             <span className="text-lg font-bold text-[#FDF6E3]">OpenPasture</span>
+            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-[#FF5B04] text-[#FDF6E3] rounded">Beta</span>
           </Link>
 
           <nav className="flex items-center gap-4" aria-label="Main navigation">
@@ -30,7 +31,7 @@ export function MarketingHeader() {
               to="/investors"
               className="text-xs text-[#D3DBDD] hover:text-[#FDF6E3] transition-colors hidden md:inline-block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#233038]"
             >
-              For Investors
+              The Thesis
             </Link>
             <Link
               to="/technology"
