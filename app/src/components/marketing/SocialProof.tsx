@@ -6,7 +6,7 @@ const testimonials = [
   },
   {
     quote: "Finally, data that actually helps me make decisions instead of just more numbers to look at.",
-    author: "Texas beef producer",
+    author: "Texas rancher",
     detail: "Multi-paddock rotational grazing",
   },
   {

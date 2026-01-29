@@ -58,7 +58,7 @@ function InvestorsPage() {
 
             <div className="mt-6 text-center">
               <p className="text-sm text-[#FDF6E3]/90">
-                The limiting factor isn't land, cattle, or biology.
+                The limiting factor isn't land, livestock, or biology.
               </p>
               <p className="text-base text-[#FF5B04] font-semibold mt-1">
                 It's human bandwidth for decisions.
@@ -230,7 +230,7 @@ function InvestorsPage() {
               <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 text-center">
                 <div className="text-2xl font-bold text-[#FF5B04] mb-1">~880K</div>
                 <p className="text-xs text-[#D3DBDD]">
-                  Beef cattle operations in the US
+                  Grazing livestock operations in the US
                 </p>
               </div>
               <div className="bg-[#1a2429]/80 backdrop-blur-sm border border-[#075056]/40 rounded-lg shadow-lg shadow-black/20 p-4 text-center">

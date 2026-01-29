@@ -14,7 +14,7 @@ export function HeroSection() {
       <div className="container mx-auto px-4 pt-8 pb-16 relative z-10">
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-[#FDF6E3] text-balance">
-            Run More Cattle on the Same Land.
+            Graze More on the Same Land.
             <br />
             <span className="bg-gradient-to-r from-[#075056] to-[#FF5B04] bg-clip-text text-transparent">
               Let the Grass Tell You When It's Ready.

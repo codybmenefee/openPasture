@@ -13,7 +13,7 @@ export function VirtualFencingDifferentiator() {
               Already Using Virtual Fencing?
             </h2>
             <p className="text-base text-[#D3DBDD] max-w-2xl mx-auto">
-              Virtual fences are great at keeping cattle where you want them.
+              Virtual fences are great at keeping livestock where you want them.
               But they can't tell you where that should be.
             </p>
           </div>
@@ -30,7 +30,7 @@ export function VirtualFencingDifferentiator() {
                   <div>
                     <span className="text-[#FDF6E3] font-medium">WHERE</span>
                     <p className="text-sm text-[#D3DBDD]">
-                      Draw a boundary. Cattle stay inside.
+                      Draw a boundary. Animals stay inside.
                     </p>
                   </div>
                 </div>
