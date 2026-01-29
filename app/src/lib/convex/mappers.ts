@@ -42,6 +42,7 @@ export interface FarmSettingsDoc {
   minNDVIThreshold: number
   minRestPeriod: number
   cloudCoverTolerance: number
+  rotationFrequency?: number
   dailyBriefTime: string
   emailNotifications: boolean
   pushNotifications: boolean
@@ -81,6 +82,7 @@ export function mapFarmSettingsDoc(doc: FarmSettingsDoc): FarmSettings {
     minNDVIThreshold: doc.minNDVIThreshold,
     minRestPeriod: doc.minRestPeriod,
     cloudCoverTolerance: doc.cloudCoverTolerance,
+    rotationFrequency: doc.rotationFrequency ?? 1,
     dailyBriefTime: doc.dailyBriefTime,
     emailNotifications: doc.emailNotifications,
     pushNotifications: doc.pushNotifications,

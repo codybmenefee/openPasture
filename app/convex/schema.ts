@@ -114,6 +114,7 @@ export default defineSchema({
     minNDVIThreshold: v.number(),
     minRestPeriod: v.number(),
     cloudCoverTolerance: v.number(),
+    rotationFrequency: v.optional(v.number()),
     dailyBriefTime: v.string(),
     emailNotifications: v.boolean(),
     pushNotifications: v.boolean(),

@@ -12,6 +12,7 @@ export const defaultFarmSettings = {
   minNDVIThreshold: 0.4,
   minRestPeriod: 21,
   cloudCoverTolerance: 50,
+  rotationFrequency: 1,
   dailyBriefTime: '06:00',
   emailNotifications: true,
   pushNotifications: false,
