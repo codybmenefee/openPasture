@@ -100,6 +100,16 @@ This catches TypeScript errors that Vite's dev server ignores but will fail the 
 - Adding new prop values without updating type definitions
 - Using `process.env` in shared libs without type declarations
 
+## Post-Push Deployment Verification
+
+**After pushing commits to the `main` branch, ALWAYS verify successful deployment using the Railway skill:**
+
+```
+/railway-deployment
+```
+
+This checks deployment status, logs, and catches any build or runtime errors that may occur on Railway. Don't assume a push succeeded—verify it deployed correctly.
+
 ## Generated Files (Do Not Edit)
 
 - `convex/_generated/` - Convex API client
