@@ -1,4 +1,4 @@
-import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, History, RefreshCw, CalendarDays } from 'lucide-react'
+import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, History, RefreshCw, CalendarDays, Rewind, Grid2X2, Eraser } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
@@ -26,6 +26,9 @@ export function DevToolsDropdown() {
   const setupTutorialDemo = useMutation(api.farms.setupTutorialDemo)
   const backdatePaddocks = useMutation(api.intelligence.backdatePaddocks)
   const regenerateDemoHistory = useMutation(api.demo.regenerateDemoHistory)
+  const shiftPlanDatesBack = useMutation(api.intelligence.shiftPlanDatesBack)
+  const deleteForecast = useMutation(api.grazingAgentTools.deleteForecast)
+  const resetAllPaddockGrazingData = useMutation(api.intelligence.resetAllPaddockGrazingData)
 
   // Only render in dev mode
   if (!isDevAuth) return null
@@ -153,6 +156,52 @@ export function DevToolsDropdown() {
     }
   }
 
+  const handleShiftPlanDatesBack = async () => {
+    try {
+      const result = await shiftPlanDatesBack({ farmExternalId: activeFarmId ?? undefined })
+      toast.success(`Shifted ${result.plansUpdated} plan(s) back by one day`)
+    } catch (error) {
+      toast.error('Failed to shift plan dates')
+      console.error('Shift plan dates error:', error)
+    }
+  }
+
+  const handleDeleteAllForecasts = async () => {
+    if (!activeFarmId) {
+      toast.error('No active farm')
+      return
+    }
+    try {
+      // Delete forecasts for common paddocks (p1-p8)
+      const paddocks = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']
+      let deleted = 0
+      for (const paddockId of paddocks) {
+        const result = await deleteForecast({ farmExternalId: activeFarmId, paddockExternalId: paddockId })
+        if (result.deleted) deleted++
+      }
+      toast.success(`Deleted ${deleted} forecast(s). New briefs will regenerate with grid sections.`)
+    } catch (error) {
+      toast.error('Failed to delete forecasts')
+      console.error('Delete forecasts error:', error)
+    }
+  }
+
+  const handleResetAllGrazingData = async () => {
+    if (!activeFarmId) {
+      toast.error('No active farm')
+      return
+    }
+    try {
+      const result = await resetAllPaddockGrazingData({ farmExternalId: activeFarmId })
+      const total = result.paddockForecasts + result.sectionGrazingEvents + result.paddockRotations +
+                    result.dailyPlans + result.dailyBriefs + result.plans + result.grazingEvents
+      toast.success(`Reset complete: ${total} records deleted`)
+    } catch (error) {
+      toast.error('Failed to reset grazing data')
+      console.error('Reset grazing data error:', error)
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -181,6 +230,10 @@ export function DevToolsDropdown() {
           <History className="h-3.5 w-3.5 mr-2" />
           Backdate Paddocks (-1 day)
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleShiftPlanDatesBack}>
+          <Rewind className="h-3.5 w-3.5 mr-2" />
+          Shift Plans Back 1 Day
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleRegenerateDemoHistory}>
           <RefreshCw className="h-3.5 w-3.5 mr-2" />
@@ -194,6 +247,14 @@ export function DevToolsDropdown() {
         <DropdownMenuItem onClick={handleClearGrazingEvents}>
           <Trash2 className="h-3.5 w-3.5 mr-2" />
           Clear Grazing Events
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleDeleteAllForecasts}>
+          <Grid2X2 className="h-3.5 w-3.5 mr-2" />
+          Reset Forecasts (Grid)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleResetAllGrazingData}>
+          <Eraser className="h-3.5 w-3.5 mr-2" />
+          Reset All Grazing Data
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleClearLocalStorage}>
           <Database className="h-3.5 w-3.5 mr-2" />
