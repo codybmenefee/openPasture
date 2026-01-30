@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, History, RefreshCw, CalendarDays, Rewind, Grid2X2, Eraser } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
@@ -13,12 +14,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 export function DevToolsDropdown() {
   const { isDevAuth } = useAppAuth()
   const { activeFarmId } = useFarmContext()
   const navigate = useNavigate()
   const { startTutorial, resetTutorial } = useTutorial()
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
   const clearGrazingEvents = useMutation(api.intelligence.clearGrazingEvents)
@@ -47,7 +58,7 @@ export function DevToolsDropdown() {
     try {
       await deleteTodayPlan({ farmExternalId: activeFarmId ?? undefined })
       toast.success("Today's plan deleted")
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to delete plan')
     }
   }
@@ -56,7 +67,7 @@ export function DevToolsDropdown() {
     try {
       await clearGrazingEvents({ farmExternalId: activeFarmId ?? undefined })
       toast.success('Grazing events cleared')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to clear grazing events')
     }
   }
@@ -74,7 +85,7 @@ export function DevToolsDropdown() {
     try {
       await resetSettings({ farmId: activeFarmId })
       toast.success('Settings reset to defaults')
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to reset settings')
     }
   }
@@ -196,6 +207,7 @@ export function DevToolsDropdown() {
       const total = result.paddockForecasts + result.sectionGrazingEvents + result.paddockRotations +
                     result.dailyPlans + result.dailyBriefs + result.plans + result.grazingEvents
       toast.success(`Reset complete: ${total} records deleted`)
+      setShowResetConfirm(false)
     } catch (error) {
       toast.error('Failed to reset grazing data')
       console.error('Reset grazing data error:', error)
@@ -203,69 +215,100 @@ export function DevToolsDropdown() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Dev Tools">
-          <Wrench className="h-3 w-3" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={handleSetupTutorialDemo}>
-          <Camera className="h-3.5 w-3.5 mr-2" />
-          Setup Tutorial Demo
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleViewTutorial}>
-          <GraduationCap className="h-3.5 w-3.5 mr-2" />
-          View Tutorial
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleResetOnboarding}>
-          <RotateCcw className="h-3.5 w-3.5 mr-2" />
-          Reset Onboarding
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDeleteTodayPlan}>
-          <Calendar className="h-3.5 w-3.5 mr-2" />
-          Delete Today's Plan
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleBackdatePaddocks}>
-          <History className="h-3.5 w-3.5 mr-2" />
-          Backdate Paddocks (-1 day)
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleShiftPlanDatesBack}>
-          <Rewind className="h-3.5 w-3.5 mr-2" />
-          Shift Plans Back 1 Day
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleRegenerateDemoHistory}>
-          <RefreshCw className="h-3.5 w-3.5 mr-2" />
-          Regenerate Demo History
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSetDemoDate}>
-          <CalendarDays className="h-3.5 w-3.5 mr-2" />
-          Set Demo Date...
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleClearGrazingEvents}>
-          <Trash2 className="h-3.5 w-3.5 mr-2" />
-          Clear Grazing Events
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDeleteAllForecasts}>
-          <Grid2X2 className="h-3.5 w-3.5 mr-2" />
-          Reset Forecasts (Grid)
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleResetAllGrazingData}>
-          <Eraser className="h-3.5 w-3.5 mr-2" />
-          Reset All Grazing Data
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleClearLocalStorage}>
-          <Database className="h-3.5 w-3.5 mr-2" />
-          Clear localStorage
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleResetSettings}>
-          <Settings className="h-3.5 w-3.5 mr-2" />
-          Reset Settings
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Dev Tools">
+            <Wrench className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onClick={handleSetupTutorialDemo}>
+            <Camera className="h-3.5 w-3.5 mr-2" />
+            Setup Tutorial Demo
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleViewTutorial}>
+            <GraduationCap className="h-3.5 w-3.5 mr-2" />
+            View Tutorial
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleResetOnboarding}>
+            <RotateCcw className="h-3.5 w-3.5 mr-2" />
+            Reset Onboarding
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDeleteTodayPlan}>
+            <Calendar className="h-3.5 w-3.5 mr-2" />
+            Delete Today's Plan
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleBackdatePaddocks}>
+            <History className="h-3.5 w-3.5 mr-2" />
+            Backdate Paddocks (-1 day)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleShiftPlanDatesBack}>
+            <Rewind className="h-3.5 w-3.5 mr-2" />
+            Shift Plans Back 1 Day
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleRegenerateDemoHistory}>
+            <RefreshCw className="h-3.5 w-3.5 mr-2" />
+            Regenerate Demo History
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSetDemoDate}>
+            <CalendarDays className="h-3.5 w-3.5 mr-2" />
+            Set Demo Date...
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleClearGrazingEvents}>
+            <Trash2 className="h-3.5 w-3.5 mr-2" />
+            Clear Grazing Events
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDeleteAllForecasts}>
+            <Grid2X2 className="h-3.5 w-3.5 mr-2" />
+            Reset Forecasts (Grid)
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowResetConfirm(true)}>
+            <Eraser className="h-3.5 w-3.5 mr-2" />
+            Reset All Grazing Data
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleClearLocalStorage}>
+            <Database className="h-3.5 w-3.5 mr-2" />
+            Clear localStorage
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleResetSettings}>
+            <Settings className="h-3.5 w-3.5 mr-2" />
+            Reset Settings
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset All Grazing Data?</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3">
+                <p>This will permanently delete:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>All grazing forecasts and sections</li>
+                  <li>All daily plans and briefs</li>
+                  <li>All grazing events and history</li>
+                </ul>
+                <p className="font-medium text-foreground">
+                  Your paddocks and satellite observations will NOT be affected.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetConfirm(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleResetAllGrazingData}>
+              Reset All Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

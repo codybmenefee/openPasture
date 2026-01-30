@@ -1,17 +1,15 @@
 /**
- * LEGACY/INTERNAL: Direct agent implementation
- * 
- * This file contains the core agent logic but should NOT be called directly from external code.
- * All agent invocations should route through grazingAgentGateway.agentGateway.
- * 
- * This file is kept as legacy/internal implementation that the gateway uses.
- * If you need to call the agent, use: api.grazingAgentGateway.agentGateway
- * 
- * @deprecated Direct usage - use agentGateway instead
- * 
+ * Grazing Agent - Autonomous Section Drawing
+ *
+ * This agent draws grazing sections like a farmer would - using spatial reasoning
+ * rather than algorithmic grid generation.
+ *
+ * Two modes:
+ * 1. Forecast Mode: Agent draws all sections for a paddock rotation
+ * 2. Daily Mode: Agent recommends today's section (from forecast or freshly drawn)
+ *
  * NOTE: This file uses Braintrust which requires Node.js APIs.
  * It's imported by an action with "use node", so it runs in Node.js context.
- * We don't add "use node" here because this file doesn't define actions.
  */
 
 import { anthropic } from "@ai-sdk/anthropic"
@@ -23,348 +21,452 @@ import { z } from "zod"
 import { sanitizeForBraintrust } from "../lib/braintrustSanitize"
 import { logLLMCall, logToolCall } from "../lib/braintrust"
 import { createLogger } from "./lib/logger"
+import {
+  generatePaddockVisualization,
+  type GrazedSection,
+} from "./lib/paddockVisualization"
+import {
+  generateGrazingPrinciplesPrompt,
+  type GrazingPrinciples,
+} from "./lib/grazingPrinciples"
+import type { Feature, Polygon } from "geojson"
 
 const log = createLogger('grazingAgent')
 
-// OTel Tracer type - using any to avoid importing @opentelemetry/api in non-node context
 type OTelTracer = any
 
 const GRAZING_AGENT_MODEL = "claude-haiku-4-5"
-const PROMPT_VERSION = "v2.0.0-ndvi-grid" // Track prompt changes for comparison
+const PROMPT_VERSION = "v6.0.0-autonomous-drawing"
 
-// NOTE: Braintrust imports are done in the action file (grazingAgentGateway.ts)
-// to avoid bundler issues. The logger and wrapped Anthropic client are passed
-// as parameters to this function.
+/**
+ * System prompt for the autonomous section-drawing agent
+ */
+const GRAZING_AGENT_SYSTEM_PROMPT = `You are a grazing management assistant that draws grazing sections like an experienced farmer would.
 
-const GRAZING_SYSTEM_PROMPT = `You are a grazing intelligence specialist. Your role is to recommend daily grazing paddocks (daily strips) based on satellite-derived NDVI (vegetation) data.
+## YOUR ROLE
 
-## YOUR TASK
-Analyze the NDVI heat map grid and create a grazing plan by calling the tools.
+Draw practical grazing sections that a farmer could implement with temporary electric fencing. Think spatially - imagine you're standing in the paddock deciding where to put fence posts.
 
-## READING THE NDVI GRID
-The grid shows NDVI values sampled across the pasture:
-- Higher values (0.60-0.80+) = healthy green vegetation (TARGET THESE)
-- Medium values (0.40-0.60) = moderate vegetation
-- Lower values (<0.40) = sparse vegetation (AVOID)
+## SECTION DRAWING PRINCIPLES
 
-Use the coordinate reference to convert grid cells to polygon vertices.
+### Shape Principles
 
-## PADDOCK PLACEMENT PRIORITY (follow this order)
-1. ADJACENCY FIRST: New paddock MUST share an edge with the most recent paddock
-2. NDVI SECOND: Within adjacent area, target cells with NDVI 0.60+
-3. Shape: Avoid skinny strips - draw reasonably-shaped polygons
-4. Size: Approximately 20% of pasture area
-5. Overlap: Up to 5% overlap with previous paddocks is acceptable
+**Comfortable Movement**: Animals need room to spread out while grazing.
+- Good: Roughly square, wide rectangle, natural paddock-hugging shapes
+- Bad: Skinny lanes, long narrow strips, L-shapes with tight corners
 
-IMPORTANT: Only place a paddock away from the previous paddock if:
-- This is the first paddock in the pasture (no previous paddocks exist)
-- The pasture has been fully grazed and is starting a new rotation
+**Practical Fencing**: Imagine setting up temporary electric fencing.
+- Prefer rectangular or trapezoidal shapes
+- 4-6 corner posts are typical
+- Curves are fine when following paddock boundary
+- Avoid complex geometry (keep to 8 vertices or fewer)
+
+### Progression Principles
+
+**Start in a Corner**: Begin in the specified starting corner. This gives animals a defined space with two natural boundaries.
+
+**Work Outward Systematically**: Progress through the paddock logically.
+- Each new section should share an edge with previously grazed area OR paddock boundary
+- Don't leave ungrazed "islands" surrounded by grazed sections
+- Don't jump to disconnected areas
+
+**Edge Awareness**: When a section is near the paddock boundary, extend it all the way to that boundary. Don't leave thin ungrazed strips along edges.
+
+### Size Principles
+
+**Target Size**: Aim for the target section size provided, but prioritize good shape over exact size. +/-30% from target is acceptable.
+
+**Intentional Variation**: Sections don't need to be identical. A triangular corner of the paddock might need a triangular section.
+
+## TOOLS
+
+### drawSection
+Draw a section by providing polygon coordinates directly or using the rectangle helper.
+
+**Direct coordinates**: Provide [[lng, lat], [lng, lat], ...] array
+- At least 3 points required
+- Will be automatically closed
+- Will be clipped to paddock boundary if needed
+
+**Rectangle helper**: Specify corner, widthPct, heightPct
+- Easier for simple rectangular sections
+- Automatically clipped to paddock
+
+### getUngrazedRemaining
+Get the remaining ungrazed area. Use to:
+- Understand what's left to graze
+- Get geometry for the final "wrap-up" section
+
+### createDailyPlan
+Submit today's grazing recommendation.
+
+## COORDINATE SYSTEM
+
+Coordinates are [longitude, latitude] pairs (GeoJSON format).
+- Longitude increases going EAST (positive = east)
+- Latitude increases going NORTH (positive = north)
+
+The paddock corners are labeled:
+- NW: top-left (min longitude, max latitude)
+- NE: top-right (max longitude, max latitude)
+- SW: bottom-left (min longitude, min latitude)
+- SE: bottom-right (max longitude, min latitude)
 
 ## CRITICAL RULES
-- You MUST ALWAYS create a paddock geometry - animals must eat somewhere every day
-- You MUST call createPlanWithSection AND finalizePlan tools. The tools are your output mechanism - not text.
-- NEVER recommend "rest" - always select a pasture and draw a paddock, even if conditions aren't ideal
-- If the current pasture has low NDVI, find the best alternative pasture or continue in current pasture with appropriate justification
-- Always output valid GeoJSON Polygon for paddock geometry
-- Calculate paddock centroid as [lng, lat]`
+
+1. When in forecast mode, draw ALL sections to cover the paddock
+2. When in daily mode, ALWAYS call createDailyPlan with your recommendation
+3. Sections must be inside the paddock boundary
+4. Sections must connect to paddock boundary or previous sections
+5. Keep total overlap with grazed areas under 20%`
 
 interface PlanGenerationResult {
   success: boolean
+  dailyPlanId?: Id<"dailyPlans">
+  briefId?: Id<"dailyBriefs">
   planId?: Id<"plans">
-  error?: string
   planCreated?: boolean
+  error?: string
+  decision?: 'MOVE' | 'STAY'
+  recommendedSectionIndex?: number
+}
+
+interface ForecastGenerationResult {
+  success: boolean
+  forecastId?: Id<"paddockForecasts">
+  sectionsDrawn?: number
+  error?: string
 }
 
 /**
- * INTERNAL: Core agent execution logic
- * 
- * This function is called by grazingAgentGateway.agentGateway.
- * Do not call this directly - use the gateway instead.
- * 
- * @internal
+ * Main entry point: Run the grazing agent for daily planning
  */
-/**
- * Internal helper: Run agent without Braintrust logging
- */
-async function runGrazingAgentCore(
+export async function runGrazingAgent(
   ctx: ActionCtx,
   farmExternalId: string,
   farmName: string,
-  activePastureId: string | null,
+  activePaddockId: string | null,
+  settings: { minNDVIThreshold: number; minRestPeriod: number },
+  logger?: any,
+  wrappedAnthropic?: any,
+  tracer?: OTelTracer
+): Promise<PlanGenerationResult> {
+  const anthropicClient = wrappedAnthropic || anthropic
+
+  if (!logger) {
+    return await runDailyPlanningAgent(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+  }
+
+  return await logger.traced(async (rootSpan: any) => {
+    rootSpan.log({
+      input: sanitizeForBraintrust({
+        farmExternalId,
+        farmName,
+        activePaddockId,
+        settings,
+      }),
+      metadata: sanitizeForBraintrust({
+        trigger: 'daily_planning',
+        promptVersion: PROMPT_VERSION,
+      }),
+    })
+
+    const result = await runDailyPlanningAgent(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+
+    rootSpan.log({
+      output: sanitizeForBraintrust({
+        success: result.success,
+        decision: result.decision,
+        recommendedSectionIndex: result.recommendedSectionIndex,
+        dailyPlanId: result.dailyPlanId ? String(result.dailyPlanId) : undefined,
+      }),
+    })
+
+    return result
+  }, { name: 'Grazing Agent - Daily', metadata: { farmExternalId, farmName, activePaddockId } })
+}
+
+/**
+ * Run the daily planning agent
+ */
+async function runDailyPlanningAgent(
+  ctx: ActionCtx,
+  farmExternalId: string,
+  farmName: string,
+  activePaddockId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
   anthropicClient: any,
   tracer?: OTelTracer
 ): Promise<PlanGenerationResult> {
-    log('START - Input', {
+  log('START - Daily Planning Agent', {
+    farmExternalId,
+    farmName,
+    activePaddockId,
+    settings,
+  })
+
+  const today = new Date().toISOString().split('T')[0]
+
+  // 1. IDENTIFY TARGET PADDOCK
+  let targetPaddockId = activePaddockId
+
+  if (!targetPaddockId) {
+    const allPaddocks = await ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId })
+
+    if (allPaddocks && allPaddocks.length > 0) {
+      const suitable = allPaddocks.filter((p: any) => p.ndviMean >= settings.minNDVIThreshold)
+      targetPaddockId = suitable.length > 0 ? suitable[0].externalId : allPaddocks[0].externalId
+
+      log('Selected paddock (no active)', { targetPaddockId })
+    } else {
+      return { success: false, error: 'No paddocks found for farm' }
+    }
+  }
+
+  // 2. GET OR CREATE FORECAST (empty if new)
+  const forecast = await ctx.runMutation(api.grazingAgentTools.getOrCreateForecast, {
+    farmExternalId,
+    paddockExternalId: targetPaddockId,
+  })
+
+  if (!forecast) {
+    return { success: false, error: 'Failed to get or create paddock forecast' }
+  }
+
+  // 3. IF FORECAST IS EMPTY, GENERATE SECTIONS FIRST
+  if (forecast.forecastedSections.length === 0) {
+    log('Forecast is empty - generating sections', { forecastId: forecast._id.toString() })
+
+    const forecastResult = await generateForecastSections(
+      ctx,
       farmExternalId,
-      farmName,
-      activePastureId,
-      settings,
+      targetPaddockId,
+      forecast._id,
+      anthropicClient,
+      tracer
+    )
+
+    if (!forecastResult.success) {
+      return { success: false, error: forecastResult.error || 'Failed to generate forecast sections' }
+    }
+
+    // Refresh forecast after generation
+    const updatedForecast = await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
+      farmExternalId,
+      paddockExternalId: targetPaddockId,
     })
 
-    // Fetch all data upfront in parallel
-    const dataFetchStart = Date.now()
-    const [allPastures, currentPasture, currentPasturePaddocks, currentGrazedPercentage] = await Promise.all([
-      ctx.runQuery(api.grazingAgentTools.getAllPasturesWithObservations, { farmExternalId }),
-      ctx.runQuery(api.grazingAgentTools.getPastureData, { farmExternalId }),
-      ctx.runQuery(api.grazingAgentTools.getPreviousPaddocks, { farmExternalId, paddockId: activePastureId ?? undefined }),
-      ctx.runQuery(api.grazingAgentTools.calculatePastureGrazedPercentage, { farmExternalId, paddockId: activePastureId || 'p1' }),
-    ])
+    if (!updatedForecast || updatedForecast.forecastedSections.length === 0) {
+      return { success: false, error: 'Forecast generation completed but no sections found' }
+    }
+  }
 
-    // Data fetching complete
-    const dataFetchDuration = Date.now() - dataFetchStart
+  // 4. GET GRAZING PRINCIPLES
+  const principles = await ctx.runQuery(api.grazingAgentTools.getGrazingPrinciples, {
+    farmExternalId,
+  }) as GrazingPrinciples & { customRules: string[] }
 
-  log('Data fetched', {
-    dataFetchDurationMs: dataFetchDuration,
-    allPasturesCount: allPastures?.length,
-    currentPasture: {
-      id: currentPasture?.externalId,
-      name: currentPasture?.name,
-      ndviMean: currentPasture?.ndviMean,
-      restDays: currentPasture?.restDays,
-      area: currentPasture?.area,
-    },
-    previousPaddocksCount: currentPasturePaddocks?.length,
-    currentGrazedPercentage,
+  // 5. EVALUATE FORECAST CONTEXT
+  const forecastContext = await ctx.runQuery(api.grazingAgentTools.evaluateForecastContext, {
+    farmExternalId,
+    paddockExternalId: targetPaddockId,
   })
 
-  const currentNdvi = currentPasture?.ndviMean ?? 0
-  const threshold = settings.minNDVIThreshold
-
-  log('Decision logic', {
-    currentNdvi,
-    threshold,
-    comparison: currentNdvi >= threshold ? 'meets threshold' : 'below threshold',
+  log('Forecast context', {
+    hasActiveForecast: forecastContext.hasActiveForecast,
+    activeSectionIndex: forecastContext.activeSectionIndex,
+    daysInActiveSection: forecastContext.daysInActiveSection,
+    estimatedForageRemainingPct: forecastContext.estimatedForageRemainingPct,
   })
 
-  let targetPasture: any = currentPasture
-  let recommendation = "graze"
+  // 6. GET PADDOCK DATA FOR VISUALIZATION
+  const allPaddocks = await ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId })
+  const targetPaddock = allPaddocks?.find((p: any) => p.externalId === targetPaddockId)
 
-  // Always select a pasture - never recommend rest
-  if (currentNdvi < threshold) {
-    // Find best alternative pasture (prefer those meeting threshold, but use best available if none)
-    const alternativesAboveThreshold = allPastures?.filter((p: any) => p.ndviMean >= threshold) ?? []
-    log('Current NDVI below threshold', { alternativesAboveThreshold: alternativesAboveThreshold.length })
+  if (!targetPaddock) {
+    return { success: false, error: `Paddock not found: ${targetPaddockId}` }
+  }
 
-    if (alternativesAboveThreshold.length > 0) {
-      // Move to best alternative that meets threshold
-      alternativesAboveThreshold.sort((a: any, b: any) => {
-        if (b.ndviMean !== a.ndviMean) return b.ndviMean - a.ndviMean
-        return b.restDays - a.restDays
-      })
-      targetPasture = alternativesAboveThreshold[0]
-      recommendation = "move"
-      log('DECISION: Move to alternative pasture (meets threshold)', {
-        pastureId: targetPasture?.externalId,
-        name: targetPasture?.name,
-        ndviMean: targetPasture?.ndviMean,
-        restDays: targetPasture?.restDays,
-      })
-    } else {
-      // No pastures meet threshold - find best available (highest NDVI)
-      const allSorted = [...(allPastures || [])].sort((a: any, b: any) => {
-        if (b.ndviMean !== a.ndviMean) return b.ndviMean - a.ndviMean
-        return b.restDays - a.restDays
-      })
-      const bestAvailable = allSorted[0]
+  // Re-fetch forecast for visualization
+  const currentForecast = await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
+    farmExternalId,
+    paddockExternalId: targetPaddockId,
+  })
 
-      if (bestAvailable && bestAvailable.externalId !== currentPasture?.externalId) {
-        targetPasture = bestAvailable
-        recommendation = "move"
-        log('DECISION: Move to best available pasture (below threshold but best option)', {
-          pastureId: targetPasture?.externalId,
-          name: targetPasture?.name,
-          ndviMean: targetPasture?.ndviMean,
-          restDays: targetPasture?.restDays,
-        })
-      } else {
-        // Stay in current pasture - it's the best available
-        recommendation = "graze"
-        log('DECISION: Continue in current pasture (best available, below threshold)', {
-          pastureId: currentPasture?.externalId,
-          ndviMean: currentNdvi,
-          note: 'Will create paddock with low NDVI warning in justification',
+  if (!currentForecast) {
+    return { success: false, error: 'Forecast not found after generation' }
+  }
+
+  // 7. GENERATE PADDOCK VISUALIZATION
+  let paddockVisualizationPng: string | undefined
+
+  if (targetPaddock.geometry) {
+    try {
+      const paddockGeometryFeature = targetPaddock.geometry as Feature<Polygon>
+
+      // Build grazed sections from forecast history
+      const grazedSections: GrazedSection[] = currentForecast.grazingHistory.map((h: any, index: number) => ({
+        geometry: h.geometry as Polygon,
+        dayNumber: index + 1,
+        date: h.startedDate || h.endedDate || today,
+      }))
+
+      // Add current active section if exists
+      if (currentForecast.forecastedSections[currentForecast.activeSectionIndex]) {
+        const activeSection = currentForecast.forecastedSections[currentForecast.activeSectionIndex]
+        grazedSections.push({
+          geometry: activeSection.geometry as Polygon,
+          dayNumber: grazedSections.length + 1,
+          date: today,
         })
       }
+
+      // Fetch NDVI grid
+      let ndviGridValues: number[][] | undefined
+      try {
+        const ndviGrid = await ctx.runAction(api.ndviGrid.generateNDVIGrid, {
+          farmExternalId,
+          paddockExternalId: targetPaddockId,
+        })
+        if (ndviGrid.hasData) {
+          ndviGridValues = ndviGrid.gridValues
+        }
+      } catch (e: any) {
+        log.warn('NDVI grid fetch failed', { error: e.message })
+      }
+
+      const visualization = await generatePaddockVisualization(
+        paddockGeometryFeature,
+        grazedSections,
+        ndviGridValues,
+        {
+          width: 512,
+          height: 512,
+          showNdviColors: !!ndviGridValues,
+          showDayLabels: true,
+          showCoordinateLabels: true,
+          showScaleBar: true,
+          showNorthArrow: true,
+        }
+      )
+
+      paddockVisualizationPng = visualization.pngBase64
+    } catch (vizError: any) {
+      log.error('Visualization generation failed', { error: vizError.message })
     }
-  } else {
-    log('DECISION: Graze in current pasture - NDVI meets threshold')
   }
 
-  // Runtime assertion: Never allow "rest" recommendation (old code path)
-  if (recommendation === "rest" || !targetPasture) {
-    throw new Error(`CRITICAL: Old code path detected! recommendation="${recommendation}", targetPasture=${targetPasture ? 'exists' : 'null'}. This should never happen - all paths must select a pasture and create a paddock.`)
-  }
+  // 8. BUILD AGENT PROMPT
+  const principlesPrompt = generateGrazingPrinciplesPrompt(principles, principles.customRules)
 
-  // Ensure targetPasture has geometry - if it came from currentPasture, fetch from allPastures
-  if (targetPasture && !targetPasture.geometry) {
-    const pastureWithGeometry = allPastures?.find((p: any) => p.externalId === targetPasture.externalId)
-    if (pastureWithGeometry) {
-      targetPasture.geometry = pastureWithGeometry.geometry
-    }
-  }
+  const activeSection = currentForecast.forecastedSections[currentForecast.activeSectionIndex]
 
-  // Fetch previous paddocks for the target pasture (may be different from current)
-  const previousPaddocks = targetPasture?.externalId === currentPasture?.externalId
-    ? currentPasturePaddocks
-    : await ctx.runQuery(api.grazingAgentTools.getPreviousPaddocks, { farmExternalId, paddockId: targetPasture?.externalId })
+  const forecastSectionsSummary = currentForecast.forecastedSections.map((s: any) => {
+    const status = s.index < currentForecast.activeSectionIndex ? 'COMPLETED'
+      : s.index === currentForecast.activeSectionIndex ? 'ACTIVE'
+      : 'UPCOMING'
+    return `  Section ${s.index}: ${s.areaHa.toFixed(1)} ha, ${s.quadrant} quadrant [${status}]`
+  }).join('\n')
 
-  // Fetch grazed percentage for target pasture
-  const grazedPercentage = targetPasture?.externalId === currentPasture?.externalId
-    ? currentGrazedPercentage
-    : await ctx.runQuery(api.grazingAgentTools.calculatePastureGrazedPercentage, { farmExternalId, paddockId: targetPasture?.externalId || 'p1' })
+  const textPrompt = `Create today's grazing plan for farm "${farmName}".
 
-  log('Target pasture data', {
-    targetPastureId: targetPasture?.externalId,
-    targetPastureName: targetPasture?.name,
-    previousPaddocksCount: previousPaddocks?.length,
-    grazedPercentage,
-    targetNdvi: targetPasture?.ndviMean,
-    meetsThreshold: (targetPasture?.ndviMean ?? 0) >= threshold,
-    hasGeometry: !!targetPasture?.geometry,
-    geometryType: targetPasture?.geometry?.type,
-    geometryCoordinatesCount: targetPasture?.geometry?.geometry?.coordinates?.[0]?.length || targetPasture?.geometry?.coordinates?.[0]?.length || 0,
-  })
+${principlesPrompt}
 
-  // Fetch NDVI grid for the target pasture
-  log('Fetching NDVI grid for target pasture...')
-  let ndviGridText = 'NDVI grid unavailable - using aggregate paddock NDVI values'
-  try {
-    const ndviGrid = await ctx.runAction(api.ndviGrid.generateNDVIGrid, {
-      farmExternalId,
-      paddockExternalId: targetPasture?.externalId || 'p1',
-    })
-    if (ndviGrid.hasData) {
-      ndviGridText = ndviGrid.gridText
-      log('NDVI grid generated successfully')
-    } else {
-      log('NDVI grid not available', { error: ndviGrid.error })
-      ndviGridText = ndviGrid.gridText // Contains fallback message
-    }
-  } catch (error: any) {
-    log.error('Error generating NDVI grid', { error: error.message })
-    // Continue with aggregate NDVI values
-  }
+## PADDOCK: ${targetPaddock.name} (ID: ${targetPaddockId})
+- Total Area: ${targetPaddock.area} ha
+- Overall NDVI: ${targetPaddock.ndviMean}
 
-  // Get most recent paddock for adjacency guidance
-  const mostRecentPaddock = previousPaddocks && previousPaddocks.length > 0
-    ? previousPaddocks[0] // Already sorted by date descending
-    : null
+## ROTATION FORECAST
+This paddock has ${currentForecast.forecastedSections.length} sections drawn:
+${forecastSectionsSummary}
 
-  // Build data quality warnings section if any pastures have warnings
-  const dataQualityWarnings = allPastures
-    ?.filter((p: any) => p.dataQualityWarning)
-    .map((p: any) => `- ${p.name}: ${p.dataQualityWarning}`) ?? []
+Progress: ${currentForecast.grazingHistory.length} sections completed
 
-  const qualitySection = dataQualityWarnings.length > 0
-    ? `## DATA QUALITY WARNINGS
-${dataQualityWarnings.join('\n')}
+## CURRENT SECTION STATUS
+${activeSection ? `
+- Section Index: ${currentForecast.activeSectionIndex}
+- Days in section: ${currentForecast.daysInActiveSection}
+- Section area: ${activeSection.areaHa} ha
+- Quadrant: ${activeSection.quadrant}
+- Estimated forage remaining: ${forecastContext.estimatedForageRemainingPct ?? 'unknown'}%
+- Current NDVI: ${forecastContext.currentNdvi?.toFixed(2) ?? 'unknown'}
+` : 'No active section - starting fresh rotation'}
 
-IMPORTANT: When pasture data has quality warnings:
-- Avoid recommending pasture moves based solely on NDVI from stale observations
-- Prefer keeping livestock in current pasture if uncertain about alternative conditions
-- Note data quality concerns in your sectionJustification
-- Consider lower confidence score when using fallback data
+## TIMING RULES
+- Minimum days per section: ${forecastContext.minDaysPerSection}
+- Maximum days per section: ${forecastContext.maxDaysPerSection}
 
-`
-    : ''
+## HINTS FROM SYSTEM
+${forecastContext.reasoning?.join('\n- ') || 'No specific hints'}
 
-  const prompt = `Generate today's grazing plan for farm "${farmName}".
-${qualitySection}
-## ACTIVE PASTURE: ${targetPasture?.name} (${targetPasture?.externalId})
-- Total Area: ${targetPasture?.area} hectares
-- Target Paddock: ~20% = ${Math.round((targetPasture?.area ?? 0) * 0.2 * 10) / 10} hectares
-- Already Grazed: ${grazedPercentage}%
-- Aggregate NDVI: ${targetPasture?.ndviMean} (threshold: ${threshold})
-
-## NDVI HEAT MAP GRID
-Use this grid to identify HIGH-NDVI cells (0.60+) for paddock placement:
-
-${ndviGridText}
-
-## PASTURE BOUNDARY (paddock MUST stay within):
-${JSON.stringify(targetPasture?.geometry, null, 2)}
-
-${mostRecentPaddock ? `## MOST RECENT PADDOCK (draw adjacent to this):
-- Date: ${mostRecentPaddock.date}
-- Area: ${mostRecentPaddock.area} hectares
-- Geometry: ${JSON.stringify(mostRecentPaddock.geometry)}
-` : '## NO PREVIOUS PADDOCKS - pasture is fresh, draw anywhere within bounds'}
-
-${previousPaddocks && previousPaddocks.length > 1 ? `## OTHER PREVIOUS PADDOCKS (avoid >5% overlap):
-${JSON.stringify(previousPaddocks.slice(1).map((s: any) => ({ date: s.date, area: s.area })), null, 2)}
+${paddockVisualizationPng ? `
+## PADDOCK MAP
+The image shows:
+- Green boundary = paddock edge
+- Hatched areas = grazed sections (numbered by day)
+- Colored areas = NDVI (green=high, yellow=medium, red=low)
 ` : ''}
 
-## PADDOCK DRAWING INSTRUCTIONS
-1. Study the NDVI grid above - identify cells with values 0.60+ (high vegetation)
-2. ${mostRecentPaddock ? 'CRITICAL: New paddock MUST share an edge with the previous paddock. Start from where livestock finished yesterday.' : 'First paddock in pasture - draw in highest-NDVI area'}
-3. Use the grid coordinates to convert cell positions to polygon vertices
-4. Paddock MUST be entirely within the pasture boundary
-5. Target ~${Math.round((targetPasture?.area ?? 0) * 0.2 * 10) / 10} hectares (20% of pasture)
+## YOUR TASK
 
-## ALL PASTURES (for context):
-${JSON.stringify(allPastures?.map((p: any) => ({
-  externalId: p.externalId,
-  name: p.name,
-  ndviMean: p.ndviMean,
-  area: p.area,
-  restDays: p.restDays,
-  status: p.status,
-})), null, 2)}
+Decide whether livestock should STAY in the current section or MOVE to the next section.
 
-## REQUIRED TOOL CALL - createPlanWithSection:
-- farmExternalId: "${farmExternalId}"
-- targetPaddockId: "${targetPasture?.externalId}"
-- sectionGeometry: GeoJSON Polygon targeting high-NDVI cells from the grid
-- sectionAreaHectares: ${Math.round((targetPasture?.area ?? 0) * 0.2 * 10) / 10}
-- sectionCentroid: [lng, lat] center of your paddock
-- sectionAvgNdvi: Estimate based on grid cells covered
-- sectionJustification: Explain which grid cells you targeted and why
-- paddockGrazedPercentage: ${grazedPercentage}
-- confidence: ${recommendation === 'move' ? 0.55 : 0.75}
-- reasoning: ["Targeted high-NDVI cells at Row/Col...", "Adjacent to previous paddock...", ...]
+Then call createDailyPlan with:
+- action: 'STAY' or 'MOVE'
+- sectionIndex: Which section (current for STAY, next for MOVE)
+- reasoning: Array of reasons for your decision
+- confidence: 'high', 'medium', or 'low'
 
-CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
+Current section index: ${currentForecast.activeSectionIndex}
+Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentForecast.forecastedSections.length - 1)}`
 
-    const result = await generateText({
-      model: anthropicClient(GRAZING_AGENT_MODEL) as any,
-    system: GRAZING_SYSTEM_PROMPT,
-    prompt,
+  // Build messages
+  type MessageContent = { type: 'image'; image: string; mimeType: 'image/png' } | { type: 'text'; text: string }
+  const messageContent: MessageContent[] = []
+
+  if (paddockVisualizationPng) {
+    messageContent.push({
+      type: 'image',
+      image: paddockVisualizationPng,
+      mimeType: 'image/png',
+    })
+  }
+
+  messageContent.push({
+    type: 'text',
+    text: textPrompt,
+  })
+
+  // 9. RUN AGENT
+  const result = await generateText({
+    model: anthropicClient(GRAZING_AGENT_MODEL) as any,
+    system: GRAZING_AGENT_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: messageContent }],
     tools: {
-      createPlanWithSection: tool({
-        description: "Create or update a grazing plan with paddock geometry and justification. You MUST always provide sectionGeometry - animals must eat somewhere every day.",
+      createDailyPlan: tool({
+        description: "Submit today's grazing plan recommendation",
         inputSchema: z.object({
-          farmExternalId: z.string(),
-          targetPaddockId: z.string(),
-          sectionGeometry: z.any(), // Required - always create a section
-          sectionAreaHectares: z.number().optional(),
-          sectionCentroid: z.array(z.number()).optional(),
-          sectionAvgNdvi: z.number().optional(),
-          sectionJustification: z.string(),
-          paddockGrazedPercentage: z.number().optional(),
-          confidence: z.number(),
-          reasoning: z.array(z.string()),
+          action: z.enum(['STAY', 'MOVE']).describe("STAY in current section or MOVE to next"),
+          sectionIndex: z.number().describe("Section index to graze today"),
+          reasoning: z.array(z.string()).describe("Reasons for your decision"),
+          confidence: z.enum(['high', 'medium', 'low']).describe("Confidence level"),
         }),
       }),
-
-      finalizePlan: tool({
-        description: "Finalize the plan and set it to pending status for user approval",
-        inputSchema: z.object({
-          farmExternalId: z.string().optional(),
-        }),
+      getUngrazedRemaining: tool({
+        description: "Get remaining ungrazed area info",
+        inputSchema: z.object({}),
       }),
     },
     ...(tracer && {
       experimental_telemetry: {
         isEnabled: true,
         tracer,
-        functionId: "runGrazingAgent",
+        functionId: "runDailyPlanningAgent",
         recordInputs: true,
         recordOutputs: true,
         metadata: {
           farmExternalId,
           farmName,
-          activePastureId: activePastureId || "none",
           promptVersion: PROMPT_VERSION,
           model: GRAZING_AGENT_MODEL,
         },
@@ -372,264 +474,461 @@ CRITICAL: You MUST call createPlanWithSection then finalizePlan.`
     }),
   })
 
-    const finalText = result.text
-    const toolCalls = (result as any).toolCalls || []
-    const usage = (result as any).usage || (result as any).experimental_providerMetadata?.anthropic?.usage
+  const toolCalls = (result as any).toolCalls || []
+  const usage = (result as any).usage || (result as any).experimental_providerMetadata?.anthropic?.usage
 
-    log('LLM response received', {
-      textLength: finalText?.length,
-      toolCallsCount: toolCalls.length,
-      toolNames: toolCalls.map((tc: any) => tc.toolName),
-      usage: usage,
-    })
+  log('LLM response', {
+    textLength: result.text?.length,
+    toolCallsCount: toolCalls.length,
+    toolNames: toolCalls.map((tc: any) => tc.toolName),
+  })
 
-    // Log LLM call to Braintrust and capture span ID for tool call nesting
-    const llmEndTime = Date.now()
-    const llmSpanId = logLLMCall({
-      model: GRAZING_AGENT_MODEL,
-      prompt: prompt,
-      systemPrompt: GRAZING_SYSTEM_PROMPT,
-      response: finalText || '',
-      toolCalls: toolCalls,
-      usage: usage ? {
-        promptTokens: usage.promptTokens || usage.input_tokens,
-        completionTokens: usage.completionTokens || usage.output_tokens,
-        totalTokens: usage.totalTokens || (usage.input_tokens + usage.output_tokens),
-      } : undefined,
-      durationMs: llmEndTime - dataFetchStart, // Approximate, includes data fetch
-      metadata: {
-        farmExternalId,
-        farmName,
-        activePastureId: activePastureId || 'none',
-        targetPastureId: targetPasture?.externalId,
-        promptVersion: PROMPT_VERSION,
-      },
-    })
+  // Log LLM call
+  const llmSpanId = logLLMCall({
+    model: GRAZING_AGENT_MODEL,
+    prompt: textPrompt,
+    systemPrompt: GRAZING_AGENT_SYSTEM_PROMPT,
+    response: result.text || '',
+    toolCalls,
+    usage: usage ? {
+      promptTokens: usage.promptTokens || usage.input_tokens,
+      completionTokens: usage.completionTokens || usage.output_tokens,
+      totalTokens: usage.totalTokens || (usage.input_tokens + usage.output_tokens),
+    } : undefined,
+    metadata: { farmExternalId, farmName, promptVersion: PROMPT_VERSION },
+  })
 
-    let planCreated = false
-    let planFinalized = false
-    let createdPlanId: Id<'plans'> | undefined = undefined
+  // 10. PROCESS TOOL CALLS
+  let planCreated = false
+  let createdDailyPlanId: Id<'dailyPlans'> | undefined
+  let createdBriefId: Id<'dailyBriefs'> | undefined
+  let finalDecision: 'MOVE' | 'STAY' | undefined
+  let recommendedSectionIndex: number | undefined
 
-    if (toolCalls.length > 0) {
-      for (const toolCall of toolCalls) {
-        const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
+  for (const toolCall of toolCalls) {
+    const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
+    const toolStartTime = Date.now()
 
-        log('Executing tool', {
-          toolName: toolCall.toolName,
-          hasSectionGeometry: !!args.sectionGeometry,
-          targetPaddockId: args.targetPaddockId,
-          sectionAreaHectares: args.sectionAreaHectares,
-          sectionGeometryPreview: args.sectionGeometry ? JSON.stringify(args.sectionGeometry).substring(0, 200) : 'null',
-          sectionGeometryType: args.sectionGeometry?.type,
-          sectionCoordinatesCount: args.sectionGeometry?.coordinates?.[0]?.length || 0,
+    if (toolCall.toolName === 'getUngrazedRemaining') {
+      try {
+        const ungrazedResult = await ctx.runQuery(api.grazingAgentTools.getUngrazedRemaining, {
+          forecastId: currentForecast._id,
         })
 
-        const toolStartTime = Date.now()
-        try {
-            if (toolCall.toolName === "createPlanWithSection") {
-          // Validate that sectionGeometry is provided
-          if (!args.sectionGeometry) {
-            // Log tool call error to Braintrust
-            logToolCall({
-              parentSpanId: llmSpanId,
-              toolName: toolCall.toolName,
-              input: args,
-              error: 'sectionGeometry (paddock geometry) is required - animals must eat somewhere',
-              durationMs: Date.now() - toolStartTime,
-            })
-
-            throw new Error('sectionGeometry (paddock geometry) is required - animals must eat somewhere. The agent must always create a paddock, even if conditions are not ideal.')
-          }
-
-          // === NDVI VALIDATION ===
-          // Validate section NDVI before saving to ensure high-quality sections
-          let sectionNDVI = { mean: 0, meetsThreshold: false, threshold: threshold }
-          try {
-            log('Validating paddock NDVI...')
-            sectionNDVI = await ctx.runAction(api.ndviGrid.calculatePaddockNDVI, {
-              farmExternalId,
-              paddockExternalId: args.targetPaddockId || targetPasture?.externalId || 'p1',
-              sectionGeometry: args.sectionGeometry,
-            })
-
-            // Log section NDVI validation to Braintrust
-            logToolCall({
-              parentSpanId: llmSpanId,
-              toolName: 'calculateSectionNDVI',
-              input: {
-                sectionGeometry: JSON.stringify(args.sectionGeometry).substring(0, 200),
-                paddockId: args.targetPaddockId,
-                iteration: 1, // Note: Hardcoded until multi-iteration loops are implemented
-              },
-              output: {
-                mean: sectionNDVI.mean,
-                threshold: sectionNDVI.threshold,
-                meetsThreshold: sectionNDVI.meetsThreshold,
-              },
-              durationMs: Date.now() - toolStartTime,
-            })
-
-            log('Paddock NDVI validation', {
-              mean: sectionNDVI.mean,
-              threshold: sectionNDVI.threshold,
-              meetsThreshold: sectionNDVI.meetsThreshold,
-            })
-
-            // Update section NDVI in args if we calculated it
-            if (sectionNDVI.mean > 0) {
-              args.sectionAvgNdvi = sectionNDVI.mean
-            }
-
-            // Add warning to justification if paddock doesn't meet threshold
-            if (!sectionNDVI.meetsThreshold && sectionNDVI.mean > 0) {
-              const warningNote = ` [NDVI Warning: Paddock average ${sectionNDVI.mean.toFixed(2)} is below threshold ${sectionNDVI.threshold}. Consider reviewing grid placement.]`
-              args.sectionJustification = (args.sectionJustification || '') + warningNote
-              log('Added NDVI warning to justification')
-            }
-          } catch (ndviError: any) {
-            log.warn('NDVI validation failed (continuing)', { error: ndviError.message })
-            // Continue with section creation even if NDVI validation fails
-          }
-
-              const planId = await ctx.runMutation(api.grazingAgentTools.createPlanWithPaddock, { ...args, farmExternalId } as any)
-              createdPlanId = planId
-
-              // Log successful tool call to Braintrust
-              logToolCall({
-                parentSpanId: llmSpanId,
-                toolName: toolCall.toolName,
-                input: args,
-                output: {
-                  planId: planId.toString(),
-                  sectionNDVI: sectionNDVI.mean,
-                  meetsThreshold: sectionNDVI.meetsThreshold,
-                },
-                durationMs: Date.now() - toolStartTime,
-              })
-
-              log('createPlanWithSection SUCCESS - PlanId created', {
-                planId: planId.toString(),
-                planIdType: typeof planId,
-                hasSectionGeometry: !!args.sectionGeometry,
-                targetPaddockId: args.targetPaddockId,
-                sectionNDVI: sectionNDVI.mean,
-                meetsThreshold: sectionNDVI.meetsThreshold,
-                note: 'This planId will be returned in result object',
-              })
-              planCreated = true
-            } else if (toolCall.toolName === "finalizePlan") {
-              const result = await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
-                farmExternalId: (args.farmExternalId as string) ?? farmExternalId
-              })
-
-              // Log successful tool call to Braintrust
-              logToolCall({
-                parentSpanId: llmSpanId,
-                toolName: toolCall.toolName,
-                input: { farmExternalId: (args.farmExternalId as string) ?? farmExternalId },
-                output: result,
-                durationMs: Date.now() - toolStartTime,
-              })
-
-              log('finalizePlan SUCCESS', { result })
-              planFinalized = true
-            }
-          } catch (toolError: any) {
-            // Log tool call error to Braintrust (if not already logged above)
-            if (toolCall.toolName !== "createPlanWithSection" || args.sectionGeometry) {
-              logToolCall({
-                parentSpanId: llmSpanId,
-                toolName: toolCall.toolName,
-                input: args,
-                error: toolError.message || String(toolError),
-                durationMs: Date.now() - toolStartTime,
-              })
-            }
-
-            log.error('Tool execution ERROR', {
-              toolName: toolCall.toolName,
-              error: toolError,
-              args: JSON.stringify(args).substring(0, 200),
-            })
-
-            throw toolError
-          }
+        logToolCall({
+          parentSpanId: llmSpanId,
+          toolName: toolCall.toolName,
+          input: args,
+          output: { areaHa: ungrazedResult.areaHa, percentOfPaddock: ungrazedResult.percentOfPaddock },
+          durationMs: Date.now() - toolStartTime,
+        })
+      } catch (toolError: any) {
+        logToolCall({
+          parentSpanId: llmSpanId,
+          toolName: toolCall.toolName,
+          input: args,
+          error: toolError.message,
+          durationMs: Date.now() - toolStartTime,
+        })
       }
-    } else {
-      log.warn('WARNING: No tool calls returned from LLM')
     }
 
-    const finalResult = { 
-      success: true, 
-      planCreated: planCreated && planFinalized,
-      planId: createdPlanId,
+    if (toolCall.toolName === 'createDailyPlan') {
+      try {
+        finalDecision = args.action as 'MOVE' | 'STAY'
+        recommendedSectionIndex = args.sectionIndex
+
+        const section = currentForecast.forecastedSections[args.sectionIndex]
+        if (!section) {
+          throw new Error(`Invalid section index: ${args.sectionIndex}`)
+        }
+
+        const confidenceMap: Record<string, number> = { high: 85, medium: 70, low: 50 }
+        const confidenceNum = confidenceMap[args.confidence] ?? 70
+
+        // Create daily plan
+        const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
+          farmExternalId,
+          date: today,
+          forecastId: currentForecast._id,
+          paddockExternalId: targetPaddockId,
+          recommendedSectionIndex: args.sectionIndex,
+          sectionGeometry: section.geometry,
+          sectionAreaHa: section.areaHa,
+          sectionCentroid: section.centroid,
+          daysInSection: args.sectionIndex === currentForecast.activeSectionIndex
+            ? currentForecast.daysInActiveSection
+            : 1,
+          estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
+          currentNdvi: forecastContext.currentNdvi,
+          reasoning: args.reasoning || [],
+          confidence: confidenceNum,
+        })
+
+        createdDailyPlanId = dailyPlanId
+        planCreated = true
+
+        // Create legacy daily brief
+        createdBriefId = await ctx.runMutation(api.grazingAgentTools.createDailyBrief, {
+          farmExternalId,
+          date: today,
+          decision: finalDecision,
+          paddockExternalId: targetPaddockId,
+          sectionGeometry: section.geometry,
+          sectionAreaHa: section.areaHa,
+          sectionCentroid: section.centroid,
+          daysInCurrentSection: args.sectionIndex === currentForecast.activeSectionIndex
+            ? currentForecast.daysInActiveSection
+            : 1,
+          estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
+          currentNdvi: forecastContext.currentNdvi,
+          reasoning: args.reasoning || [],
+          confidence: confidenceNum,
+          forecastId: currentForecast._id,
+        })
+
+        // Create legacy plan
+        await createLegacyPlan(ctx, {
+          farmExternalId,
+          paddockExternalId: targetPaddockId,
+          decision: finalDecision,
+          reasoning: args.reasoning || [],
+          confidence: confidenceNum / 100,
+          sectionGeometry: section.geometry,
+          sectionAreaHa: section.areaHa,
+          sectionCentroid: section.centroid,
+          grazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
+        })
+
+        logToolCall({
+          parentSpanId: llmSpanId,
+          toolName: toolCall.toolName,
+          input: args,
+          output: { dailyPlanId: dailyPlanId.toString(), decision: finalDecision },
+          durationMs: Date.now() - toolStartTime,
+        })
+
+        log('Daily plan created', {
+          dailyPlanId: dailyPlanId.toString(),
+          decision: finalDecision,
+          sectionIndex: args.sectionIndex,
+        })
+      } catch (toolError: any) {
+        logToolCall({
+          parentSpanId: llmSpanId,
+          toolName: toolCall.toolName,
+          input: args,
+          error: toolError.message,
+          durationMs: Date.now() - toolStartTime,
+        })
+        throw toolError
+      }
+    }
+  }
+
+  // Fallback if agent didn't create plan
+  if (!planCreated) {
+    log.warn('Agent did not create plan - using system recommendation')
+
+    const sectionIndex = currentForecast.activeSectionIndex
+    recommendedSectionIndex = sectionIndex
+    finalDecision = 'STAY'
+
+    const section = currentForecast.forecastedSections[sectionIndex]
+    if (!section) {
+      return { success: false, error: `Invalid section index: ${sectionIndex}` }
     }
 
-    log('END - Summary', {
-      planCreated,
-      planFinalized,
-      planId: createdPlanId?.toString(),
-      hasPlanId: !!createdPlanId,
-      planIdIncludedInResult: true,
-      finalTextPreview: finalText?.substring(0, 100),
-      returnValue: finalResult,
+    const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
+      farmExternalId,
+      date: today,
+      forecastId: currentForecast._id,
+      paddockExternalId: targetPaddockId,
+      recommendedSectionIndex: sectionIndex,
+      sectionGeometry: section.geometry,
+      sectionAreaHa: section.areaHa,
+      sectionCentroid: section.centroid,
+      daysInSection: currentForecast.daysInActiveSection,
+      estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
+      currentNdvi: forecastContext.currentNdvi,
+      reasoning: ['System fallback - agent did not provide recommendation'],
+      confidence: 50,
     })
 
-    return finalResult
+    createdDailyPlanId = dailyPlanId
+    planCreated = true
+  }
+
+  log('END - Daily Planning Agent', {
+    success: true,
+    decision: finalDecision,
+    recommendedSectionIndex,
+  })
+
+  return {
+    success: true,
+    decision: finalDecision,
+    recommendedSectionIndex,
+    dailyPlanId: createdDailyPlanId,
+    briefId: createdBriefId,
+    planCreated,
+  }
 }
 
 /**
- * Main entry point: Run agent with optional Braintrust logging
+ * Generate forecast sections - agent draws all sections for the paddock
  */
-export async function runGrazingAgent(
+async function generateForecastSections(
   ctx: ActionCtx,
   farmExternalId: string,
-  farmName: string,
-  activePastureId: string | null,
-  settings: { minNDVIThreshold: number; minRestPeriod: number },
-  logger?: any, // Braintrust logger passed from action
-  wrappedAnthropic?: any, // Wrapped Anthropic client passed from action
-  tracer?: OTelTracer // OTel tracer for experimental_telemetry
-): Promise<PlanGenerationResult> {
-  // Use wrapped Anthropic if provided, otherwise use regular Anthropic
-  const anthropicClient = wrappedAnthropic || anthropic
+  paddockExternalId: string,
+  forecastId: Id<"paddockForecasts">,
+  anthropicClient: any,
+  tracer?: OTelTracer
+): Promise<ForecastGenerationResult> {
+  log('START - Forecast Section Generation', { farmExternalId, paddockExternalId, forecastId })
 
-  // If no logger provided, run without Braintrust logging
-  if (!logger) {
-    return await runGrazingAgentCore(ctx, farmExternalId, farmName, activePastureId, settings, anthropicClient, tracer)
+  // Get paddock context
+  const paddockContext = await ctx.runQuery(api.grazingAgentTools.getPaddockContextForAgent, {
+    farmExternalId,
+    paddockExternalId,
+  })
+
+  // Get forecast details
+  const forecast = await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
+    farmExternalId,
+    paddockExternalId,
+  })
+
+  if (!forecast) {
+    return { success: false, error: 'Forecast not found' }
   }
-  
-  // Run with Braintrust logging
-  return await logger.traced(async (rootSpan: any) => {
-    // Log agent invocation (sanitize to remove Convex internal fields)
-    rootSpan.log({
-      input: sanitizeForBraintrust({
-        farmExternalId,
-        farmName,
-        activePastureId,
-        settings: {
-          minNDVIThreshold: settings.minNDVIThreshold,
-          minRestPeriod: settings.minRestPeriod,
+
+  // Get principles
+  const principles = await ctx.runQuery(api.grazingAgentTools.getGrazingPrinciples, {
+    farmExternalId,
+  }) as GrazingPrinciples & { customRules: string[] }
+
+  const principlesPrompt = generateGrazingPrinciplesPrompt(principles, principles.customRules)
+
+  // Build prompt for forecast generation
+  const forecastPrompt = `Draw grazing sections for this paddock rotation.
+
+${principlesPrompt}
+
+## PADDOCK GEOMETRY
+
+Boundary coordinates (closed polygon):
+${JSON.stringify(paddockContext.boundary.slice(0, 10), null, 2)}${paddockContext.boundary.length > 10 ? '\n... (truncated)' : ''}
+
+Corners:
+- NW (top-left): [${paddockContext.corners.NW[0].toFixed(6)}, ${paddockContext.corners.NW[1].toFixed(6)}]
+- NE (top-right): [${paddockContext.corners.NE[0].toFixed(6)}, ${paddockContext.corners.NE[1].toFixed(6)}]
+- SW (bottom-left): [${paddockContext.corners.SW[0].toFixed(6)}, ${paddockContext.corners.SW[1].toFixed(6)}]
+- SE (bottom-right): [${paddockContext.corners.SE[0].toFixed(6)}, ${paddockContext.corners.SE[1].toFixed(6)}]
+
+Bounds:
+- Longitude: ${paddockContext.bounds.minLng.toFixed(6)} to ${paddockContext.bounds.maxLng.toFixed(6)}
+- Latitude: ${paddockContext.bounds.minLat.toFixed(6)} to ${paddockContext.bounds.maxLat.toFixed(6)}
+
+Total Area: ${paddockContext.totalAreaHa} ha
+Aspect Ratio: ${paddockContext.aspectRatio} (width/height)
+
+## TARGET SECTION SIZE
+
+- Target: ${forecast.targetSectionHa} ha (${forecast.targetSectionPct}% of paddock)
+- Estimated sections needed: ${Math.ceil(paddockContext.totalAreaHa / forecast.targetSectionHa)}
+
+## STARTING CORNER
+
+Start in the ${forecast.startingCorner} corner and work ${forecast.progressionDirection === 'horizontal' ? 'in rows (east-west)' : 'in columns (north-south)'}.
+
+## YOUR TASK
+
+Draw ${Math.ceil(paddockContext.totalAreaHa / forecast.targetSectionHa)}-${Math.ceil(paddockContext.totalAreaHa / forecast.targetSectionHa) + 2} sections to cover the entire paddock.
+
+For each section, call drawSection with EITHER:
+1. rectangle: { corner, widthPct, heightPct } for simple rectangles
+2. coordinates: [[lng, lat], ...] for custom shapes
+
+Start from the ${forecast.startingCorner} corner and progress systematically.
+
+IMPORTANT:
+- Draw sections one at a time
+- Each section should connect to previous sections or paddock boundary
+- Cover the entire paddock with minimal gaps
+- Final section can use remaining area`
+
+  // Track sections drawn across all tool calls
+  let sectionsDrawn = 0
+
+  // Define schemas for type inference
+  const drawSectionSchema = z.object({
+    coordinates: z.array(z.array(z.number())).optional().describe("Polygon coordinates [[lng, lat], ...]"),
+    rectangle: z.object({
+      corner: z.enum(['NW', 'NE', 'SW', 'SE']).describe("Corner to anchor the rectangle"),
+      widthPct: z.number().min(5).max(100).describe("Width as percentage of paddock"),
+      heightPct: z.number().min(5).max(100).describe("Height as percentage of paddock"),
+    }).optional().describe("Rectangle helper for simple shapes"),
+    reasoning: z.string().describe("Why this section shape and placement"),
+  })
+
+  const emptySchema = z.object({})
+
+  // Run agent to draw sections
+  // Tools have execute handlers so maxSteps loop works correctly
+  await generateText({
+    model: anthropicClient(GRAZING_AGENT_MODEL) as any,
+    system: GRAZING_AGENT_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: forecastPrompt }],
+    maxSteps: 15, // Allow multiple tool calls
+    tools: {
+      drawSection: tool({
+        description: "Draw a grazing section. Use rectangle helper for simple shapes or provide coordinates directly.",
+        inputSchema: drawSectionSchema,
+        execute: async (args) => {
+          try {
+            const drawResult = await ctx.runMutation(api.grazingAgentTools.drawSection, {
+              forecastId,
+              coordinates: args.coordinates,
+              rectangle: args.rectangle,
+              reasoning: args.reasoning || 'Agent-drawn section',
+            })
+
+            if (drawResult.success) {
+              sectionsDrawn++
+              log('Section drawn', {
+                sectionIndex: drawResult.sectionIndex,
+                areaHa: drawResult.areaHa,
+                warnings: drawResult.warnings,
+              })
+              return {
+                success: true,
+                sectionIndex: drawResult.sectionIndex,
+                areaHa: drawResult.areaHa,
+                message: `Section ${drawResult.sectionIndex} created (${drawResult.areaHa?.toFixed(2)} ha)`,
+              }
+            } else {
+              log.warn('Section draw failed', { errors: drawResult.errors })
+              return {
+                success: false,
+                errors: drawResult.errors,
+                message: 'Section validation failed - try different coordinates',
+              }
+            }
+          } catch (drawError: any) {
+            log.error('drawSection error', { error: drawError.message })
+            return {
+              success: false,
+              error: drawError.message,
+              message: `Error: ${drawError.message}`,
+            }
+          }
         },
       }),
-      metadata: sanitizeForBraintrust({
-        trigger: 'agent_execution',
-        promptVersion: PROMPT_VERSION,
+      getUngrazedRemaining: tool({
+        description: "Get remaining ungrazed area to help plan final sections",
+        inputSchema: emptySchema,
+        execute: async () => {
+          try {
+            const remaining = await ctx.runQuery(api.grazingAgentTools.getUngrazedRemaining, {
+              forecastId,
+            })
+            log('Ungrazed remaining', {
+              areaHa: remaining.areaHa,
+              percentOfPaddock: remaining.percentOfPaddock,
+              approximateLocation: remaining.approximateLocation,
+            })
+            return {
+              areaHa: remaining.areaHa,
+              percentOfPaddock: remaining.percentOfPaddock,
+              approximateLocation: remaining.approximateLocation,
+              geometry: remaining.geometry,
+              message: `${remaining.areaHa?.toFixed(2)} ha remaining (${remaining.percentOfPaddock?.toFixed(0)}% of paddock) in ${remaining.approximateLocation}`,
+            }
+          } catch (e: any) {
+            log.error('getUngrazedRemaining error', { error: e.message })
+            return {
+              error: e.message,
+              message: `Error getting ungrazed area: ${e.message}`,
+            }
+          }
+        },
       }),
-    })
+    },
+    ...(tracer && {
+      experimental_telemetry: {
+        isEnabled: true,
+        tracer,
+        functionId: "generateForecastSections",
+        recordInputs: true,
+        recordOutputs: true,
+        metadata: {
+          farmExternalId,
+          paddockExternalId,
+          promptVersion: PROMPT_VERSION,
+        },
+      },
+    }),
+  })
 
-    // Call core function and wrap result logging
-    const result = await runGrazingAgentCore(ctx, farmExternalId, farmName, activePastureId, settings, anthropicClient, tracer)
-    
-    // Log final result (sanitize to remove Convex internal fields)
-    rootSpan.log({
-      output: sanitizeForBraintrust({
-        success: result.success,
-        planCreated: result.planCreated,
-        planId: result.planId ? String(result.planId) : undefined,
-      }),
-    })
+  log('END - Forecast Section Generation', { sectionsDrawn })
 
-    return result
-  }, { name: 'Grazing Agent', metadata: { farmExternalId, farmName, activePastureId } })
+  return {
+    success: sectionsDrawn > 0,
+    forecastId,
+    sectionsDrawn,
+  }
+}
+
+/**
+ * Create legacy plan for backward compatibility
+ */
+async function createLegacyPlan(
+  ctx: ActionCtx,
+  params: {
+    farmExternalId: string
+    paddockExternalId: string
+    decision: 'MOVE' | 'STAY'
+    reasoning: string[]
+    confidence: number
+    sectionGeometry: any
+    sectionAreaHa?: number
+    sectionCentroid?: number[]
+    grazedPercentage: number
+  }
+) {
+  const {
+    farmExternalId,
+    paddockExternalId,
+    decision,
+    reasoning,
+    confidence,
+    sectionGeometry,
+    sectionAreaHa,
+    sectionCentroid,
+    grazedPercentage,
+  } = params
+
+  const decisionPrefix = decision === 'MOVE'
+    ? 'MOVE to new section: '
+    : 'STAY in current section: '
+  const justification = decisionPrefix + (reasoning[0] || 'Based on grazing forecast')
+
+  await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, {
+    farmExternalId,
+    targetPaddockId: paddockExternalId,
+    sectionGeometry,
+    sectionAreaHectares: sectionAreaHa,
+    sectionCentroid,
+    sectionJustification: justification,
+    paddockGrazedPercentage: grazedPercentage,
+    confidence: Math.round(confidence * 100),
+    reasoning: [`Decision: ${decision}`, ...reasoning],
+    skipOverlapValidation: true,
+  })
+
+  await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
+    farmExternalId,
+  })
 }

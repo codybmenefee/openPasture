@@ -20,6 +20,7 @@ export interface LivestockSettings {
   sheepAU: number
   lambAU: number
   dailyDMPerAU: number
+  pastureYieldKgPerHa?: number
 }
 
 export interface LivestockSummary {
@@ -309,4 +310,241 @@ export interface WaterSource {
   status?: WaterSourceStatus
   createdAt: string
   updatedAt: string
+}
+
+// Progressive grazing types
+export type RotationStatus = 'active' | 'completed' | 'interrupted'
+
+export type StartingCorner = 'NW' | 'NE' | 'SW' | 'SE'
+
+export type ProgressionDirection = 'horizontal' | 'vertical'
+
+export interface UngrazedArea {
+  approximateCentroid: [number, number] // [lng, lat]
+  approximateAreaHa: number
+  reason: string
+  ndviAtSkip: number
+}
+
+export interface ProgressionSettings {
+  defaultStartCorner: StartingCorner | 'auto'
+  defaultDirection: ProgressionDirection | 'auto'
+  trackUngrazedAreas: boolean
+}
+
+export interface ProgressionContext {
+  rotationId: string
+  sequenceNumber: number
+  progressionQuadrant: string
+  wasUngrazedAreaReturn: boolean
+}
+
+export interface PaddockRotation {
+  id: string
+  farmExternalId: string
+  paddockExternalId: string
+  status: RotationStatus
+  startDate: string
+  endDate?: string
+  entryNdviMean: number
+  startingCorner?: StartingCorner
+  progressionDirection?: ProgressionDirection
+  totalSectionsGrazed: number
+  totalAreaGrazedHa: number
+  grazedPercentage: number
+  ungrazedAreas?: UngrazedArea[]
+  exitNdviMean?: number
+  daysInRotation?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SectionGrazingEvent {
+  id: string
+  farmExternalId: string
+  paddockExternalId: string
+  rotationId: string
+  planId: string
+  date: string
+  sequenceNumber: number
+  sectionGeometry: Feature<Polygon>
+  sectionAreaHa: number
+  centroid: [number, number]
+  sectionNdviMean: number
+  progressionQuadrant?: string
+  adjacentToPrevious: boolean
+  cumulativeAreaGrazedHa: number
+  cumulativeGrazedPct: number
+  createdAt: string
+}
+
+// ============================================================================
+// PADDOCK FORECAST + DAILY PLAN TYPES
+// ============================================================================
+
+export type BriefDecision = 'MOVE' | 'STAY'
+
+export type BriefStatus = 'pending' | 'approved' | 'rejected' | 'executed'
+
+export type DailyPlanStatus = 'pending' | 'approved' | 'rejected'
+
+export type ForecastStatus = 'active' | 'completed' | 'paused'
+
+// Legacy type alias
+export type GrazingPlanStatus = ForecastStatus
+
+/**
+ * Forecasted Section
+ * A pre-generated section in a paddock rotation forecast
+ */
+export interface ForecastedSection {
+  index: number
+  geometry: Feature<Polygon>
+  centroid: [number, number]
+  areaHa: number
+  quadrant: string
+  estimatedDays: number
+}
+
+/**
+ * Grazing History Entry
+ * Record of what actually happened when a section was grazed
+ */
+export interface GrazingHistoryEntry {
+  sectionIndex: number
+  geometry: Feature<Polygon>
+  areaHa: number
+  startedDate: string
+  endedDate: string
+  actualDays: number
+}
+
+/**
+ * Paddock Forecast
+ * The baseline rotation forecast for a paddock - all sections pre-generated
+ */
+export interface PaddockForecast {
+  id: string
+  farmExternalId: string
+  paddockExternalId: string
+  status: ForecastStatus
+  startingCorner: StartingCorner
+  progressionDirection: ProgressionDirection
+  targetSectionHa: number
+  targetSectionPct: number
+  forecastedSections: ForecastedSection[]
+  estimatedTotalDays: number
+  activeSectionIndex: number
+  daysInActiveSection: number
+  grazingHistory: GrazingHistoryEntry[]
+  createdAt: string
+  createdBy: 'agent' | 'farmer'
+  updatedAt: string
+}
+
+/**
+ * Daily Plan
+ * Today's concrete grazing recommendation
+ */
+export interface DailyPlan {
+  id: string
+  farmExternalId: string
+  date: string
+  forecastId: string
+  paddockExternalId: string
+  recommendedSectionIndex: number
+  sectionGeometry: Feature<Polygon>
+  sectionAreaHa: number
+  sectionCentroid: [number, number]
+  daysInSection: number
+  estimatedForageRemaining?: number
+  currentNdvi?: number
+  reasoning: string[]
+  confidence: number
+  status: DailyPlanStatus
+  createdAt: string
+  approvedAt?: string
+  approvedBy?: string
+}
+
+// Legacy types for backward compatibility
+export interface CompletedSectionRecord {
+  geometry: Feature<Polygon>
+  areaHa: number
+  startedDate: string
+  endedDate: string
+  daysGrazed: number
+}
+
+export interface CurrentSectionState {
+  geometry: Feature<Polygon>
+  centroid: [number, number]
+  areaHa: number
+  quadrant: string
+  startedDate: string
+  daysInSection: number
+}
+
+/**
+ * @deprecated Use PaddockForecast instead
+ */
+export interface PaddockGrazingPlan {
+  id: string
+  farmExternalId: string
+  paddockExternalId: string
+  status: GrazingPlanStatus
+  startingCorner: StartingCorner
+  progressionDirection: ProgressionDirection
+  targetSectionHa: number
+  targetSectionPct: number
+  sectionsCompleted: number
+  totalAreaGrazedHa: number
+  grazedPercentage: number
+  currentSection?: CurrentSectionState
+  completedSections: CompletedSectionRecord[]
+  createdAt: string
+  createdBy: 'agent' | 'farmer'
+  updatedAt: string
+}
+
+/**
+ * @deprecated Use DailyPlan instead
+ */
+export interface DailyBrief {
+  id: string
+  farmExternalId: string
+  date: string
+  decision: BriefDecision
+  paddockExternalId: string
+  sectionGeometry?: Feature<Polygon>
+  sectionAreaHa?: number
+  sectionCentroid?: [number, number]
+  daysInCurrentSection: number
+  estimatedForageRemaining?: number
+  currentNdvi?: number
+  reasoning: string[]
+  confidence: number
+  status: BriefStatus
+  grazingPlanId?: string
+  createdAt: string
+  approvedAt?: string
+  approvedBy?: string
+}
+
+/**
+ * Grazing Principles
+ * Farm-level rules that the agent follows when making decisions
+ */
+export interface GrazingPrinciples {
+  minDaysPerSection: number
+  maxDaysPerSection: number
+  minNdviThreshold: number
+  preferHighNdviAreas: boolean
+  requireAdjacentSections: boolean
+  allowSectionOverlapPct: number
+  fillCornersCompletely: boolean
+  avoidSkinnyStrips: boolean
+  defaultStartingCorner: StartingCorner
+  defaultDirection: ProgressionDirection
+  customRules?: string[]
 }
