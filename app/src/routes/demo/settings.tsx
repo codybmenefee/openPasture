@@ -40,7 +40,7 @@ function DemoSettingsPage() {
           <AlertDescription className="text-amber-700">
             <span>Settings changes won't persist in demo mode. </span>
             <Link to="/onboarding" className="font-medium underline underline-offset-2 hover:text-amber-900">
-              Create a free account
+              Create an account
             </Link>
             <span> to save your settings.</span>
           </AlertDescription>
@@ -80,13 +80,13 @@ function DemoSettingsPage() {
             <div>
               <h3 className="font-medium">Ready to create your own farm?</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                Sign up for a free account to save your settings and get personalized grazing recommendations.
+                Sign up to save your settings and get personalized grazing recommendations.
               </p>
             </div>
             <Link to="/onboarding">
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
-                Create Free Account
+                Create Account
               </Button>
             </Link>
           </div>

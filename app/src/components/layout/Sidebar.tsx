@@ -23,6 +23,8 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const location = useLocation()
+  const isDemo = location.pathname.startsWith('/demo')
+  const settingsPath = isDemo ? '/demo/settings' : '/settings'
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -63,10 +65,10 @@ export function Sidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                to="/settings"
+                to={settingsPath}
                 className={cn(
                   'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
-                  location.pathname === '/settings'
+                  location.pathname === settingsPath
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
