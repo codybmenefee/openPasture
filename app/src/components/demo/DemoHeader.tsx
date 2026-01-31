@@ -1,35 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { BookOpen, UserPlus } from 'lucide-react'
+import { BookOpen } from 'lucide-react'
 import { DemoFarmSelector } from './DemoFarmSelector'
 import { DemoDailyPlanButton } from './DemoDailyPlanButton'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-
-function DemoProfileDropdown() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="rounded-full hover:ring-2 hover:ring-accent focus:outline-none focus:ring-2 focus:ring-accent">
-          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-amber-950 text-[10px] font-medium">
-            D
-          </div>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem asChild>
-          <Link to="/onboarding" className="flex items-center gap-2 cursor-pointer">
-            <UserPlus className="h-3.5 w-3.5" />
-            Sign Up Free
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
+import { DemoDevToolsDropdown } from './DemoDevToolsDropdown'
 
 export function DemoHeader() {
   return (
@@ -51,7 +24,14 @@ export function DemoHeader() {
           <BookOpen className="h-3 w-3" />
         </Link>
 
-        <DemoProfileDropdown />
+        <DemoDevToolsDropdown />
+
+        <Link
+          to="/onboarding"
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+        >
+          Sign Up
+        </Link>
       </div>
     </header>
   )

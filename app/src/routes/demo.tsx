@@ -1,7 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { DemoHeader } from '@/components/demo/DemoHeader'
-import { DemoBanner } from '@/components/demo/DemoBanner'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
 import { DemoFarmProvider } from '@/lib/farm/DemoFarmProvider'
@@ -10,6 +9,7 @@ import { DemoAuthProvider, useDemoAuth } from '@/lib/auth/DemoAuthProvider'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
 import { useDemoSeeding } from '@/lib/convex/useDemoSeeding'
+import { TutorialProvider } from '@/components/onboarding/tutorial'
 
 export const Route = createFileRoute('/demo')({
   component: DemoLayout,
@@ -42,17 +42,18 @@ function DemoLayoutContent() {
       <GeometryProviderWithConvex>
         <BriefPanelProvider>
           <SatelliteAnimationProvider>
-            <div className="flex h-screen flex-col bg-background text-foreground">
-              <DemoBanner />
-              <DemoHeader />
-              <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 overflow-hidden">
-                  <Outlet />
-                </main>
+            <TutorialProvider>
+              <div className="flex h-screen flex-col bg-background text-foreground">
+                <DemoHeader />
+                <div className="flex flex-1 overflow-hidden">
+                  <Sidebar />
+                  <main className="flex-1 overflow-hidden">
+                    <Outlet />
+                  </main>
+                </div>
               </div>
-            </div>
-            <SatelliteCollapseAnimation />
+              <SatelliteCollapseAnimation />
+            </TutorialProvider>
           </SatelliteAnimationProvider>
         </BriefPanelProvider>
       </GeometryProviderWithConvex>
