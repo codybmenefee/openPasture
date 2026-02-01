@@ -66,7 +66,7 @@ export function DemoFarmSelector() {
         open={showUpsellDialog}
         onOpenChange={setShowUpsellDialog}
         title="Create Your Own Farm"
-        description="Sign up for a free account to create your own farms, save your data, and get personalized grazing recommendations."
+        description="Sign up to create your own farms, save your data, and get personalized grazing recommendations."
       />
     </>
   )

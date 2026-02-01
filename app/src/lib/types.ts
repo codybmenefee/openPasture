@@ -202,6 +202,7 @@ export interface FarmSettings {
   minNDVIThreshold: number
   minRestPeriod: number
   cloudCoverTolerance: number
+  rotationFrequency: number
   dailyBriefTime: string
   emailNotifications: boolean
   pushNotifications: boolean

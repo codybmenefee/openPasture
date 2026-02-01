@@ -1,11 +1,12 @@
-import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, History, RefreshCw, CalendarDays } from 'lucide-react'
+import { Wrench, RotateCcw, Trash2, Calendar, Database, Settings, GraduationCap, Camera, Eraser, History, RefreshCw, CalendarDays } from 'lucide-react'
 import { useMutation } from 'convex/react'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { api } from '../../../convex/_generated/api'
 import { useFarmContext } from '@/lib/farm'
-import { useAppAuth } from '@/lib/auth'
 import { useTutorial } from '@/components/onboarding/tutorial'
+import { useDemoAuth } from '@/lib/auth/DemoAuthProvider'
+import { isDemoDevMode, clearDemoEdits, hasDemoEdits } from '@/lib/demo'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,11 +15,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-export function DevToolsDropdown() {
-  const { isDevAuth } = useAppAuth()
+export function DemoDevToolsDropdown() {
   const { activeFarmId } = useFarmContext()
   const navigate = useNavigate()
   const { startTutorial, resetTutorial } = useTutorial()
+  const { demoSessionId } = useDemoAuth()
 
   const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
   const clearGrazingEvents = useMutation(api.intelligence.clearGrazingEvents)
@@ -27,8 +28,9 @@ export function DevToolsDropdown() {
   const backdateSections = useMutation(api.intelligence.backdateSections)
   const regenerateDemoHistory = useMutation(api.demo.regenerateDemoHistory)
 
-  // Only render in dev mode
-  if (!isDevAuth) return null
+  // In dev mode, operate on source farm (farm-1) to edit demo source data
+  // In public demo mode, operate on session-specific farm
+  const effectiveFarmId = isDemoDevMode ? 'farm-1' : activeFarmId
 
   const handleViewTutorial = () => {
     resetTutorial()
@@ -42,18 +44,18 @@ export function DevToolsDropdown() {
 
   const handleDeleteTodayPlan = async () => {
     try {
-      await deleteTodayPlan({ farmExternalId: activeFarmId ?? undefined })
+      await deleteTodayPlan({ farmExternalId: effectiveFarmId ?? undefined })
       toast.success("Today's plan deleted")
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete plan')
     }
   }
 
   const handleClearGrazingEvents = async () => {
     try {
-      await clearGrazingEvents({ farmExternalId: activeFarmId ?? undefined })
+      await clearGrazingEvents({ farmExternalId: effectiveFarmId ?? undefined })
       toast.success('Grazing events cleared')
-    } catch (error) {
+    } catch {
       toast.error('Failed to clear grazing events')
     }
   }
@@ -64,21 +66,21 @@ export function DevToolsDropdown() {
   }
 
   const handleResetSettings = async () => {
-    if (!activeFarmId) {
+    if (!effectiveFarmId) {
       toast.error('No active farm')
       return
     }
     try {
-      await resetSettings({ farmId: activeFarmId })
+      await resetSettings({ farmId: effectiveFarmId })
       toast.success('Settings reset to defaults')
-    } catch (error) {
+    } catch {
       toast.error('Failed to reset settings')
     }
   }
 
   const handleSetupTutorialDemo = async () => {
     try {
-      const result = await setupTutorialDemo({ farmExternalId: activeFarmId ?? undefined })
+      const result = await setupTutorialDemo({ farmExternalId: effectiveFarmId ?? undefined })
       toast.success(`Tutorial demo setup complete! ${result.paddocksUpdated} paddocks updated.`)
       // Refresh the page to show updated data
       window.location.reload()
@@ -88,9 +90,20 @@ export function DevToolsDropdown() {
     }
   }
 
+  const handleClearDemoEdits = () => {
+    if (!demoSessionId) {
+      toast.error('No demo session')
+      return
+    }
+    clearDemoEdits(demoSessionId)
+    toast.success('Demo edits cleared - reverting to base data')
+    // Refresh the page to show Convex base data
+    window.location.reload()
+  }
+
   const handleBackdateSections = async () => {
     try {
-      const result = await backdateSections({ farmExternalId: activeFarmId ?? undefined })
+      const result = await backdateSections({ farmExternalId: effectiveFarmId ?? undefined })
       toast.success(`Sections backdated by 1 day (${result.updated} sections updated)`)
       // Refresh to show updated dates
       window.location.reload()
@@ -101,13 +114,14 @@ export function DevToolsDropdown() {
   }
 
   const handleRegenerateDemoHistory = async () => {
-    if (!activeFarmId) {
+    if (!effectiveFarmId) {
       toast.error('No active farm')
       return
     }
+    console.log('[DemoDevToolsDropdown] Regenerating demo history for farm:', effectiveFarmId, 'isDemoDevMode:', isDemoDevMode, 'activeFarmId:', activeFarmId)
     try {
       toast.loading('Regenerating demo history...')
-      const result = await regenerateDemoHistory({ farmExternalId: activeFarmId })
+      const result = await regenerateDemoHistory({ farmExternalId: effectiveFarmId })
       toast.dismiss()
       toast.success(`Demo history regenerated: ${result.plansCreated} plans created`)
       // Refresh to show updated data
@@ -120,7 +134,7 @@ export function DevToolsDropdown() {
   }
 
   const handleSetDemoDate = async () => {
-    if (!activeFarmId) {
+    if (!effectiveFarmId) {
       toast.error('No active farm')
       return
     }
@@ -138,7 +152,7 @@ export function DevToolsDropdown() {
     try {
       toast.loading('Setting demo date...')
       const result = await regenerateDemoHistory({
-        farmExternalId: activeFarmId,
+        farmExternalId: effectiveFarmId,
         demoDate: dateInput,
         historyDays: 14,
       })
@@ -152,6 +166,9 @@ export function DevToolsDropdown() {
       console.error('Set demo date error:', error)
     }
   }
+
+  // Check if there are demo edits to clear
+  const showClearDemoEdits = !isDemoDevMode && demoSessionId && hasDemoEdits(demoSessionId)
 
   return (
     <DropdownMenu>
@@ -199,6 +216,12 @@ export function DevToolsDropdown() {
           <Database className="h-3.5 w-3.5 mr-2" />
           Clear localStorage
         </DropdownMenuItem>
+        {showClearDemoEdits && (
+          <DropdownMenuItem onClick={handleClearDemoEdits}>
+            <Eraser className="h-3.5 w-3.5 mr-2" />
+            Clear Demo Edits
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleResetSettings}>
           <Settings className="h-3.5 w-3.5 mr-2" />

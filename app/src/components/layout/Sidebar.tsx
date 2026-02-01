@@ -15,14 +15,20 @@ interface NavItem {
   href: string
 }
 
-const navItems: NavItem[] = [
-  { label: 'GIS View', icon: Map, href: '/' },
-  { label: 'History', icon: History, href: '/history' },
-  { label: 'Analytics', icon: BarChart3, href: '/analytics' },
-]
+function getNavItems(isDemo: boolean): NavItem[] {
+  const prefix = isDemo ? '/demo' : ''
+  return [
+    { label: 'GIS View', icon: Map, href: isDemo ? '/demo' : '/' },
+    { label: 'History', icon: History, href: `${prefix}/history` },
+    { label: 'Analytics', icon: BarChart3, href: `${prefix}/analytics` },
+  ]
+}
 
 export function Sidebar() {
   const location = useLocation()
+  const isDemo = location.pathname.startsWith('/demo')
+  const navItems = getNavItems(isDemo)
+  const settingsPath = isDemo ? '/demo/settings' : '/settings'
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -63,10 +69,10 @@ export function Sidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                to="/settings"
+                to={settingsPath}
                 className={cn(
                   'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
-                  location.pathname === '/settings'
+                  location.pathname === settingsPath
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}

@@ -21,6 +21,7 @@ const settingsShape = {
   minNDVIThreshold: v.number(),
   minRestPeriod: v.number(),
   cloudCoverTolerance: v.number(),
+  rotationFrequency: v.number(),
   dailyBriefTime: v.string(),
   emailNotifications: v.boolean(),
   pushNotifications: v.boolean(),
@@ -240,7 +241,7 @@ export const getImageryCheckStatus = query({
 })
 
 /**
- * Update just the virtual fence provider setting.
+ * Update specific farm settings.
  * Used during onboarding where we don't want to overwrite other settings.
  */
 export const updateFarmSettings = mutation({
@@ -249,6 +250,7 @@ export const updateFarmSettings = mutation({
     settings: v.object({
       virtualFenceProvider: v.optional(v.string()),
       apiKey: v.optional(v.string()),
+      areaUnit: v.optional(v.union(v.literal('hectares'), v.literal('acres'))),
     }),
   },
   handler: async (ctx, args) => {

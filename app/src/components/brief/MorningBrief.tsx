@@ -16,6 +16,7 @@ import { useTodayPlan } from '@/lib/convex/usePlan'
 import { NoPlanState } from './NoPlanState'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { getGrassQuality } from '@/lib/grassQuality'
 
 const LOW_CONFIDENCE_THRESHOLD = 70
 
@@ -44,14 +45,14 @@ function planSectionToSection(plan: PlanDocument | null | undefined): Section | 
   if (!plan?.sectionGeometry) {
     return undefined
   }
-  
+
   // Convert raw Polygon to GeoJSON Feature
   const sectionFeature = {
     type: 'Feature' as const,
     properties: {},
     geometry: plan.sectionGeometry,
   }
-  
+
   return {
     id: plan._id,
     paddockId: plan.primaryPaddockExternalId || '',
@@ -66,20 +67,19 @@ export function MorningBrief({
   farmExternalId,
   compact = false,
   onClose: _onClose,
-  onZoomToSection,
+  onZoomToSection: _onZoomToSection,
   onEnterModifyMode,
   modifyModeActive = false,
   onSaveModification,
   onCancelModify,
 }: MorningBriefProps) {
   const { getPaddockById } = useGeometry()
-  const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback, deleteTodayPlan } = useTodayPlan(farmExternalId)
+  const { plan, isLoading, isError, generatePlan, approvePlan, submitFeedback } = useTodayPlan(farmExternalId)
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>('pending')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [approvedAt, setApprovedAt] = useState<string | null>(null)
   const [showLowConfidenceWarning, setShowLowConfidenceWarning] = useState(false)
-  const [isResetting, setIsResetting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [expandedSections, setExpandedSections] = useState({
@@ -113,13 +113,6 @@ export function MorningBrief({
     }
   }
 
-  const handleResetPlan = async () => {
-    setIsResetting(true)
-    setGenerationError(null)
-    await deleteTodayPlan()
-    setIsResetting(false)
-  }
-
   const handleApprove = async () => {
     if (plan) {
       setPlanStatus('approved')
@@ -132,11 +125,11 @@ export function MorningBrief({
     }
   }
 
-  const handleModify = () => {
+  const handleReject = () => {
     if (onEnterModifyMode && plan?.sectionGeometry) {
       onEnterModifyMode(plan.sectionGeometry, plan.primaryPaddockExternalId || '')
     } else {
-      setFeedbackOpen(true) // fallback
+      setFeedbackOpen(true) // fallback to feedback modal
     }
   }
 
@@ -196,28 +189,38 @@ export function MorningBrief({
 
   const recommendedPaddock = getPaddockById(plan.primaryPaddockExternalId || '')
 
+  // Compute grass quality from paddock NDVI
+  const grassQuality = recommendedPaddock ? getGrassQuality(recommendedPaddock.ndvi) : undefined
+
+  // Generate summary reason from first reasoning item or justification
+  const summaryReason = plan.sectionJustification
+    || (plan.reasoning && plan.reasoning.length > 0
+      ? plan.reasoning[0]
+      : recommendedPaddock
+        ? `Best forage available after ${recommendedPaddock.restDays} days rest`
+        : 'Analyzing pasture conditions')
+
+  // Use remaining reasoning items as expandable details
+  const reasoningDetails = plan.reasoning && plan.reasoning.length > 1
+    ? plan.reasoning.slice(1)
+    : []
+
   if (planStatus === 'approved' || planStatus === 'modified') {
     return (
       <ApprovedState
         paddock={recommendedPaddock!}
         currentPaddockId={plan.primaryPaddockExternalId || ''}
         approvedAt={approvedAt!}
-        confidence={plan.confidenceScore || 0}
         wasModified={planStatus === 'modified'}
         section={planSectionToSection(plan)}
         daysInCurrentPaddock={2}
         totalDaysPlanned={4}
-        isPaddockTransition={false}
         previousSections={[]}
-        sectionJustification={plan.sectionJustification}
-        paddockGrazedPercentage={plan.paddockGrazedPercentage}
+        grassQuality={grassQuality}
+        summaryReason={summaryReason}
       />
     )
   }
-
-  const briefNarrative = plan.reasoning?.length > 0
-    ? `Based on satellite analysis, we recommend ${plan.primaryPaddockExternalId || 'the current paddock'} today. ${plan.reasoning[0]}`
-    : 'Analyzing pasture conditions for today\'s grazing recommendation.'
 
   // Compact layout for drawer
   if (compact) {
@@ -247,28 +250,19 @@ export function MorningBrief({
             />
           )}
 
-          <div className="rounded-md border border-border bg-card p-2">
-            <p className="text-xs leading-relaxed">
-              {briefNarrative}
-            </p>
-          </div>
-
           {recommendedPaddock && (
             <BriefCard
               currentPaddockId={plan.primaryPaddockExternalId || ''}
               paddock={recommendedPaddock}
-              confidence={plan.confidenceScore || 0}
-              reasoning={plan.reasoning || []}
               onApprove={handleApprove}
-              onModify={handleModify}
+              onReject={handleReject}
               section={planSectionToSection(plan)}
               daysInCurrentPaddock={2}
               totalDaysPlanned={4}
-              isPaddockTransition={false}
               previousSections={[]}
-              sectionAlternatives={[]}
-              sectionJustification={plan.sectionJustification}
-              paddockGrazedPercentage={plan.paddockGrazedPercentage}
+              grassQuality={grassQuality}
+              summaryReason={summaryReason}
+              reasoningDetails={reasoningDetails}
               hideActions={true}
             />
           )}
@@ -313,26 +307,16 @@ export function MorningBrief({
             )}
           </div>
 
-          {/* Debug: Reset plan button */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleResetPlan}
-              disabled={isResetting}
-              className="text-[10px] text-muted-foreground hover:text-foreground underline disabled:opacity-50"
-            >
-              {isResetting ? 'Resetting...' : 'Reset plan (debug)'}
-            </button>
-          </div>
         </div>
 
-        {/* Sticky Footer with Action Buttons */}
+        {/* Sticky Footer with Action Buttons - Binary decision */}
         <div className="sticky bottom-0 z-10 border-t bg-background p-2">
-          <div className="flex gap-1.5">
-            <Button onClick={handleApprove} className="flex-1 h-7 text-xs">
-              Approve Section
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleReject} className="flex-1 h-9">
+              Reject
             </Button>
-            <Button variant="outline" onClick={handleModify} className="flex-1 h-7 text-xs">
-              Modify
+            <Button onClick={handleApprove} className="flex-1 h-9">
+              Approve
             </Button>
           </div>
         </div>
@@ -368,40 +352,19 @@ export function MorningBrief({
             />
           )}
 
-          <div className="rounded-md border border-border bg-card p-3 xl:p-4">
-            <p className="text-sm xl:text-base leading-relaxed">
-              {briefNarrative}
-            </p>
-          </div>
-
-          {/* Debug: Reset plan button */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleResetPlan}
-              disabled={isResetting}
-              className="text-xs text-muted-foreground hover:text-foreground underline disabled:opacity-50"
-            >
-              {isResetting ? 'Resetting...' : 'Reset plan (debug)'}
-            </button>
-          </div>
-
           {recommendedPaddock && (
             <BriefCard
               currentPaddockId={plan.primaryPaddockExternalId || ''}
               paddock={recommendedPaddock}
-              confidence={plan.confidenceScore || 0}
-              reasoning={plan.reasoning || []}
               onApprove={handleApprove}
-              onModify={handleModify}
+              onReject={handleReject}
               section={planSectionToSection(plan)}
               daysInCurrentPaddock={2}
               totalDaysPlanned={4}
-              isPaddockTransition={false}
               previousSections={[]}
-              sectionAlternatives={[]}
-              sectionJustification={plan.sectionJustification}
-              paddockGrazedPercentage={plan.paddockGrazedPercentage}
-              onZoomToSection={onZoomToSection}
+              grassQuality={grassQuality}
+              summaryReason={summaryReason}
+              reasoningDetails={reasoningDetails}
             />
           )}
         </div>

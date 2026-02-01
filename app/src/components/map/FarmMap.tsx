@@ -480,6 +480,10 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const sectionStateRef = useRef<SectionRenderState>({ current: [], yesterday: [], grazed: [], alternatives: [] })
   const paddockGeometryRef = useRef<Record<string, Feature<Polygon>>>({})
   const lastResetCounterRef = useRef<number>(0)
+  // Refs for initial bounds calculation (to avoid map recreation on every change)
+  const initialPaddocksRef = useRef<Paddock[] | null>(null)
+  const initialFarmGeometryRef = useRef<Feature<Polygon> | null>(null)
+  const initialMapCenterRef = useRef<[number, number] | null>(null)
   // Track if user has manually adjusted the map (pan/zoom) to suppress auto-focus
   const userHasInteractedRef = useRef(false)
   // Track the last section ID we focused on to avoid re-focusing during vertex edits
@@ -492,10 +496,45 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   const farmLat = farm?.coordinates?.[1] ?? null
   const farmGeometry = farm?.geometry ?? null
 
-  // Compute initial map center from farm boundary if valid, otherwise use address
+  // Capture initial paddocks and farmGeometry for bounds calculation (only once)
+  if (initialPaddocksRef.current === null && paddocks.length > 0) {
+    initialPaddocksRef.current = paddocks
+  }
+  if (initialFarmGeometryRef.current === null && farmGeometry) {
+    initialFarmGeometryRef.current = farmGeometry
+  }
+
+  // Compute initial map center - prefer paddock bounds (more reliable than farm geometry which may be out of sync)
+  // Use ref to cache value and prevent map recreation on every paddock change
   const initialMapCenter = useMemo<[number, number] | null>(() => {
-    // First try to use the farm boundary center
-    if (farmGeometry) {
+    // Return cached value if already computed
+    if (initialMapCenterRef.current !== null) {
+      return initialMapCenterRef.current
+    }
+
+    let center: [number, number] | null = null
+
+    // First try to use the paddock bounds center (most reliable)
+    if (paddocks.length > 0) {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+      paddocks.forEach(paddock => {
+        const coords = paddock.geometry?.geometry?.coordinates?.[0]
+        if (coords) {
+          coords.forEach(([lng, lat]) => {
+            minLng = Math.min(minLng, lng)
+            maxLng = Math.max(maxLng, lng)
+            minLat = Math.min(minLat, lat)
+            maxLat = Math.max(maxLat, lat)
+          })
+        }
+      })
+      if (minLng !== Infinity) {
+        center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+      }
+    }
+
+    // Fall back to farm boundary center
+    if (!center && farmGeometry) {
       const coords = farmGeometry.geometry.coordinates[0]
       if (coords && coords.length >= 4) {
         let minLng = Infinity
@@ -515,16 +554,23 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
         const latSpan = maxLat - minLat
         if (lngSpan > 0.0005 && latSpan > 0.0005) {
           // Use center of the boundary
-          return [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
+          center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
         }
       }
     }
+
     // Fall back to address coordinates
-    if (farmLng !== null && farmLat !== null) {
-      return [farmLng, farmLat]
+    if (!center && farmLng !== null && farmLat !== null) {
+      center = [farmLng, farmLat]
     }
-    return null
-  }, [farmGeometry, farmLng, farmLat])
+
+    // Cache the computed center
+    if (center !== null) {
+      initialMapCenterRef.current = center
+    }
+
+    return center
+  }, [paddocks, farmGeometry, farmLng, farmLat])
 
   // Fetch available satellite tile dates (dates with actual raster imagery)
   // We specifically query for ndvi_heatmap tiles since that's what the NDVI layer displays
@@ -760,9 +806,51 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       }
     },
     focusOnFarmBoundary: () => {
-      if (!mapInstance || !farmGeometry) return
+      if (!mapInstance) return
       userHasInteractedRef.current = false  // Reset so focus works
-      fitPolygonBounds(farmGeometry, 50)
+
+      // If we have paddocks, compute their bounding box and use that
+      // This handles cases where farm boundary geometry is out of sync with paddock locations
+      if (paddocks.length > 0) {
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+        paddocks.forEach(paddock => {
+          const coords = paddock.geometry?.geometry?.coordinates?.[0]
+          if (coords) {
+            coords.forEach(([lng, lat]) => {
+              minLng = Math.min(minLng, lng)
+              maxLng = Math.max(maxLng, lng)
+              minLat = Math.min(minLat, lat)
+              maxLat = Math.max(maxLat, lat)
+            })
+          }
+        })
+
+        if (minLng !== Infinity) {
+          // Add some padding around the paddock bounds
+          const padding = 0.002 // ~200m
+          const paddockBoundsGeometry: Feature<Polygon> = {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [minLng - padding, maxLat + padding],
+                [maxLng + padding, maxLat + padding],
+                [maxLng + padding, minLat - padding],
+                [minLng - padding, minLat - padding],
+                [minLng - padding, maxLat + padding],
+              ]]
+            }
+          }
+          fitPolygonBounds(paddockBoundsGeometry, 50)
+          return
+        }
+      }
+
+      // Fall back to farm boundary if no paddocks
+      if (farmGeometry) {
+        fitPolygonBounds(farmGeometry, 50)
+      }
     },
     createPaddockAtCenter: () => {
       if (!mapInstance) return null
@@ -1009,9 +1097,38 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(map)
       setIsMapLoaded(true)
 
-      // Fit to farm boundary if valid, otherwise use center/zoom (already set above)
-      if (hasValidBoundary() && farmGeometry) {
-        const coords = farmGeometry.geometry.coordinates[0]
+      // Fit to paddock bounds first (more reliable than farm geometry which may be out of sync)
+      // Use refs to avoid recreating map on every paddock change
+      const initialPaddocks = initialPaddocksRef.current
+      if (initialPaddocks && initialPaddocks.length > 0) {
+        let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+        initialPaddocks.forEach(paddock => {
+          const coords = paddock.geometry?.geometry?.coordinates?.[0]
+          if (coords) {
+            coords.forEach(([lng, lat]) => {
+              minLng = Math.min(minLng, lng)
+              maxLng = Math.max(maxLng, lng)
+              minLat = Math.min(minLat, lat)
+              maxLat = Math.max(maxLat, lat)
+            })
+          }
+        })
+
+        if (minLng !== Infinity) {
+          const padding = 0.002 // ~200m padding around paddocks
+          const bounds = new maplibregl.LngLatBounds(
+            [minLng - padding, minLat - padding],
+            [maxLng + padding, maxLat + padding]
+          )
+          map.fitBounds(bounds, { padding: 50, duration: 0 })
+          return
+        }
+      }
+
+      // Fall back to farm boundary if no paddocks
+      const initialFarmGeometry = initialFarmGeometryRef.current
+      if (hasValidBoundary() && initialFarmGeometry) {
+        const coords = initialFarmGeometry.geometry.coordinates[0]
         let minLng = Infinity
         let minLat = Infinity
         let maxLng = -Infinity
@@ -1035,7 +1152,9 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       setMapInstance(null)
       setIsMapLoaded(false)
     }
-  }, [farmId, initialMapCenter, hasValidBoundary, farmGeometry])
+    // Note: paddocks/farmGeometry are accessed via refs to avoid map recreation on every change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmId, initialMapCenter, hasValidBoundary])
 
   // Add paddock and section layers once map is loaded
   useEffect(() => {
@@ -1720,13 +1839,28 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     paddockGeometryRef.current = nextPaddockGeometries
 
     if (mapInstance) {
-      pushSectionData(mapInstance, sectionState)
+      try {
+        pushSectionData(mapInstance, sectionState)
+      } catch (err) {
+        log('[Sections] Map operation failed (likely unmounting):', err)
+      }
     }
   }, [mapInstance, isMapLoaded, paddocks, updateSectionListForPaddock])
 
   // Categorize sections by date (today, yesterday, older)
   useEffect(() => {
     if (!mapInstance || !isMapLoaded || !sections) return
+
+    // Safety check - ensure map style is still valid
+    try {
+      if (!mapInstance.getStyle()) {
+        log('[Sections] Map style not available, skipping')
+        return
+      }
+    } catch {
+      log('[Sections] Map is being destroyed, skipping')
+      return
+    }
 
     // Use local date (not UTC) since section dates are in local time
     const now = new Date()
@@ -1743,6 +1877,12 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     sections.forEach((section) => {
+      // Skip the section being edited/displayed via initialSectionFeature to avoid duplicate rendering
+      // The initialSectionFeature is rendered separately via the 'section-initial' layer
+      if (initialSectionId && section.id === initialSectionId) {
+        return
+      }
+
       const item: SectionRenderItem = {
         id: section.id,
         paddockId: section.paddockId,
@@ -1765,11 +1905,16 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       currentCount: categorized.current.length,
       yesterdayCount: categorized.yesterday.length,
       grazedCount: categorized.grazed.length,
+      excludedSectionId: initialSectionId,
     })
 
     sectionStateRef.current = categorized
-    pushSectionData(mapInstance, categorized)
-  }, [mapInstance, isMapLoaded, sections])
+    try {
+      pushSectionData(mapInstance, categorized)
+    } catch (err) {
+      log('[Sections] Map operation failed (likely unmounting):', err)
+    }
+  }, [mapInstance, isMapLoaded, sections, initialSectionId])
 
   // Update no-graze zone layer data
   useEffect(() => {
@@ -2366,14 +2511,31 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
 
   // Focus map on the section bounds when editing sections
   // Only focus when the section ID changes, not when geometry updates during vertex editing
+  // Store the initial geometry in a ref to avoid re-focusing on every vertex edit
+  const initialSectionGeometryRef = useRef<Feature<Polygon> | null>(null)
   useEffect(() => {
-    if (!isMapLoaded || !isEditActive || entityType !== 'section' || !initialSectionFeature || !initialSectionId) return
+    // Capture geometry when section ID changes
+    if (initialSectionId && initialSectionFeature) {
+      if (initialSectionGeometryRef.current === null || lastFocusedSectionIdRef.current !== initialSectionId) {
+        initialSectionGeometryRef.current = initialSectionFeature
+      }
+    }
+  }, [initialSectionId, initialSectionFeature])
+
+  useEffect(() => {
+    if (!isMapLoaded || !isEditActive || entityType !== 'section' || !initialSectionId) return
     // Skip if user has manually adjusted the map or we already focused on this section
     if (userHasInteractedRef.current) return
     if (lastFocusedSectionIdRef.current === initialSectionId) return
     lastFocusedSectionIdRef.current = initialSectionId
-    fitPolygonBounds(initialSectionFeature, 120)
-  }, [entityType, fitPolygonBounds, initialSectionFeature, initialSectionId, isEditActive, isMapLoaded])
+    // Use the captured initial geometry, not the current (possibly updated) geometry
+    const geometryToFocus = initialSectionGeometryRef.current
+    if (geometryToFocus) {
+      fitPolygonBounds(geometryToFocus, 120)
+    }
+    // Note: initialSectionFeature is NOT in dependencies - we only focus when section ID changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityType, fitPolygonBounds, initialSectionId, isEditActive, isMapLoaded])
 
   // Reset focus tracking when leaving section edit mode
   useEffect(() => {

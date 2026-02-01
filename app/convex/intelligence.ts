@@ -617,6 +617,63 @@ export const deleteOldPlans = mutation({
 })
 
 /**
+ * Backdate all sections by moving their dates back by one day.
+ * Useful for demo/testing to simulate passage of time.
+ */
+export const backdateSections = mutation({
+  args: {
+    farmExternalId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
+
+    const plans = await ctx.db
+      .query('plans')
+      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .collect()
+
+    let updated = 0
+    for (const plan of plans) {
+      if (plan.sectionGeometry) {
+        // Parse date and subtract one day
+        const currentDate = new Date(plan.date)
+        currentDate.setDate(currentDate.getDate() - 1)
+        const newDate = currentDate.toISOString().split('T')[0]
+
+        await ctx.db.patch(plan._id, { date: newDate })
+        updated++
+        log.debug('Backdated section', { planId: plan._id.toString(), oldDate: plan.date, newDate })
+      }
+    }
+
+    log.debug('backdateSections completed', { updated, farmExternalId })
+    return { updated }
+  },
+})
+
+/**
+ * Update a single section's date. Dev tool for testing historical patterns.
+ */
+export const updateSectionDate = mutation({
+  args: {
+    planId: v.id('plans'),
+    date: v.string(), // YYYY-MM-DD format
+  },
+  handler: async (ctx, args) => {
+    const plan = await ctx.db.get(args.planId)
+    if (!plan) throw new Error('Plan not found')
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) {
+      throw new Error('Invalid date format. Use YYYY-MM-DD.')
+    }
+
+    await ctx.db.patch(args.planId, { date: args.date })
+    return args.planId
+  },
+})
+
+/**
  * Get rest period distribution for analytics.
  * Computes gaps between consecutive grazing events per paddock.
  */

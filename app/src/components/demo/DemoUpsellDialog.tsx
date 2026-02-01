@@ -20,12 +20,10 @@ interface DemoUpsellDialogProps {
 export function DemoUpsellDialog({
   open,
   onOpenChange,
-  title = 'Create Your Free Account',
+  title = 'Create Your Account',
   description = 'Sign up to create your own farms, save your settings, and get personalized grazing recommendations.',
 }: DemoUpsellDialogProps) {
   const benefits = [
-    'Free during beta',
-    'No credit card required',
     '5-minute setup',
     'Real satellite imagery for your farm',
     'AI-powered daily recommendations',
@@ -60,7 +58,7 @@ export function DemoUpsellDialog({
             Continue Demo
           </Button>
           <Link to="/onboarding">
-            <Button>Create Free Account</Button>
+            <Button>Create Account</Button>
           </Link>
         </DialogFooter>
       </DialogContent>

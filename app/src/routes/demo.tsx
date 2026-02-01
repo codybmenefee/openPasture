@@ -1,15 +1,16 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { DemoHeader } from '@/components/demo/DemoHeader'
-import { DemoBanner } from '@/components/demo/DemoBanner'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
-import { GeometryProviderWithConvex } from '@/lib/geometry/GeometryProviderWithConvex'
+import { DemoGeometryProvider } from '@/lib/demo/DemoGeometryProvider'
 import { DemoFarmProvider } from '@/lib/farm/DemoFarmProvider'
 import { BriefPanelProvider } from '@/lib/brief'
 import { DemoAuthProvider, useDemoAuth } from '@/lib/auth/DemoAuthProvider'
 import { SatelliteAnimationProvider } from '@/lib/satellite-animation'
 import { SatelliteCollapseAnimation } from '@/components/layout/SatelliteCollapseAnimation'
 import { useDemoSeeding } from '@/lib/convex/useDemoSeeding'
+import { TutorialProvider, TutorialOverlay } from '@/components/onboarding/tutorial'
+import { isDemoDevMode } from '@/lib/demo/isDemoDevMode'
 
 export const Route = createFileRoute('/demo')({
   component: DemoLayout,
@@ -20,7 +21,9 @@ function DemoLayoutContent() {
   const { isSeeding, isSeeded } = useDemoSeeding()
 
   // Show loading while session initializes
-  if (!isLoaded || !demoSessionId) {
+  // In dev mode, we don't need a demoSessionId (we use farm-1 directly)
+  const sessionReady = isDemoDevMode ? isLoaded : (isLoaded && demoSessionId)
+  if (!sessionReady) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="Starting demo..." />
@@ -39,23 +42,25 @@ function DemoLayoutContent() {
 
   return (
     <DemoFarmProvider>
-      <GeometryProviderWithConvex>
+      <DemoGeometryProvider>
         <BriefPanelProvider>
           <SatelliteAnimationProvider>
-            <div className="flex h-screen flex-col bg-background text-foreground">
-              <DemoBanner />
-              <DemoHeader />
-              <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 overflow-hidden">
-                  <Outlet />
-                </main>
+            <TutorialProvider forceStart>
+              <div className="flex h-screen flex-col bg-background text-foreground">
+                <DemoHeader />
+                <div className="flex flex-1 overflow-hidden">
+                  <Sidebar />
+                  <main className="flex-1 overflow-hidden">
+                    <Outlet />
+                  </main>
+                </div>
               </div>
-            </div>
-            <SatelliteCollapseAnimation />
+              <SatelliteCollapseAnimation />
+              <TutorialOverlay />
+            </TutorialProvider>
           </SatelliteAnimationProvider>
         </BriefPanelProvider>
-      </GeometryProviderWithConvex>
+      </DemoGeometryProvider>
     </DemoFarmProvider>
   )
 }
