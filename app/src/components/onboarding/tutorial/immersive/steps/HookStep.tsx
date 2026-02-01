@@ -1,4 +1,3 @@
-import { Leaf } from 'lucide-react'
 
 export function HookStep() {
   return (
@@ -29,13 +28,9 @@ export function HookStep() {
         </div>
 
         {/* Main heading */}
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <Leaf className="h-8 w-8 text-green-400" />
-          <h1 className="text-4xl md:text-5xl font-bold">
-            Grass-fed can win.
-          </h1>
-          <Leaf className="h-8 w-8 text-green-400 scale-x-[-1]" />
-        </div>
+        <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          Grass-fed can win.
+        </h1>
 
         <p className="text-xl md:text-2xl text-white/80 mb-6">
           Here's how.
