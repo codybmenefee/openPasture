@@ -14,6 +14,8 @@ import type * as crons from "../crons.js";
 import type * as demo from "../demo.js";
 import type * as farmerObservations from "../farmerObservations.js";
 import type * as farms from "../farms.js";
+import type * as featureRequests from "../featureRequests.js";
+import type * as featureRequestsAction from "../featureRequestsAction.js";
 import type * as geocoding from "../geocoding.js";
 import type * as grazingAgentDirect from "../grazingAgentDirect.js";
 import type * as grazingAgentGateway from "../grazingAgentGateway.js";
@@ -57,6 +59,8 @@ declare const fullApi: ApiFromModules<{
   demo: typeof demo;
   farmerObservations: typeof farmerObservations;
   farms: typeof farms;
+  featureRequests: typeof featureRequests;
+  featureRequestsAction: typeof featureRequestsAction;
   geocoding: typeof geocoding;
   grazingAgentDirect: typeof grazingAgentDirect;
   grazingAgentGateway: typeof grazingAgentGateway;

@@ -7,7 +7,7 @@ import { Crosshair, Focus, Save, Satellite } from 'lucide-react'
 import { FarmMap, type FarmMapHandle } from '@/components/map/FarmMap'
 import { HistoricalPanel, HistoricalPanelButton } from '@/components/satellite/HistoricalPanel'
 import { FarmBoundaryDrawer } from '@/components/map/FarmBoundaryDrawer'
-import { AnimalLocationStep, PaddockPositionStep } from '@/components/onboarding'
+import { AnimalLocationStep, PaddockPositionStep, PostOnboardingWelcomeCard } from '@/components/onboarding'
 import { LayerSelector } from '@/components/map/LayerSelector'
 import { SaveIndicator } from '@/components/map/SaveIndicator'
 import { MapAddMenu } from '@/components/map/MapAddMenu'
@@ -39,6 +39,7 @@ import type { Feature, Polygon } from 'geojson'
 import type { Paddock, Section } from '@/lib/types'
 
 const searchSchema = z.object({
+  showWelcome: z.string().optional(),
   editBoundary: z.string().optional(),
   onboarded: z.string().optional(),
   editPaddock: z.string().optional(),
@@ -284,6 +285,11 @@ function GISRoute() {
     cancelDraw()
     navigate({ to: '/app', search: {} })
   }, [cancelDraw, navigate])
+
+  const handleWelcomeContinue = useCallback(() => {
+    navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+  }, [navigate])
+
   const [selectedNoGrazeZone, setSelectedNoGrazeZone] = useState<NoGrazeZone | null>(null)
   const [selectedWaterSource, setSelectedWaterSource] = useState<WaterSource | null>(null)
   const [dragState, setDragState] = useState<{
@@ -707,6 +713,11 @@ function GISRoute() {
             : undefined
         }
       />
+
+      {/* Post-Onboarding Welcome Card - shown after completing onboarding form */}
+      {search.showWelcome === 'true' && (
+        <PostOnboardingWelcomeCard onContinue={handleWelcomeContinue} />
+      )}
 
       {/* Farm Boundary Drawer - shown when editing boundary */}
       {isDrawingBoundary && (
