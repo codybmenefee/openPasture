@@ -434,4 +434,34 @@ export default defineSchema({
     updatedAt: v.string(),
   })
     .index('by_user', ['userExternalId']),
+
+  // Feature requests submitted by users
+  featureRequests: defineTable({
+    userExternalId: v.optional(v.string()),
+    farmExternalId: v.optional(v.string()),
+    title: v.string(),
+    description: v.string(),
+    category: v.union(
+      v.literal('grazing'),
+      v.literal('map'),
+      v.literal('satellite'),
+      v.literal('livestock'),
+      v.literal('analytics'),
+      v.literal('integrations'),
+      v.literal('mobile'),
+      v.literal('other')
+    ),
+    context: v.object({
+      url: v.string(),
+      userAgent: v.string(),
+      screenSize: v.optional(v.string()),
+      timestamp: v.string(),
+    }),
+    // GitHub integration
+    githubIssueUrl: v.optional(v.string()),
+    githubIssueNumber: v.optional(v.number()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_user', ['userExternalId']),
 })

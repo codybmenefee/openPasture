@@ -151,7 +151,7 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
 
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
-      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { showWelcome: 'true', onboarded: 'true' } })
       return
     }
 
@@ -187,11 +187,11 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
       }
 
       // Navigate to map setup - tutorial will be triggered after animal location step
-      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { showWelcome: 'true', onboarded: 'true' } })
     } catch (err) {
       console.error('Error saving onboarding data:', err)
       // Continue to map setup even if saving fails
-      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { showWelcome: 'true', onboarded: 'true' } })
     }
   }
 
@@ -385,7 +385,7 @@ function ClerkOnboarding() {
 
     if (!createdFarmId) {
       // If no farm was created yet, just navigate to map setup
-      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { showWelcome: 'true', onboarded: 'true' } })
       return
     }
 
@@ -421,11 +421,11 @@ function ClerkOnboarding() {
       }
 
       // Navigate to map setup - tutorial will be triggered after animal location step
-      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { showWelcome: 'true', onboarded: 'true' } })
     } catch (err) {
       console.error('Error saving onboarding data:', err)
       // Continue to map setup even if saving fails
-      navigate({ to: '/app', search: { onboarded: 'true', editBoundary: 'true' } })
+      navigate({ to: '/app', search: { showWelcome: 'true', onboarded: 'true' } })
     }
   }
 
