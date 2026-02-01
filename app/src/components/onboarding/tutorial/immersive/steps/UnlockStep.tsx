@@ -72,7 +72,8 @@ export function UnlockStep() {
         <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-3 border border-blue-500/30">
           <Satellite className="h-6 w-6 text-blue-400 mx-auto mb-2" />
           <h3 className="font-medium text-sm mb-1">Satellite Data</h3>
-          <p className="text-xs text-white/60">10m NDVI every 5 days</p>
+          <p className="text-xs text-white/60">10m every 5 days</p>
+          <p className="text-xs text-blue-400/80 mt-1">Daily 3m coming soon</p>
         </div>
         <div className="bg-zinc-900/95 backdrop-blur-sm rounded-lg p-3 border border-purple-500/30">
           <Cpu className="h-6 w-6 text-purple-400 mx-auto mb-2" />

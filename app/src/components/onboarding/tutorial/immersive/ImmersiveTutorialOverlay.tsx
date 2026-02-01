@@ -86,11 +86,11 @@ export function ImmersiveTutorialOverlay() {
     <EvolutionStep key="evolution" />,
     <BottleneckStep key="bottleneck" />,
     <UnlockStep key="unlock" />,
-    <MeetFarmStep key="meet-farm" />,
     <MorningBriefStep key="morning-brief" />,
     <PastureHealthStep key="pasture-health" />,
     <DecisionStep key="decision" />,
     <TrackingStep key="tracking" />,
+    <MeetFarmStep key="meet-farm" />,
     <YourTurnStep key="your-turn" />,
   ]
 

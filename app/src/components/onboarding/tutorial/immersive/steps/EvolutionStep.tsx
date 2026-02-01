@@ -16,56 +16,42 @@ export function EvolutionStep() {
         </h1>
       </div>
 
-      {/* Compact rotation diagram */}
+      {/* Large paddock divided into sections */}
       <div className="bg-zinc-900/95 backdrop-blur-sm rounded-xl p-5 border border-white/10 max-w-lg mx-auto mb-4">
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { id: 'P1', status: 'active', progress: 15 },
-            { id: 'P2', status: 'recovering', progress: 40 },
-            { id: 'P3', status: 'recovering', progress: 55 },
-            { id: 'P4', status: 'recovering', progress: 70 },
-            { id: 'P5', status: 'ready', progress: 100 },
-            { id: 'P6', status: 'ready', progress: 100 },
-            { id: 'P7', status: 'ready', progress: 100 },
-            { id: 'P8', status: 'ready', progress: 100 },
-          ].map((paddock) => {
-            const isActive = paddock.status === 'active'
-            const isRecovering = paddock.status === 'recovering'
-            const bgColor = isActive ? 'bg-green-800' : isRecovering ? 'bg-zinc-700' : 'bg-green-900'
-            const borderColor = isActive ? 'border-green-400' : 'border-zinc-600'
-            const barColor = isActive ? 'bg-red-500' : isRecovering ? 'bg-amber-500' : 'bg-green-500'
-
-            return (
+        {/* Single paddock with internal divisions */}
+        <div className="border-2 border-amber-700 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-4 grid-rows-2">
+            {[
+              { id: '1', color: 'bg-red-900/80', label: 'Grazing' },
+              { id: '2', color: 'bg-amber-900/60', label: '' },
+              { id: '3', color: 'bg-amber-800/50', label: '' },
+              { id: '4', color: 'bg-yellow-900/40', label: '' },
+              { id: '5', color: 'bg-green-900/70', label: '' },
+              { id: '6', color: 'bg-green-800/80', label: '' },
+              { id: '7', color: 'bg-green-700/80', label: 'Ready' },
+              { id: '8', color: 'bg-green-600/80', label: '' },
+            ].map((section, i) => (
               <div
-                key={paddock.id}
-                className={`${bgColor} ${borderColor} border rounded-md p-2`}
+                key={section.id}
+                className={`${section.color} h-14 flex items-center justify-center relative ${
+                  i % 4 !== 3 ? 'border-r border-dashed border-amber-700/50' : ''
+                } ${i < 4 ? 'border-b border-dashed border-amber-700/50' : ''}`}
               >
-                <div className="text-xs text-white/80 text-center mb-1">{paddock.id}</div>
-                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${barColor} rounded-full`}
-                    style={{ width: `${paddock.progress}%` }}
-                  />
-                </div>
+                <span className="text-[10px] text-white/60">{section.id}</span>
+                {section.label && (
+                  <span className="absolute bottom-1 text-[8px] text-white/80 font-medium">
+                    {section.label}
+                  </span>
+                )}
               </div>
-            )
-          })}
+            ))}
+          </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex justify-center gap-4 mt-3 pt-3 border-t border-white/10 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-white/50">Grazing now</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-white/50">Recovering</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-white/50">Ready</span>
-          </div>
+        {/* Arrow showing rotation */}
+        <div className="flex items-center justify-center gap-2 mt-3 text-xs text-white/50">
+          <span>Rotate through sections</span>
+          <span className="text-green-400">1 → 2 → 3 → ... → 8 → 1</span>
         </div>
       </div>
 
