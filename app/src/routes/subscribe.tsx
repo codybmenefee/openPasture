@@ -84,25 +84,28 @@ function SubscribePageContent() {
   // Show loading while redirect is in progress (user has plan)
   if (hasPlan) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[#111719]">
         <LoadingSpinner message="Redirecting to app..." />
       </div>
     )
   }
 
-  // Show loading while checking auth and subscription
-  if (!isUserLoaded || !isAuthLoaded || convexSubscription === undefined) {
+  // Show loading while checking auth (only wait if user is signed in)
+  if (!isUserLoaded || !isAuthLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <LoadingSpinner message="Checking subscription..." />
+      <div className="min-h-screen flex items-center justify-center bg-[#111719]">
+        <LoadingSpinner message="Loading..." />
       </div>
     )
   }
 
-  // If not signed in, redirect to sign-in
-  if (!user) {
-    navigate({ to: '/sign-in' })
-    return null
+  // For authenticated users, wait for subscription check
+  if (user && convexSubscription === undefined) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#111719]">
+        <LoadingSpinner message="Checking subscription..." />
+      </div>
+    )
   }
 
   const handleSignOut = async () => {
@@ -111,51 +114,79 @@ function SubscribePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-[#1a2429] via-[#111719] to-[#1a2429] flex flex-col relative">
+      {/* Subtle gradient accent */}
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-[#075056]/20 via-transparent to-[#075056]/20 pointer-events-none"
+        aria-hidden="true"
+      />
+
       {/* Header */}
-      <header className="border-b px-6 py-4 flex items-center justify-between">
+      <header className="relative z-10 border-b border-[#075056]/30 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-green-500" />
-          <span className="font-semibold text-lg">OpenPasture</span>
+          <Leaf className="h-6 w-6 text-[#075056]" />
+          <span className="font-semibold text-lg text-[#FDF6E3]">OpenPasture</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleSignOut}>
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign out
-        </Button>
+        {user ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="text-[#D3DBDD] hover:text-[#FDF6E3] hover:bg-[#075056]/20"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate({ to: '/sign-in' })}
+            className="text-[#D3DBDD] hover:text-[#FDF6E3] hover:bg-[#075056]/20"
+          >
+            Sign in
+          </Button>
+        )}
       </header>
 
       {/* Main content */}
-      <main className="flex-1 flex items-center justify-center p-6">
+      <main className="relative z-10 flex-1 flex items-center justify-center p-6">
         <div className="max-w-3xl w-full">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">Subscribe to Continue</h1>
-            <p className="text-muted-foreground text-lg">
-              Get early access to AI-powered grazing management
+            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-[#FDF6E3]">
+              {user ? 'Subscribe to Continue' : 'Get Early Access'}
+            </h1>
+            <p className="text-lg text-[#D3DBDD]">
+              {user
+                ? 'Get early access to AI-powered grazing management'
+                : 'Join OpenPasture and get AI-powered grazing recommendations'}
             </p>
           </div>
 
           {/* Clerk's PricingTable component handles plan display and checkout */}
-          <div className="flex justify-center">
+          <div className="flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-[#1a2429]/80 [&_.cl-pricingTableCard]:border-[#075056]/30 [&_.cl-pricingTableCard]:text-[#FDF6E3] [&_.cl-pricingTableCardTitle]:text-[#FDF6E3] [&_.cl-pricingTableCardPrice]:text-[#FDF6E3] [&_.cl-pricingTableCardDescription]:text-[#D3DBDD] [&_.cl-pricingTableCardFeatureItem]:text-[#D3DBDD]">
             <PricingTable />
           </div>
 
-          {/* Continue button for when user has selected a plan */}
-          <div className="mt-6 flex justify-center">
-            <Button
-              size="lg"
-              className="bg-green-600 hover:bg-green-700"
-              onClick={() => navigate({ to: '/app' })}
-            >
-              Continue to App
-            </Button>
-          </div>
+          {/* Continue button for authenticated users */}
+          {user && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                size="lg"
+                className="bg-[#075056] hover:bg-[#086369] text-[#FDF6E3]"
+                onClick={() => navigate({ to: '/app' })}
+              >
+                Continue to App
+              </Button>
+            </div>
+          )}
 
-          <div className="mt-8 text-center text-sm text-muted-foreground">
+          <div className="mt-8 text-center text-sm text-[#D3DBDD]">
             <p>
               Questions?{' '}
               <a
                 href="mailto:support@openpasture.com"
-                className="text-primary hover:underline"
+                className="text-[#FF5B04] hover:underline"
               >
                 Contact us
               </a>
