@@ -34,10 +34,10 @@ export function HeroSection() {
             </Link>
 
             <Link
-              to="/sign-in"
+              to="/subscribe"
               className="inline-flex items-center justify-center text-sm px-5 py-2.5 rounded-md bg-[#075056] hover:bg-[#086369] text-[#FDF6E3] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#075056] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1a2429]"
             >
-              Join the Waitlist
+              Sign up for early access
               <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
