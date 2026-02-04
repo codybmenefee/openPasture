@@ -29,7 +29,10 @@ npm install`,
     },
     {
       heading: 'Environment Variables',
-      content: `Create a \`.env.local\` file with the following variables:
+      content: `Copy \`app/.env.example\` to \`app/.env.local\` and fill in values.
+The complete variable matrix (including ingestion and Convex dashboard-only keys) is in \`docs/environment.md\`.
+
+App-local keys:
 
 **Required:**
 - \`VITE_CONVEX_URL\` - Your Convex deployment URL (e.g., https://your-deployment.convex.cloud)
@@ -38,14 +41,19 @@ npm install`,
 - \`VITE_CLERK_PUBLISHABLE_KEY\` - For Clerk authentication in production
 - \`VITE_DEV_AUTH=true\` - For development mode without authentication
 
-**Optional:**
-- \`BRAINTRUST_API_KEY\` - For agent observability (set in Convex dashboard)
-- \`BRAINTRUST_PROJECT_NAME\` - Defaults to 'grazing-agent'`,
+**Optional app key:**
+- \`VITE_PAYWALL_DISABLED=true\` - Disable paywall checks locally
+
+**Set in Convex dashboard (server-side):**
+- \`ANTHROPIC_API_KEY\` - Required for AI recommendations
+- \`BRAINTRUST_API_KEY\` - Optional agent observability
+- \`BRAINTRUST_PROJECT_NAME\` - Optional, defaults to 'grazing-agent'`,
       codeExample: {
         language: 'bash',
         filename: '.env.local',
         code: `VITE_CONVEX_URL=https://your-deployment.convex.cloud
-VITE_DEV_AUTH=true`,
+VITE_DEV_AUTH=true
+VITE_PAYWALL_DISABLED=false`,
       },
     },
     {

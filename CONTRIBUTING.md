@@ -42,13 +42,13 @@ npm install
 
 ### 2. Configure Environment
 
-Copy the example environment file:
+Copy the app example environment file:
 
 ```bash
-cp .env.example .env.local
+cp app/.env.example app/.env.local
 ```
 
-Edit `.env.local` with your values:
+Edit `app/.env.local` with your values:
 
 ```bash
 # Convex - Get from your Convex dashboard
@@ -61,6 +61,14 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
 # Option B: Skip Clerk for local development
 VITE_DEV_AUTH=true
 ```
+
+If you work on ingestion/pipeline code, also copy:
+
+```bash
+cp src/ingestion/.env.example src/ingestion/.env.local
+```
+
+For the complete env matrix (including Convex Dashboard server-side vars like `ANTHROPIC_API_KEY`), see [docs/environment.md](docs/environment.md).
 
 ### 3. Set Up Convex
 

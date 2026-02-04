@@ -107,11 +107,22 @@ Common scripts:
 
 ### Environment Variables
 
-The following environment variables are required for full functionality:
+Environment setup is documented in [docs/environment.md](docs/environment.md).
 
-- `BRAINTRUST_API_KEY` - API key for Braintrust observability platform. Required for agent behavior tracking and debugging. Get your API key from [Braintrust](https://www.braintrust.dev). Set this in your Convex dashboard environment variables for production, or in `.env.local` for local development.
+Quick start:
 
-  Without this key, agent logging will be disabled but the application will continue to function.
+```bash
+cp app/.env.example app/.env.local
+cp src/ingestion/.env.example src/ingestion/.env.local
+```
+
+Set server-side keys (for Convex backend actions) in Convex Dashboard environment variables:
+
+- `ANTHROPIC_API_KEY` (required for AI recommendations)
+- `BRAINTRUST_API_KEY` (optional observability)
+- `BRAINTRUST_PROJECT_NAME` (optional, defaults to `grazing-agent`)
+- `GITHUB_TOKEN` (optional, enables GitHub issue creation from reports)
+- `CONVEX_DEBUG` (optional backend debug logging)
 
 ## Tech Stack
 
@@ -143,6 +154,7 @@ The following environment variables are required for full functionality:
 - [Development Phasing](docs/phasing.md) - How we build this incrementally
 - [Technical Architecture](docs/architecture.md) - System design and data flow
 - [Domain Knowledge](docs/domain.md) - Remote sensing and vegetation science primer
+- [Environment Setup](docs/environment.md) - Required and optional variables by runtime
 
 ## Contributing
 
