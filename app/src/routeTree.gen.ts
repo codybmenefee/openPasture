@@ -31,6 +31,7 @@ import { Route as PublicResearchRouteImport } from './routes/_public/research'
 import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
 import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
 import { Route as PublicDocsRouteImport } from './routes/_public/docs'
+import { Route as PublicClaudeConceptsRouteImport } from './routes/_public/claude-concepts'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
 import { Route as AppPasturesIdRouteImport } from './routes/app/pastures/$id'
 import { Route as PublicDocsCategoryArticleRouteImport } from './routes/_public/docs/$category.$article'
@@ -144,6 +145,11 @@ const PublicDocsRoute = PublicDocsRouteImport.update({
   path: '/docs',
   getParentRoute: () => PublicRoute,
 } as any)
+const PublicClaudeConceptsRoute = PublicClaudeConceptsRouteImport.update({
+  id: '/claude-concepts',
+  path: '/claude-concepts',
+  getParentRoute: () => PublicRoute,
+} as any)
 const PublicDocsIndexRoute = PublicDocsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
+  '/claude-concepts': typeof PublicClaudeConceptsRoute
   '/docs': typeof PublicDocsRouteWithChildren
   '/investors': typeof PublicInvestorsRoute
   '/marketing': typeof PublicMarketingRoute
@@ -191,6 +198,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
+  '/claude-concepts': typeof PublicClaudeConceptsRoute
   '/investors': typeof PublicInvestorsRoute
   '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/demo': typeof DemoRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
+  '/_public/claude-concepts': typeof PublicClaudeConceptsRoute
   '/_public/docs': typeof PublicDocsRouteWithChildren
   '/_public/investors': typeof PublicInvestorsRoute
   '/_public/marketing': typeof PublicMarketingRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/sign-in'
     | '/subscribe'
+    | '/claude-concepts'
     | '/docs'
     | '/investors'
     | '/marketing'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/'
     | '/sign-in'
     | '/subscribe'
+    | '/claude-concepts'
     | '/investors'
     | '/marketing'
     | '/research'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/sign-in'
     | '/subscribe'
+    | '/_public/claude-concepts'
     | '/_public/docs'
     | '/_public/investors'
     | '/_public/marketing'
@@ -482,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicDocsRouteImport
       parentRoute: typeof PublicRoute
     }
+    '/_public/claude-concepts': {
+      id: '/_public/claude-concepts'
+      path: '/claude-concepts'
+      fullPath: '/claude-concepts'
+      preLoaderRoute: typeof PublicClaudeConceptsRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/_public/docs/': {
       id: '/_public/docs/'
       path: '/'
@@ -521,6 +540,7 @@ const PublicDocsRouteWithChildren = PublicDocsRoute._addFileChildren(
 )
 
 interface PublicRouteChildren {
+  PublicClaudeConceptsRoute: typeof PublicClaudeConceptsRoute
   PublicDocsRoute: typeof PublicDocsRouteWithChildren
   PublicInvestorsRoute: typeof PublicInvestorsRoute
   PublicMarketingRoute: typeof PublicMarketingRoute
@@ -529,6 +549,7 @@ interface PublicRouteChildren {
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
+  PublicClaudeConceptsRoute: PublicClaudeConceptsRoute,
   PublicDocsRoute: PublicDocsRouteWithChildren,
   PublicInvestorsRoute: PublicInvestorsRoute,
   PublicMarketingRoute: PublicMarketingRoute,
