@@ -150,48 +150,46 @@ function SubscribePageContent() {
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-6">
-        <div className="max-w-3xl w-full">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-[#FDF6E3]">
-              {user ? 'Subscribe to Continue' : 'Get Early Access'}
-            </h1>
-            <p className="text-lg text-[#D3DBDD]">
-              {user
-                ? 'Get early access to AI-powered grazing management'
-                : 'Join OpenPasture and get AI-powered grazing recommendations'}
-            </p>
-          </div>
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+        <div className="max-w-3xl w-full text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-[#FDF6E3]">
+            {user ? 'Subscribe to Continue' : 'Get Early Access'}
+          </h1>
+          <p className="text-lg text-[#D3DBDD]">
+            {user
+              ? 'Get early access to AI-powered grazing management'
+              : 'Join OpenPasture and get AI-powered grazing recommendations'}
+          </p>
+        </div>
 
-          {/* Clerk's PricingTable component handles plan display and checkout */}
-          <div className="flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-[#1a2429]/80 [&_.cl-pricingTableCard]:border-[#075056]/30 [&_.cl-pricingTableCard]:text-[#FDF6E3] [&_.cl-pricingTableCardTitle]:text-[#FDF6E3] [&_.cl-pricingTableCardPrice]:text-[#FDF6E3] [&_.cl-pricingTableCardDescription]:text-[#D3DBDD] [&_.cl-pricingTableCardFeatureItem]:text-[#D3DBDD]">
-            <PricingTable />
-          </div>
+        {/* Clerk's PricingTable component handles plan display and checkout */}
+        <div className="w-full max-w-5xl flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-[#1a2429]/80 [&_.cl-pricingTableCard]:border-[#075056]/30 [&_.cl-pricingTableCard]:text-[#FDF6E3] [&_.cl-pricingTableCardTitle]:text-[#FDF6E3] [&_.cl-pricingTableCardPrice]:text-[#FDF6E3] [&_.cl-pricingTableCardDescription]:text-[#D3DBDD] [&_.cl-pricingTableCardFeatureItem]:text-[#D3DBDD]">
+          <PricingTable />
+        </div>
 
-          {/* Continue button for authenticated users */}
-          {user && (
-            <div className="mt-6 flex justify-center">
-              <Button
-                size="lg"
-                className="bg-[#075056] hover:bg-[#086369] text-[#FDF6E3]"
-                onClick={() => navigate({ to: '/app' })}
-              >
-                Continue to App
-              </Button>
-            </div>
-          )}
-
-          <div className="mt-8 text-center text-sm text-[#D3DBDD]">
-            <p>
-              Questions?{' '}
-              <a
-                href="mailto:support@openpasture.com"
-                className="text-[#FF5B04] hover:underline"
-              >
-                Contact us
-              </a>
-            </p>
+        {/* Continue button for authenticated users */}
+        {user && (
+          <div className="mt-6 flex justify-center">
+            <Button
+              size="lg"
+              className="bg-[#075056] hover:bg-[#086369] text-[#FDF6E3]"
+              onClick={() => navigate({ to: '/app' })}
+            >
+              Continue to App
+            </Button>
           </div>
+        )}
+
+        <div className="mt-8 text-center text-sm text-[#D3DBDD]">
+          <p>
+            Questions?{' '}
+            <a
+              href="mailto:support@openpasture.com"
+              className="text-[#FF5B04] hover:underline"
+            >
+              Contact us
+            </a>
+          </p>
         </div>
       </main>
     </div>
