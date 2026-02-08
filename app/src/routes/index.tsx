@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowRight, Check, Terminal, Layers } from 'lucide-react'
+import { ArrowRight, Check } from 'lucide-react'
 import { MarketingHeader, Footer } from '@/components/marketing'
 import { WindowChrome } from '@/components/ui/window-chrome'
 import { PageSection } from '@/components/ui/page-section'
@@ -47,11 +47,7 @@ function LandingPage() {
       {/* Hero Screenshot */}
       <PageSection bg="white">
         <WindowChrome title="openpasture -- morning-brief">
-          <div className="rsc-window-body">
-            <Layers className="w-16 h-16 text-olive-muted" strokeWidth={1} />
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">[Morning Brief Dashboard]</span>
-            <span className="text-xs text-border">1440 x 900</span>
-          </div>
+          <img src="/marketing/hero-app.png" alt="OpenPasture app showing daily grazing plan with NDVI satellite map" className="w-full" />
         </WindowChrome>
       </PageSection>
 
@@ -98,11 +94,7 @@ function LandingPage() {
           </div>
 
           <WindowChrome title="brief --daily">
-            <div className="rsc-window-body">
-              <Terminal className="w-12 h-12 text-olive-muted" strokeWidth={1} />
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">[Morning Brief View]</span>
-              <span className="text-xs text-border">probability distribution + recommendations</span>
-            </div>
+            <img src="/marketing/morning-brief.png" alt="AI-powered grazing recommendation with probability reasoning" className="w-full" />
           </WindowChrome>
         </div>
       </PageSection>
@@ -113,11 +105,7 @@ function LandingPage() {
       <PageSection bg="white" maxWidth="7xl">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <WindowChrome title="map --ndvi --pastures">
-            <div className="rsc-window-body">
-              <Layers className="w-12 h-12 text-olive-muted" strokeWidth={1} />
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">[NDVI Heatmap View]</span>
-              <span className="text-xs text-border">pasture health + recovery zones</span>
-            </div>
+            <img src="/marketing/ndvi-map.png" alt="NDVI satellite heatmap showing pasture health across paddocks" className="w-full" />
           </WindowChrome>
 
           <div>
@@ -174,11 +162,7 @@ function LandingPage() {
           </div>
 
           <WindowChrome title="analytics --recovery --trends">
-            <div className="rsc-window-body">
-              <Terminal className="w-12 h-12 text-olive-muted" strokeWidth={1} />
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">[Recovery Analytics View]</span>
-              <span className="text-xs text-border">trend data + confidence intervals</span>
-            </div>
+            <img src="/marketing/analytics-dashboard.png" alt="Analytics dashboard with pasture recovery, rest periods, NDVI trends, and AI partnership stats" className="w-full" />
           </WindowChrome>
         </div>
       </PageSection>
