@@ -122,3 +122,15 @@ export function useAgentDashboard() {
     },
   }
 }
+
+export function useAgentRunDeepDive(runId: Id<'agentRuns'> | null) {
+  const deepDive = useQuery(
+    api.agentAdmin.getAgentRunDeepDive,
+    runId ? { runId } : 'skip'
+  )
+
+  return {
+    deepDive: deepDive ?? null,
+    isLoading: runId !== null && deepDive === undefined,
+  }
+}

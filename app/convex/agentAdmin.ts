@@ -71,6 +71,14 @@ const runStatusValidator = v.union(
   v.literal('failed'),
   v.literal('blocked'),
 )
+const runStepTypeValidator = v.union(
+  v.literal('prompt'),
+  v.literal('tool_call'),
+  v.literal('tool_result'),
+  v.literal('decision'),
+  v.literal('error'),
+  v.literal('info'),
+)
 
 const memoryStatusValidator = v.union(v.literal('active'), v.literal('archived'))
 const memoryScopeValidator = v.union(v.literal('farm'), v.literal('paddock'))
@@ -299,6 +307,32 @@ export const listAgentRuns = query({
     const nextCursor = filtered.length > limit ? items[items.length - 1]?.startedAt : null
 
     return { items, nextCursor }
+  },
+})
+
+export const getAgentRunDeepDive = query({
+  args: {
+    runId: v.id('agentRuns'),
+  },
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId)
+    if (!run) {
+      throw new Error('Agent run not found')
+    }
+
+    await assertAgentDashboardAccess(ctx, run.farmExternalId)
+
+    const steps = await ctx.db
+      .query('agentRunSteps')
+      .withIndex('by_run_step', (q) => q.eq('runId', args.runId))
+      .collect()
+
+    const sortedSteps = steps.sort((a, b) => a.stepIndex - b.stepIndex)
+    return {
+      run,
+      steps: sortedSteps,
+      hasDeepDive: sortedSteps.length > 0,
+    }
   },
 })
 
@@ -687,6 +721,42 @@ export const completeAgentRunInternal = internalMutation({
       completedAt: new Date().toISOString(),
     })
     return { success: true }
+  },
+})
+
+export const appendAgentRunStepInternal = internalMutation({
+  args: {
+    runId: v.id('agentRuns'),
+    farmExternalId: v.string(),
+    stepIndex: v.number(),
+    stepType: runStepTypeValidator,
+    title: v.string(),
+    toolName: v.optional(v.string()),
+    justification: v.optional(v.string()),
+    input: v.optional(v.any()),
+    output: v.optional(v.any()),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const run = await ctx.db.get(args.runId)
+    if (!run) throw new Error('Agent run not found')
+    if (run.farmExternalId !== args.farmExternalId) {
+      throw new Error('Run farm mismatch')
+    }
+
+    return await ctx.db.insert('agentRunSteps', {
+      runId: args.runId,
+      farmExternalId: args.farmExternalId,
+      stepIndex: args.stepIndex,
+      stepType: args.stepType,
+      title: args.title,
+      toolName: args.toolName,
+      justification: args.justification,
+      input: args.input,
+      output: args.output,
+      error: args.error,
+      createdAt: new Date().toISOString(),
+    })
   },
 })
 

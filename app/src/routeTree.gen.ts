@@ -33,6 +33,7 @@ import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
 import { Route as PublicDocsRouteImport } from './routes/_public/docs'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
 import { Route as AppPasturesIdRouteImport } from './routes/app/pastures/$id'
+import { Route as AppAgentRunIdRouteImport } from './routes/app/agent.$runId'
 import { Route as PublicDocsCategoryArticleRouteImport } from './routes/_public/docs/$category.$article'
 
 const SubscribeRoute = SubscribeRouteImport.update({
@@ -154,6 +155,11 @@ const AppPasturesIdRoute = AppPasturesIdRouteImport.update({
   path: '/pastures/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgentRunIdRoute = AppAgentRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => AppAgentRoute,
+} as any)
 const PublicDocsCategoryArticleRoute =
   PublicDocsCategoryArticleRouteImport.update({
     id: '/$category/$article',
@@ -171,7 +177,7 @@ export interface FileRoutesByFullPath {
   '/investors': typeof PublicInvestorsRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
-  '/app/agent': typeof AppAgentRoute
+  '/app/agent': typeof AppAgentRouteWithChildren
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/history': typeof AppHistoryRoute
   '/app/map': typeof AppMapRoute
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/demo/settings': typeof DemoSettingsRoute
   '/app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
+  '/app/agent/$runId': typeof AppAgentRunIdRoute
   '/app/pastures/$id': typeof AppPasturesIdRoute
   '/docs/': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
@@ -194,7 +201,7 @@ export interface FileRoutesByTo {
   '/investors': typeof PublicInvestorsRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
-  '/app/agent': typeof AppAgentRoute
+  '/app/agent': typeof AppAgentRouteWithChildren
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/history': typeof AppHistoryRoute
   '/app/map': typeof AppMapRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/demo/settings': typeof DemoSettingsRoute
   '/app': typeof AppIndexRoute
   '/demo': typeof DemoIndexRoute
+  '/app/agent/$runId': typeof AppAgentRunIdRoute
   '/app/pastures/$id': typeof AppPasturesIdRoute
   '/docs': typeof PublicDocsIndexRoute
   '/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
@@ -222,7 +230,7 @@ export interface FileRoutesById {
   '/_public/investors': typeof PublicInvestorsRoute
   '/_public/research': typeof PublicResearchRoute
   '/_public/technology': typeof PublicTechnologyRoute
-  '/app/agent': typeof AppAgentRoute
+  '/app/agent': typeof AppAgentRouteWithChildren
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/history': typeof AppHistoryRoute
   '/app/map': typeof AppMapRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/demo/settings': typeof DemoSettingsRoute
   '/app/': typeof AppIndexRoute
   '/demo/': typeof DemoIndexRoute
+  '/app/agent/$runId': typeof AppAgentRunIdRoute
   '/app/pastures/$id': typeof AppPasturesIdRoute
   '/_public/docs/': typeof PublicDocsIndexRoute
   '/_public/docs/$category/$article': typeof PublicDocsCategoryArticleRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/demo/settings'
     | '/app/'
     | '/demo/'
+    | '/app/agent/$runId'
     | '/app/pastures/$id'
     | '/docs/'
     | '/docs/$category/$article'
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/demo/settings'
     | '/app'
     | '/demo'
+    | '/app/agent/$runId'
     | '/app/pastures/$id'
     | '/docs'
     | '/docs/$category/$article'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/demo/settings'
     | '/app/'
     | '/demo/'
+    | '/app/agent/$runId'
     | '/app/pastures/$id'
     | '/_public/docs/'
     | '/_public/docs/$category/$article'
@@ -496,6 +508,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPasturesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agent/$runId': {
+      id: '/app/agent/$runId'
+      path: '/$runId'
+      fullPath: '/app/agent/$runId'
+      preLoaderRoute: typeof AppAgentRunIdRouteImport
+      parentRoute: typeof AppAgentRoute
+    }
     '/_public/docs/$category/$article': {
       id: '/_public/docs/$category/$article'
       path: '/$category/$article'
@@ -537,8 +556,20 @@ const PublicRouteChildren: PublicRouteChildren = {
 const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
 
+interface AppAgentRouteChildren {
+  AppAgentRunIdRoute: typeof AppAgentRunIdRoute
+}
+
+const AppAgentRouteChildren: AppAgentRouteChildren = {
+  AppAgentRunIdRoute: AppAgentRunIdRoute,
+}
+
+const AppAgentRouteWithChildren = AppAgentRoute._addFileChildren(
+  AppAgentRouteChildren,
+)
+
 interface AppRouteChildren {
-  AppAgentRoute: typeof AppAgentRoute
+  AppAgentRoute: typeof AppAgentRouteWithChildren
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMapRoute: typeof AppMapRoute
@@ -550,7 +581,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAgentRoute: AppAgentRoute,
+  AppAgentRoute: AppAgentRouteWithChildren,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMapRoute: AppMapRoute,

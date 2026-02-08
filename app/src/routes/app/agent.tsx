@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { Lock, Wrench } from 'lucide-react'
 import { toast } from 'sonner'
 import { AgentDashboardShell } from '@/components/agent'
@@ -13,6 +13,8 @@ export const Route = createFileRoute('/app/agent')({
 
 function AgentRoute() {
   const dashboard = useAgentDashboard()
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isDeepDiveRoute = pathname.startsWith('/app/agent/')
 
   if (!dashboard.canAccess) {
     return (
@@ -37,6 +39,10 @@ function AgentRoute() {
         </div>
       </div>
     )
+  }
+
+  if (isDeepDiveRoute) {
+    return <Outlet />
   }
 
   if (dashboard.isLoading || !dashboard.dashboardState) {

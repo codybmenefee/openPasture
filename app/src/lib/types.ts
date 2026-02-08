@@ -222,6 +222,7 @@ export type AgentExplanationStyle = 'concise' | 'balanced' | 'detailed'
 export type AgentMemoryScope = 'farm' | 'paddock'
 export type AgentMemoryStatus = 'active' | 'archived'
 export type AgentMemorySource = 'farmer' | 'system'
+export type AgentRunStepType = 'prompt' | 'tool_call' | 'tool_result' | 'decision' | 'error' | 'info'
 
 export interface AgentBehaviorConfig {
   riskPosture: AgentRiskPosture
@@ -250,6 +251,27 @@ export interface AgentRun {
   startedAt: string
   completedAt?: string
   latencyMs?: number
+}
+
+export interface AgentRunStep {
+  _id: string
+  runId: string
+  farmExternalId: string
+  stepIndex: number
+  stepType: AgentRunStepType
+  title: string
+  toolName?: string
+  justification?: string
+  input?: unknown
+  output?: unknown
+  error?: string
+  createdAt: string
+}
+
+export interface AgentRunDeepDive {
+  run: AgentRun
+  steps: AgentRunStep[]
+  hasDeepDive: boolean
 }
 
 export interface AgentConfig {

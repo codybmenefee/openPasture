@@ -86,6 +86,50 @@ type HarnessState = {
 }
 
 type TraceSpan = { log: (data: unknown) => void }
+type AgentRunStepType = 'prompt' | 'tool_call' | 'tool_result' | 'decision' | 'error' | 'info'
+type AgentRunStepPayload = {
+  stepType: AgentRunStepType
+  title: string
+  toolName?: string
+  justification?: string
+  input?: unknown
+  output?: unknown
+  error?: string
+}
+
+type AgentRunStepRecorder = {
+  recordStep: (payload: AgentRunStepPayload) => Promise<void>
+}
+
+function createRunStepRecorder(
+  ctx: ActionCtx,
+  runId: Id<'agentRuns'>,
+  farmExternalId: string
+): AgentRunStepRecorder {
+  let stepIndex = 0
+  return {
+    recordStep: async (payload) => {
+      const currentStepIndex = stepIndex
+      try {
+        await ctx.runMutation(internal.agentAdmin.appendAgentRunStepInternal, {
+          runId,
+          farmExternalId,
+          stepIndex: currentStepIndex,
+          ...payload,
+        })
+      } catch (error) {
+        console.error('[agentGateway] Failed to record run step', {
+          runId: runId.toString(),
+          stepIndex: currentStepIndex,
+          title: payload.title,
+          error,
+        })
+      } finally {
+        stepIndex += 1
+      }
+    },
+  }
+}
 
 /**
  * PRIMARY ENTRY POINT: Agent Gateway Action
@@ -207,6 +251,20 @@ export const agentGateway = action({
       dryRun: !!args.dryRun,
       requestedBy: args.userId,
     })
+    const recorder = createRunStepRecorder(ctx, runId, args.farmExternalId)
+
+    await recorder.recordStep({
+      stepType: 'info',
+      title: 'Agent run started',
+      justification: 'Gateway initialized run metadata and selected profile context.',
+      input: {
+        trigger: args.trigger,
+        dryRun: !!args.dryRun,
+        profileId: selectedProfileId,
+        requestedBy: args.userId,
+        model: 'claude-haiku-4-5',
+      },
+    })
 
     const dryRunBase = {
       profileId: selectedProfileId,
@@ -271,6 +329,14 @@ export const agentGateway = action({
           planId: planData.existingPlanId.toString(),
           message: 'Plan already exists for today',
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Skipped plan generation because plan already exists',
+          justification: 'Morning brief must avoid creating duplicate plans for the same farm/day.',
+          output: {
+            existingPlanId: planData.existingPlanId.toString(),
+          },
+        })
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
           status: 'blocked',
@@ -290,6 +356,12 @@ export const agentGateway = action({
           error: 'No pastures found for farm',
           message: 'Cannot generate plan: farm has no pastures',
         }
+        await recorder.recordStep({
+          stepType: 'error',
+          title: 'Plan generation failed: no pastures found',
+          justification: 'The agent cannot generate a grazing plan without pasture geometry.',
+          error: noPasturesResult.error,
+        })
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
           status: 'failed',
@@ -332,6 +404,19 @@ export const agentGateway = action({
       })
 
       console.log('[agentGateway] Delegating to runGrazingAgent...')
+      await recorder.recordStep({
+        stepType: 'info',
+        title: 'Prepared morning brief agent inputs',
+        justification: 'Resolved active pasture, farm settings, and harness context before invoking the planner.',
+        input: {
+          farmName,
+          activePastureId,
+          settings,
+          selectedProfileId,
+          memoryCount: harnessState.memories.length,
+          usedProvidedContext: !!args.additionalContext?.planGenerationData,
+        },
+      })
 
       const logger = getLogger()
 
@@ -353,6 +438,7 @@ export const agentGateway = action({
         },
         {
           dryRun: !!args.dryRun,
+          recorder,
         },
       )
 
@@ -377,6 +463,16 @@ export const agentGateway = action({
           error: result.error || 'Agent execution failed',
           message: 'Failed to generate plan',
         }
+        await recorder.recordStep({
+          stepType: 'error',
+          title: 'Agent execution failed',
+          justification: 'Planner returned an unsuccessful result.',
+          output: {
+            toolCallCount: result.toolCallCount ?? 0,
+            toolSummary: result.toolSummary ?? [],
+          },
+          error: errorResult.error,
+        })
 
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
@@ -399,6 +495,16 @@ export const agentGateway = action({
           error: 'Agent did not create a plan',
           message: 'Plan generation completed but no plan was created',
         }
+        await recorder.recordStep({
+          stepType: 'error',
+          title: 'Planner completed without creating a plan',
+          justification: 'Morning brief expects a concrete plan artifact unless execution fails earlier.',
+          output: {
+            toolCallCount: result.toolCallCount ?? 0,
+            toolSummary: result.toolSummary ?? [],
+          },
+          error: noPlanResult.error,
+        })
 
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
@@ -425,6 +531,12 @@ export const agentGateway = action({
             renderedDraft: result.agentText,
           },
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Dry run completed',
+          justification: 'Dry run validates planning logic without mutating plan state.',
+          output: dryRunResult.dryRunOutput,
+        })
 
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
@@ -445,6 +557,16 @@ export const agentGateway = action({
         planId: finalPlanId ? String(finalPlanId) : undefined,
         message: 'Plan generated successfully',
       }
+      await recorder.recordStep({
+        stepType: 'decision',
+        title: 'Plan generated successfully',
+        justification: 'Morning brief planner produced a valid plan artifact.',
+        output: {
+          planId: finalPlanId,
+          toolCallCount: result.toolCallCount ?? 0,
+          toolSummary: result.toolSummary ?? [],
+        },
+      })
 
       await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
         runId,
@@ -466,6 +588,20 @@ export const agentGateway = action({
       const latestObservationDate = await ctx.runQuery(api.observations.getLatestObservationDate, {
         farmExternalId: args.farmExternalId,
       })
+      await recorder.recordStep({
+        stepType: 'info',
+        title: 'Observation refresh context loaded',
+        justification: 'Gateway checked current job state and latest observation recency before deciding refresh behavior.',
+        output: {
+          latestObservationDate,
+          activeJob: activeJob
+            ? {
+                id: activeJob._id.toString(),
+                status: activeJob.status,
+              }
+            : null,
+        },
+      })
 
       if (args.dryRun) {
         const dryRunResult = {
@@ -484,6 +620,12 @@ export const agentGateway = action({
             ],
           },
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Dry run completed for observation refresh',
+          justification: 'Dry run reports what refresh action would be taken without queueing a job.',
+          output: dryRunResult.dryRunOutput,
+        })
 
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
@@ -502,6 +644,15 @@ export const agentGateway = action({
           trigger: args.trigger,
           message: `Observation refresh already in progress (${activeJob.status}).`,
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Refresh skipped because a job is already active',
+          justification: 'Queueing another manual refresh while one is in progress is redundant.',
+          output: {
+            activeJobId: activeJob._id.toString(),
+            activeJobStatus: activeJob.status,
+          },
+        })
 
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
@@ -517,12 +668,32 @@ export const agentGateway = action({
       const jobId = await ctx.runMutation(api.satelliteFetchJobs.createForManualRefresh, {
         farmExternalId: args.farmExternalId,
       })
+      await recorder.recordStep({
+        stepType: 'tool_call',
+        title: 'Queued manual observation refresh job',
+        toolName: 'createForManualRefresh',
+        justification: 'No active fetch job exists, so the gateway queued a manual refresh.',
+        input: {
+          farmExternalId: args.farmExternalId,
+        },
+        output: {
+          jobId: String(jobId),
+        },
+      })
 
       const successResult = {
         success: true,
         trigger: args.trigger,
         message: `Observation refresh job queued (${jobId}).`,
       }
+      await recorder.recordStep({
+        stepType: 'decision',
+        title: 'Observation refresh queued',
+        justification: 'Manual refresh request was accepted and queued successfully.',
+        output: {
+          jobId: String(jobId),
+        },
+      })
 
       await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
         runId,
@@ -545,6 +716,25 @@ export const agentGateway = action({
           farmExternalId: args.farmExternalId,
         }),
       ])
+      await recorder.recordStep({
+        stepType: 'info',
+        title: 'Plan execution context loaded',
+        justification: 'Gateway inspected today’s daily and legacy plan states before evaluating execution readiness.',
+        output: {
+          todayDailyPlan: todayDailyPlan
+            ? {
+                id: todayDailyPlan._id.toString(),
+                status: todayDailyPlan.status,
+              }
+            : null,
+          todayLegacyPlan: todayLegacyPlan
+            ? {
+                id: todayLegacyPlan._id.toString(),
+                status: todayLegacyPlan.status,
+              }
+            : null,
+        },
+      })
 
       if (args.dryRun) {
         const dryRunResult = {
@@ -563,6 +753,12 @@ export const agentGateway = action({
             ],
           },
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Dry run completed for plan execution',
+          justification: 'Dry run reports approval prerequisites without changing execution state.',
+          output: dryRunResult.dryRunOutput,
+        })
 
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
@@ -582,6 +778,15 @@ export const agentGateway = action({
             trigger: args.trigger,
             message: `Daily plan is ${todayDailyPlan.status}. Farmer approval is required before execution.`,
           }
+          await recorder.recordStep({
+            stepType: 'decision',
+            title: 'Execution blocked: daily plan not approved',
+            justification: 'Manual workflow requires explicit farmer approval before execution.',
+            output: {
+              planId: todayDailyPlan._id.toString(),
+              status: todayDailyPlan.status,
+            },
+          })
           await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
             runId,
             status: 'blocked',
@@ -598,6 +803,15 @@ export const agentGateway = action({
           trigger: args.trigger,
           message: 'Daily plan is approved. Execution can proceed in the manual workflow.',
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Execution ready: daily plan approved',
+          justification: 'Approved daily plan satisfies execution prerequisites.',
+          output: {
+            planId: todayDailyPlan._id.toString(),
+            status: todayDailyPlan.status,
+          },
+        })
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
           status: 'succeeded',
@@ -617,6 +831,15 @@ export const agentGateway = action({
             planId: todayLegacyPlan._id.toString(),
             message: `Legacy plan is ${todayLegacyPlan.status}. Farmer approval is required before execution.`,
           }
+          await recorder.recordStep({
+            stepType: 'decision',
+            title: 'Execution blocked: legacy plan not approved',
+            justification: 'Legacy plans also require farmer approval before execution.',
+            output: {
+              planId: todayLegacyPlan._id.toString(),
+              status: todayLegacyPlan.status,
+            },
+          })
           await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
             runId,
             status: 'blocked',
@@ -635,6 +858,15 @@ export const agentGateway = action({
           planId: todayLegacyPlan._id.toString(),
           message: 'Legacy plan is approved. Execution can proceed in the manual workflow.',
         }
+        await recorder.recordStep({
+          stepType: 'decision',
+          title: 'Execution ready: legacy plan approved',
+          justification: 'Approved legacy plan satisfies execution prerequisites.',
+          output: {
+            planId: todayLegacyPlan._id.toString(),
+            status: todayLegacyPlan.status,
+          },
+        })
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
           status: 'succeeded',
@@ -652,6 +884,11 @@ export const agentGateway = action({
         trigger: args.trigger,
         message: 'No plan exists for today. Generate a morning brief first.',
       }
+      await recorder.recordStep({
+        stepType: 'decision',
+        title: 'Execution blocked: no plan for today',
+        justification: 'Execution requires a same-day plan artifact.',
+      })
       await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
         runId,
         status: 'blocked',
@@ -668,6 +905,12 @@ export const agentGateway = action({
       trigger: args.trigger,
       message: `Unsupported trigger: ${args.trigger}`,
     }
+    await recorder.recordStep({
+      stepType: 'error',
+      title: 'Unsupported trigger',
+      justification: 'Gateway received a trigger type it does not implement.',
+      error: unsupportedTriggerResult.message,
+    })
     await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
       runId,
       status: 'failed',

@@ -1,5 +1,6 @@
 import { Badge, badgeVariants } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Link, useNavigate } from '@tanstack/react-router'
 import type { AgentRun } from '@/lib/types'
 import type { VariantProps } from 'class-variance-authority'
 
@@ -13,6 +14,8 @@ function statusVariant(status: AgentRun['status']): BadgeVariant {
 }
 
 export function AgentRunMonitor({ runs }: { runs: AgentRun[] }) {
+  const navigate = useNavigate()
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -33,11 +36,16 @@ export function AgentRunMonitor({ runs }: { runs: AgentRun[] }) {
                   <th className="py-2 pr-2">Tools</th>
                   <th className="py-2 pr-2">Outcome</th>
                   <th className="py-2">Started</th>
+                  <th className="py-2 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.map((run) => (
-                  <tr key={run._id} className="border-b border-border/60">
+                  <tr
+                    key={run._id}
+                    className="border-b border-border/60 cursor-pointer hover:bg-muted/30"
+                    onClick={() => navigate({ to: '/app/agent/$runId', params: { runId: run._id } })}
+                  >
                     <td className="py-2 pr-2">
                       <Badge variant={statusVariant(run.status)}>{run.status}</Badge>
                     </td>
@@ -49,6 +57,16 @@ export function AgentRunMonitor({ runs }: { runs: AgentRun[] }) {
                       {run.errorMessage || (run.outputPlanId ? `Plan ${String(run.outputPlanId).slice(0, 8)}` : run.status)}
                     </td>
                     <td className="py-2">{new Date(run.startedAt).toLocaleString()}</td>
+                    <td className="py-2 text-right">
+                      <Link
+                        to="/app/agent/$runId"
+                        params={{ runId: run._id }}
+                        className="text-xs underline underline-offset-2 text-cobalt hover:text-cobalt/80"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        Deep Dive
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

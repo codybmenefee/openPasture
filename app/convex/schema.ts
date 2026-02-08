@@ -211,6 +211,15 @@ const agentRunStatus = v.union(
   v.literal('blocked'),
 )
 
+const agentRunStepType = v.union(
+  v.literal('prompt'),
+  v.literal('tool_call'),
+  v.literal('tool_result'),
+  v.literal('decision'),
+  v.literal('error'),
+  v.literal('info'),
+)
+
 const agentMemoryScope = v.union(
   v.literal('farm'),
   v.literal('paddock'),
@@ -864,6 +873,22 @@ export default defineSchema({
   })
     .index('by_farm_startedAt', ['farmExternalId', 'startedAt'])
     .index('by_farm_status', ['farmExternalId', 'status']),
+
+  agentRunSteps: defineTable({
+    runId: v.id('agentRuns'),
+    farmExternalId: v.string(),
+    stepIndex: v.number(),
+    stepType: agentRunStepType,
+    title: v.string(),
+    toolName: v.optional(v.string()),
+    justification: v.optional(v.string()),
+    input: v.optional(v.any()),
+    output: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index('by_run_step', ['runId', 'stepIndex'])
+    .index('by_farm_run', ['farmExternalId', 'runId']),
 
   agentConfigs: defineTable({
     farmExternalId: v.string(),

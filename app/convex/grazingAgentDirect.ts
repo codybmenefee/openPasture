@@ -62,6 +62,19 @@ type CreateDailyPlanArgs = {
   reasoning?: string[]
   confidence?: 'high' | 'medium' | 'low'
 }
+type AgentRunStepType = 'prompt' | 'tool_call' | 'tool_result' | 'decision' | 'error' | 'info'
+type AgentRunStepPayload = {
+  stepType: AgentRunStepType
+  title: string
+  toolName?: string
+  justification?: string
+  input?: unknown
+  output?: unknown
+  error?: string
+}
+type AgentRunStepRecorder = {
+  recordStep: (payload: AgentRunStepPayload) => Promise<void>
+}
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -208,6 +221,22 @@ interface ForecastGenerationResult {
 
 interface RunGrazingAgentOptions {
   dryRun?: boolean
+  recorder?: AgentRunStepRecorder
+}
+
+async function recordRunStep(
+  recorder: AgentRunStepRecorder | undefined,
+  payload: AgentRunStepPayload
+): Promise<void> {
+  if (!recorder) return
+  try {
+    await recorder.recordStep(payload)
+  } catch (error) {
+    log.warn('Failed to record agent run step', {
+      title: payload.title,
+      error: getErrorMessage(error),
+    })
+  }
 }
 
 /**
@@ -295,6 +324,7 @@ async function runDailyPlanningAgent(
   options?: RunGrazingAgentOptions
 ): Promise<PlanGenerationResult> {
   const isDryRun = options?.dryRun === true
+  const recorder = options?.recorder
 
   log('START - Daily Planning Agent', {
     farmExternalId,
@@ -318,11 +348,23 @@ async function runDailyPlanningAgent(
 
       log('Selected paddock (no active)', { targetPaddockId })
     } else {
+      await recordRunStep(recorder, {
+        stepType: 'error',
+        title: 'No paddocks found for farm',
+        justification: 'Planner requires at least one paddock to create a daily recommendation.',
+        error: 'No paddocks found for farm',
+      })
       return { success: false, error: 'No paddocks found for farm' }
     }
   }
 
   if (!targetPaddockId) {
+    await recordRunStep(recorder, {
+      stepType: 'error',
+      title: 'No paddock selected for planning',
+      justification: 'Planner could not resolve an active or fallback paddock.',
+      error: 'No paddock selected for planning',
+    })
     return { success: false, error: 'No paddock selected for planning' }
   }
   const resolvedPaddockId = targetPaddockId
@@ -340,6 +382,11 @@ async function runDailyPlanningAgent(
 
   if (!forecast) {
     if (isDryRun) {
+      await recordRunStep(recorder, {
+        stepType: 'decision',
+        title: 'Dry run fallback: no active forecast',
+        justification: 'Dry run does not create forecasts; it returns a non-committing fallback recommendation.',
+      })
       return {
         success: true,
         planCreated: true,
@@ -356,6 +403,14 @@ async function runDailyPlanningAgent(
         agentText: 'No active forecast exists yet. Run a live morning brief to create forecast sections before evaluating detailed move/stay decisions.',
       }
     }
+    await recordRunStep(recorder, {
+      stepType: 'error',
+      title: 'Failed to load or create forecast',
+      justification: 'Live planning requires an active forecast record.',
+      error: isDryRun
+        ? 'Dry run requires an existing active forecast. Run a live morning brief first.'
+        : 'Failed to get or create paddock forecast',
+    })
     return {
       success: false,
       error: isDryRun
@@ -367,6 +422,11 @@ async function runDailyPlanningAgent(
   // 3. IF FORECAST IS EMPTY, GENERATE SECTIONS FIRST
   if (forecast.forecastedSections.length === 0) {
     if (isDryRun) {
+      await recordRunStep(recorder, {
+        stepType: 'decision',
+        title: 'Dry run fallback: forecast has no sections',
+        justification: 'Dry run does not generate sections; it returns a non-committing fallback recommendation.',
+      })
       return {
         success: true,
         planCreated: true,
@@ -393,10 +453,17 @@ async function runDailyPlanningAgent(
       forecast._id,
       anthropicClient,
       tracer,
-      harnessContext
+      harnessContext,
+      recorder
     )
 
     if (!forecastResult.success) {
+      await recordRunStep(recorder, {
+        stepType: 'error',
+        title: 'Forecast generation failed',
+        justification: 'Daily planning could not proceed because no forecast sections were generated.',
+        error: forecastResult.error || 'Failed to generate forecast sections',
+      })
       return { success: false, error: forecastResult.error || 'Failed to generate forecast sections' }
     }
 
@@ -407,6 +474,12 @@ async function runDailyPlanningAgent(
     })
 
     if (!forecast || forecast.forecastedSections.length === 0) {
+      await recordRunStep(recorder, {
+        stepType: 'error',
+        title: 'Forecast remained empty after generation',
+        justification: 'Planner expected generated sections but none were available.',
+        error: 'Forecast generation completed but no sections found',
+      })
       return { success: false, error: 'Forecast generation completed but no sections found' }
     }
   }
@@ -434,6 +507,12 @@ async function runDailyPlanningAgent(
   const targetPaddock = allPaddocks?.find((p: { externalId: string }) => p.externalId === resolvedPaddockId)
 
   if (!targetPaddock) {
+    await recordRunStep(recorder, {
+      stepType: 'error',
+      title: 'Resolved target paddock was not found',
+      justification: 'Planner selected a paddock ID that could not be loaded from current farm paddocks.',
+      error: `Paddock not found: ${targetPaddockId}`,
+    })
     return { success: false, error: `Paddock not found: ${targetPaddockId}` }
   }
 
@@ -444,6 +523,12 @@ async function runDailyPlanningAgent(
   })
 
   if (!currentForecast) {
+    await recordRunStep(recorder, {
+      stepType: 'error',
+      title: 'Forecast missing during daily planning',
+      justification: 'Planner lost access to active forecast after data refresh.',
+      error: 'Forecast not found after generation',
+    })
     return { success: false, error: 'Forecast not found after generation' }
   }
 
@@ -603,6 +688,18 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
     GRAZING_AGENT_SYSTEM_PROMPT,
     buildHarnessSystemPolicy(harnessContext),
   ].filter(Boolean).join('\n\n')
+  await recordRunStep(recorder, {
+    stepType: 'prompt',
+    title: 'Daily planning prompt prepared',
+    justification: 'Planner assembled system policy and farm-specific context for model inference.',
+    input: {
+      model: GRAZING_AGENT_MODEL,
+      promptVersion: PROMPT_VERSION,
+      systemPrompt,
+      textPrompt,
+      hasImageAttachment: !!paddockVisualizationPng,
+    },
+  })
 
   const result = await generateText({
     model: anthropicClient(GRAZING_AGENT_MODEL),
@@ -679,6 +776,13 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
   for (const toolCall of toolCalls) {
     const args = ((toolCall.args ?? toolCall.input ?? {}) as CreateDailyPlanArgs)
     const toolStartTime = Date.now()
+    await recordRunStep(recorder, {
+      stepType: 'tool_call',
+      title: `Tool call requested: ${toolCall.toolName}`,
+      toolName: toolCall.toolName,
+      justification: 'Model requested a tool invocation as part of plan generation.',
+      input: args,
+    })
 
     if (toolCall.toolName === 'getUngrazedRemaining') {
       try {
@@ -693,13 +797,26 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           output: { areaHa: ungrazedResult.areaHa, percentOfPaddock: ungrazedResult.percentOfPaddock },
           durationMs: Date.now() - toolStartTime,
         })
+        await recordRunStep(recorder, {
+          stepType: 'tool_result',
+          title: `Tool result: ${toolCall.toolName}`,
+          toolName: toolCall.toolName,
+          output: ungrazedResult,
+        })
       } catch (toolError: unknown) {
+        const errorMessage = getErrorMessage(toolError)
         logToolCall({
           parentSpanId: llmSpanId,
           toolName: toolCall.toolName,
           input: args,
-          error: getErrorMessage(toolError),
+          error: errorMessage,
           durationMs: Date.now() - toolStartTime,
+        })
+        await recordRunStep(recorder, {
+          stepType: 'tool_result',
+          title: `Tool failed: ${toolCall.toolName}`,
+          toolName: toolCall.toolName,
+          error: errorMessage,
         })
       }
     }
@@ -734,6 +851,18 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
             input: args,
             output: { simulated: true, decision: finalDecision, sectionIndex },
             durationMs: Date.now() - toolStartTime,
+          })
+          await recordRunStep(recorder, {
+            stepType: 'tool_result',
+            title: `Tool result: ${toolCall.toolName} (dry run)`,
+            toolName: toolCall.toolName,
+            output: {
+              simulated: true,
+              decision: finalDecision,
+              sectionIndex,
+              reasoning,
+              confidence: confidenceKey,
+            },
           })
           continue
         }
@@ -799,6 +928,30 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           output: { dailyPlanId: dailyPlanId.toString(), decision: finalDecision },
           durationMs: Date.now() - toolStartTime,
         })
+        await recordRunStep(recorder, {
+          stepType: 'tool_result',
+          title: `Tool result: ${toolCall.toolName}`,
+          toolName: toolCall.toolName,
+          output: {
+            dailyPlanId: dailyPlanId.toString(),
+            briefId: createdBriefId?.toString(),
+            legacyPlanId: createdPlanId?.toString(),
+            decision: finalDecision,
+            sectionIndex,
+            confidence: confidenceNum,
+          },
+        })
+        await recordRunStep(recorder, {
+          stepType: 'decision',
+          title: 'Model selected grazing action',
+          justification: 'createDailyPlan arguments were accepted and persisted into plan artifacts.',
+          output: {
+            action: finalDecision,
+            sectionIndex,
+            reasoning,
+            confidence: confidenceKey,
+          },
+        })
 
         log('Daily plan created', {
           dailyPlanId: dailyPlanId.toString(),
@@ -806,12 +959,19 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           sectionIndex,
         })
       } catch (toolError: unknown) {
+        const errorMessage = getErrorMessage(toolError)
         logToolCall({
           parentSpanId: llmSpanId,
           toolName: toolCall.toolName,
           input: args,
-          error: getErrorMessage(toolError),
+          error: errorMessage,
           durationMs: Date.now() - toolStartTime,
+        })
+        await recordRunStep(recorder, {
+          stepType: 'tool_result',
+          title: `Tool failed: ${toolCall.toolName}`,
+          toolName: toolCall.toolName,
+          error: errorMessage,
         })
         throw toolError
       }
@@ -821,6 +981,11 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
   // Fallback if agent didn't create plan
   if (!planCreated) {
     log.warn('Agent did not create plan - using system recommendation')
+    await recordRunStep(recorder, {
+      stepType: 'decision',
+      title: 'Fallback recommendation applied',
+      justification: 'Model returned without creating a plan, so system fallback selected STAY in active section.',
+    })
 
     const sectionIndex = currentForecast.activeSectionIndex
     recommendedSectionIndex = sectionIndex
@@ -828,6 +993,12 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
 
     const section = currentForecast.forecastedSections[sectionIndex]
     if (!section) {
+      await recordRunStep(recorder, {
+        stepType: 'error',
+        title: 'Fallback failed: invalid section index',
+        justification: 'Fallback could not locate the active section in forecasted sections.',
+        error: `Invalid section index: ${sectionIndex}`,
+      })
       return { success: false, error: `Invalid section index: ${sectionIndex}` }
     }
 
@@ -840,36 +1011,36 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
         confidence: 'low',
       }
     } else {
-    const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
-      farmExternalId,
-      date: today,
-      forecastId: currentForecast._id,
-      paddockExternalId: resolvedPaddockId,
-      recommendedSectionIndex: sectionIndex,
-      sectionGeometry: section.geometry,
-      sectionAreaHa: section.areaHa,
-      sectionCentroid: section.centroid,
-      daysInSection: currentForecast.daysInActiveSection,
-      estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
-      currentNdvi: forecastContext.currentNdvi,
-      reasoning: ['System fallback - agent did not provide recommendation'],
-      confidence: 50,
-    })
+      const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
+        farmExternalId,
+        date: today,
+        forecastId: currentForecast._id,
+        paddockExternalId: resolvedPaddockId,
+        recommendedSectionIndex: sectionIndex,
+        sectionGeometry: section.geometry,
+        sectionAreaHa: section.areaHa,
+        sectionCentroid: section.centroid,
+        daysInSection: currentForecast.daysInActiveSection,
+        estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
+        currentNdvi: forecastContext.currentNdvi,
+        reasoning: ['System fallback - agent did not provide recommendation'],
+        confidence: 50,
+      })
 
-    createdDailyPlanId = dailyPlanId
-    planCreated = true
+      createdDailyPlanId = dailyPlanId
+      planCreated = true
 
-    createdPlanId = await createLegacyPlan(ctx, {
-      farmExternalId,
-      paddockExternalId: resolvedPaddockId,
-      decision: 'STAY',
-      reasoning: ['System fallback - agent did not provide recommendation'],
-      confidence: 0.5,
-      sectionGeometry: section.geometry,
-      sectionAreaHa: section.areaHa,
-      sectionCentroid: section.centroid,
-      grazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
-    })
+      createdPlanId = await createLegacyPlan(ctx, {
+        farmExternalId,
+        paddockExternalId: resolvedPaddockId,
+        decision: 'STAY',
+        reasoning: ['System fallback - agent did not provide recommendation'],
+        confidence: 0.5,
+        sectionGeometry: section.geometry,
+        sectionAreaHa: section.areaHa,
+        sectionCentroid: section.centroid,
+        grazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
+      })
     }
   }
 
@@ -877,6 +1048,18 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
     success: true,
     decision: finalDecision,
     recommendedSectionIndex,
+  })
+  await recordRunStep(recorder, {
+    stepType: 'decision',
+    title: 'Daily planning completed',
+    justification: 'Planner finished with a recommendation payload.',
+    output: {
+      decision: finalDecision,
+      recommendedSectionIndex,
+      planCreated,
+      toolCallCount: toolCalls.length,
+      toolSummary: toolCalls.map((toolCall) => String(toolCall.toolName)),
+    },
   })
 
   return {
@@ -904,7 +1087,8 @@ async function generateForecastSections(
   forecastId: Id<"paddockForecasts">,
   anthropicClient: AnthropicClient,
   tracer?: OTelTracer,
-  harnessContext?: HarnessRuntimeContext
+  harnessContext?: HarnessRuntimeContext,
+  recorder?: AgentRunStepRecorder
 ): Promise<ForecastGenerationResult> {
   log('START - Forecast Section Generation', { farmExternalId, paddockExternalId, forecastId })
 
@@ -921,6 +1105,12 @@ async function generateForecastSections(
   })
 
   if (!forecast) {
+    await recordRunStep(recorder, {
+      stepType: 'error',
+      title: 'Forecast generation failed: missing forecast',
+      justification: 'Forecast section generation requires an active forecast record.',
+      error: 'Forecast not found',
+    })
     return { success: false, error: 'Forecast not found' }
   }
 
@@ -997,9 +1187,21 @@ IMPORTANT:
 
   // Run agent to draw sections
   // Tools have execute handlers so maxSteps loop works correctly
+  const forecastSystemPrompt = [GRAZING_AGENT_SYSTEM_PROMPT, buildHarnessSystemPolicy(harnessContext)].filter(Boolean).join('\n\n')
+  await recordRunStep(recorder, {
+    stepType: 'prompt',
+    title: 'Forecast generation prompt prepared',
+    justification: 'Planner assembled forecast drawing prompt for autonomous section generation.',
+    input: {
+      model: GRAZING_AGENT_MODEL,
+      promptVersion: PROMPT_VERSION,
+      systemPrompt: forecastSystemPrompt,
+      forecastPrompt,
+    },
+  })
   const forecastGenerationInput = {
     model: anthropicClient(GRAZING_AGENT_MODEL),
-    system: [GRAZING_AGENT_SYSTEM_PROMPT, buildHarnessSystemPolicy(harnessContext)].filter(Boolean).join('\n\n'),
+    system: forecastSystemPrompt,
     messages: [{ role: 'user', content: forecastPrompt }],
     maxSteps: 15, // Allow multiple tool calls
     tools: {
@@ -1007,6 +1209,13 @@ IMPORTANT:
         description: "Draw a grazing section. Use rectangle helper for simple shapes or provide coordinates directly.",
         inputSchema: drawSectionSchema,
         execute: async (args) => {
+          await recordRunStep(recorder, {
+            stepType: 'tool_call',
+            title: 'Tool call requested: drawSection',
+            toolName: 'drawSection',
+            justification: 'Model proposed a section geometry for the forecast.',
+            input: args,
+          })
           try {
             const drawResult = await ctx.runMutation(api.grazingAgentTools.drawSection, {
               forecastId,
@@ -1022,6 +1231,12 @@ IMPORTANT:
                 areaHa: drawResult.areaHa,
                 warnings: drawResult.warnings,
               })
+              await recordRunStep(recorder, {
+                stepType: 'tool_result',
+                title: 'Tool result: drawSection',
+                toolName: 'drawSection',
+                output: drawResult,
+              })
               return {
                 success: true,
                 sectionIndex: drawResult.sectionIndex,
@@ -1030,6 +1245,12 @@ IMPORTANT:
               }
             } else {
               log.warn('Section draw failed', { errors: drawResult.errors })
+              await recordRunStep(recorder, {
+                stepType: 'tool_result',
+                title: 'Tool result: drawSection validation failed',
+                toolName: 'drawSection',
+                output: drawResult,
+              })
               return {
                 success: false,
                 errors: drawResult.errors,
@@ -1039,6 +1260,12 @@ IMPORTANT:
           } catch (drawError: unknown) {
             const errorMessage = getErrorMessage(drawError)
             log.error('drawSection error', { error: errorMessage })
+            await recordRunStep(recorder, {
+              stepType: 'tool_result',
+              title: 'Tool failed: drawSection',
+              toolName: 'drawSection',
+              error: errorMessage,
+            })
             return {
               success: false,
               error: errorMessage,
@@ -1051,6 +1278,13 @@ IMPORTANT:
         description: "Get remaining ungrazed area to help plan final sections",
         inputSchema: emptySchema,
         execute: async () => {
+          await recordRunStep(recorder, {
+            stepType: 'tool_call',
+            title: 'Tool call requested: getUngrazedRemaining',
+            toolName: 'getUngrazedRemaining',
+            justification: 'Model requested remaining ungrazed area to plan subsequent sections.',
+            input: {},
+          })
           try {
             const remaining = await ctx.runQuery(api.grazingAgentTools.getUngrazedRemaining, {
               forecastId,
@@ -1059,6 +1293,12 @@ IMPORTANT:
               areaHa: remaining.areaHa,
               percentOfPaddock: remaining.percentOfPaddock,
               approximateLocation: remaining.approximateLocation,
+            })
+            await recordRunStep(recorder, {
+              stepType: 'tool_result',
+              title: 'Tool result: getUngrazedRemaining',
+              toolName: 'getUngrazedRemaining',
+              output: remaining,
             })
             return {
               areaHa: remaining.areaHa,
@@ -1070,6 +1310,12 @@ IMPORTANT:
           } catch (e: unknown) {
             const errorMessage = getErrorMessage(e)
             log.error('getUngrazedRemaining error', { error: errorMessage })
+            await recordRunStep(recorder, {
+              stepType: 'tool_result',
+              title: 'Tool failed: getUngrazedRemaining',
+              toolName: 'getUngrazedRemaining',
+              error: errorMessage,
+            })
             return {
               error: errorMessage,
               message: `Error getting ungrazed area: ${errorMessage}`,
@@ -1097,6 +1343,17 @@ IMPORTANT:
   await generateText(forecastGenerationInput)
 
   log('END - Forecast Section Generation', { sectionsDrawn })
+  await recordRunStep(recorder, {
+    stepType: 'decision',
+    title: 'Forecast section generation completed',
+    justification: sectionsDrawn > 0
+      ? 'Model-generated sections were persisted into the forecast.'
+      : 'Model did not create any valid sections.',
+    output: {
+      sectionsDrawn,
+      forecastId: forecastId.toString(),
+    },
+  })
 
   return {
     success: sectionsDrawn > 0,

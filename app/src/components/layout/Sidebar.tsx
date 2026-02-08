@@ -77,7 +77,7 @@ export function Sidebar() {
                   to="/app/agent"
                   className={cn(
                     'flex h-6 w-6 items-center justify-center transition-colors',
-                    location.pathname === '/app/agent'
+                    location.pathname.startsWith('/app/agent')
                       ? 'bg-sidebar-accent text-sidebar-accent-foreground border border-olive/40'
                       : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                   )}
