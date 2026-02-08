@@ -24,13 +24,13 @@ interface GrazingStockCardProps {
 function getStatusColor(status: ReserveStatus): string {
   switch (status) {
     case 'critical':
-      return 'text-red-600 bg-red-100 dark:bg-red-950 dark:text-red-400'
+      return 'text-terracotta bg-terracotta/10'
     case 'low':
-      return 'text-amber-600 bg-amber-100 dark:bg-amber-950 dark:text-amber-400'
+      return 'text-terracotta bg-terracotta/10'
     case 'healthy':
-      return 'text-green-600 bg-green-100 dark:bg-green-950 dark:text-green-400'
+      return 'text-olive bg-olive/10'
     case 'abundant':
-      return 'text-emerald-600 bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400'
+      return 'text-olive bg-olive/10'
     default:
       return 'text-muted-foreground bg-muted'
   }
@@ -39,13 +39,13 @@ function getStatusColor(status: ReserveStatus): string {
 function getGaugeColor(status: ReserveStatus): string {
   switch (status) {
     case 'critical':
-      return 'bg-red-500'
+      return 'bg-terracotta'
     case 'low':
-      return 'bg-amber-500'
+      return 'bg-terracotta'
     case 'healthy':
-      return 'bg-green-500'
+      return 'bg-olive'
     case 'abundant':
-      return 'bg-emerald-500'
+      return 'bg-olive'
     default:
       return 'bg-muted-foreground'
   }
@@ -72,8 +72,8 @@ function TrendIndicator({ trend }: { trend: 'up' | 'down' | 'stable' }) {
     <Icon
       className={cn(
         'h-4 w-4',
-        trend === 'up' && 'text-green-600',
-        trend === 'down' && 'text-red-600',
+        trend === 'up' && 'text-olive',
+        trend === 'down' && 'text-terracotta',
         trend === 'stable' && 'text-muted-foreground'
       )}
     />

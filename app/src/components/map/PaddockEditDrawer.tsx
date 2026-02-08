@@ -90,17 +90,17 @@ export function PaddockEditDrawer({
         return {
           headerText: "Today's Grazing Paddock",
           badgeText: 'Today',
-          badgeClass: 'bg-green-100 text-green-800 border-green-200',
-          accentClass: 'border-green-500',
-          dotClass: 'bg-green-500'
+          badgeClass: 'bg-olive/10 text-olive border-olive/20',
+          accentClass: 'border-olive',
+          dotClass: 'bg-olive'
         }
       case 'previous':
         return {
           headerText: 'Previously Grazed Paddock',
           badgeText: 'Previous',
-          badgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-          accentClass: 'border-yellow-500',
-          dotClass: 'bg-yellow-500'
+          badgeClass: 'bg-terracotta-muted/10 text-terracotta border-terracotta-muted/20',
+          accentClass: 'border-terracotta-muted',
+          dotClass: 'bg-terracotta-muted'
         }
       case 'historical':
         return {
@@ -114,9 +114,9 @@ export function PaddockEditDrawer({
         return {
           headerText: 'Grazing Paddock',
           badgeText: 'Paddock',
-          badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
-          accentClass: 'border-blue-500',
-          dotClass: 'bg-blue-500'
+          badgeClass: 'bg-cobalt/10 text-cobalt border-cobalt/20',
+          accentClass: 'border-cobalt',
+          dotClass: 'bg-cobalt'
         }
     }
   }, [paddockAge, paddock?.date])
@@ -218,9 +218,9 @@ export function PaddockEditDrawer({
 
           {/* Info callout in view mode */}
           {!isEditMode && (
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-3 flex gap-2">
-              <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-800">
+            <div className="rounded-md border border-cobalt/20 bg-cobalt/10 p-3 flex gap-2">
+              <Info className="h-4 w-4 text-cobalt flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-cobalt">
                 {isPastPaddock
                   ? "This paddock was grazed previously. Update if the actual grazing area was different."
                   : "Update the paddock boundary if it doesn't match the actual grazing area."}

@@ -430,7 +430,7 @@ export function PastureMiniMap({
                   strokeWidth="2"
                   strokeLinecap="round"
                   markerEnd="url(#arrowhead)"
-                  className="dark:stroke-green-400"
+                  className="stroke-olive"
                 />
               </g>
             )}
@@ -467,25 +467,25 @@ export function PastureMiniMap({
           <>
             {!selectedAlternativeId && (
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-green-500/50 border border-green-500" />
+                <span className="inline-block w-2 h-2 rounded-sm bg-olive/50 border border-olive" />
                 Today
               </span>
             )}
             {selectedAlternativeId && (
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-blue-500/50 border border-blue-500" />
+                <span className="inline-block w-2 h-2 rounded-sm bg-cobalt/50 border border-cobalt" />
                 Selected
               </span>
             )}
             {yesterdayPaddock && (
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-amber-500/35 border border-amber-500" />
+                <span className="inline-block w-2 h-2 rounded-sm bg-terracotta/35 border border-terracotta" />
                 Yesterday
               </span>
             )}
             {paddockAlternatives.length > 0 && !selectedAlternativeId && (
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-sm bg-blue-300/25 border border-blue-400 border-dashed" />
+                <span className="inline-block w-2 h-2 rounded-sm bg-cobalt-muted/25 border border-cobalt-muted border-dashed" />
                 Options
               </span>
             )}
@@ -500,7 +500,7 @@ export function PastureMiniMap({
             )}
             {targetPasture && currentPastureId !== targetPastureId && (
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                <span className="inline-block w-2 h-2 rounded-full bg-olive" />
                 Next
               </span>
             )}

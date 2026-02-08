@@ -4,7 +4,6 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { PostHogProvider } from 'posthog-js/react'
 import { Toaster } from 'sonner'
-import { ThemeProvider } from '@/lib/theme'
 import { AppAuthProvider, useAppAuth } from '@/lib/auth'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorState } from '@/components/ui/error/ErrorState'
@@ -45,24 +44,20 @@ function InnerApp() {
 function AppTree() {
   return convexClient ? (
     <ConvexProvider client={convexClient}>
-      <ThemeProvider>
-        <AppAuthProvider>
-          <InnerApp />
-        </AppAuthProvider>
-      </ThemeProvider>
+      <AppAuthProvider>
+        <InnerApp />
+      </AppAuthProvider>
     </ConvexProvider>
   ) : (
-    <ThemeProvider>
-      <ErrorState
-        title="Convex configuration missing"
-        message="Set VITE_CONVEX_URL to your Convex deployment URL before running the app."
-        details={[
-          'Run `npx convex dev` in app/ to create a local deployment.',
-          'Copy the deployment URL into a .env file as VITE_CONVEX_URL.',
-        ]}
-        className="min-h-screen"
-      />
-    </ThemeProvider>
+    <ErrorState
+      title="Convex configuration missing"
+      message="Set VITE_CONVEX_URL to your Convex deployment URL before running the app."
+      details={[
+        'Run `npx convex dev` in app/ to create a local deployment.',
+        'Copy the deployment URL into a .env file as VITE_CONVEX_URL.',
+      ]}
+      className="min-h-screen"
+    />
   )
 }
 

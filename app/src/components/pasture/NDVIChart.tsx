@@ -78,9 +78,9 @@ export function NDVIChart({
                       <div className="rounded-lg border bg-background p-3 shadow-lg">
                         <p className="text-sm font-medium mb-1">{data.fullDate}</p>
                         <div className="space-y-1 text-sm">
-                          <p className="text-green-600">NDVI: {data.ndvi.toFixed(2)}</p>
-                          {data.evi && <p className="text-blue-600">EVI: {data.evi.toFixed(2)}</p>}
-                          {data.ndwi && <p className="text-cyan-600">NDWI: {data.ndwi.toFixed(2)}</p>}
+                          <p className="text-olive">NDVI: {data.ndvi.toFixed(2)}</p>
+                          {data.evi && <p className="text-cobalt">EVI: {data.evi.toFixed(2)}</p>}
+                          {data.ndwi && <p className="text-cobalt-muted">NDWI: {data.ndwi.toFixed(2)}</p>}
                         </div>
                       </div>
                     )
@@ -126,12 +126,12 @@ export function NDVIChart({
         {/* Legend */}
         <div className="flex items-center justify-center gap-6 mt-4 text-xs">
           <div className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 bg-green-600 rounded" />
+            <span className="h-0.5 w-4 bg-olive rounded" />
             <span className="text-muted-foreground">NDVI</span>
           </div>
           {observations[0]?.evi !== undefined && (
             <div className="flex items-center gap-1.5">
-              <span className="h-0.5 w-4 bg-blue-600 rounded border-dashed" style={{ borderStyle: 'dashed' }} />
+              <span className="h-0.5 w-4 bg-cobalt rounded border-dashed" style={{ borderStyle: 'dashed' }} />
               <span className="text-muted-foreground">EVI</span>
             </div>
           )}

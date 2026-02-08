@@ -53,12 +53,12 @@ export function ApprovedState({
   return (
     <div className="h-full overflow-y-auto p-2 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Success banner */}
-      <div className="flex items-center gap-2 rounded-md border border-green-500/20 bg-green-500/10 p-2">
-        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 shrink-0">
+      <div className="flex items-center gap-2 rounded-md border border-olive/20 bg-olive/10 p-2">
+        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-olive shrink-0">
           <Check className="h-3 w-3 text-white" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-green-600 dark:text-green-400">
+          <p className="text-xs font-medium text-olive">
             {wasModified ? 'Plan modified' : 'Plan approved'}
           </p>
           <p className="text-[10px] text-muted-foreground">at {approvedAt}</p>

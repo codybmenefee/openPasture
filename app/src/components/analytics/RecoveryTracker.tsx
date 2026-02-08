@@ -18,21 +18,21 @@ interface RecoveryTrackerProps {
 }
 
 function getRecoveryColor(pct: number): string {
-  if (pct >= 80) return 'bg-green-500'
-  if (pct >= 60) return 'bg-lime-500'
-  if (pct >= 40) return 'bg-amber-500'
-  if (pct >= 20) return 'bg-orange-500'
-  return 'bg-red-500'
+  if (pct >= 80) return 'bg-olive'
+  if (pct >= 60) return 'bg-olive'
+  if (pct >= 40) return 'bg-terracotta'
+  if (pct >= 20) return 'bg-terracotta-muted'
+  return 'bg-terracotta'
 }
 
 function getStatusBadge(status: string) {
   const statusMap: Record<string, { label: string; className: string }> = {
-    ready: { label: 'Ready', className: 'bg-green-100 text-green-700' },
-    almost_ready: { label: 'Almost Ready', className: 'bg-lime-100 text-lime-700' },
-    recovering: { label: 'Recovering', className: 'bg-amber-100 text-amber-700' },
-    grazed: { label: 'Grazed', className: 'bg-slate-100 text-slate-700' },
+    ready: { label: 'Ready', className: 'bg-olive/10 text-olive' },
+    almost_ready: { label: 'Almost Ready', className: 'bg-olive-light text-olive' },
+    recovering: { label: 'Recovering', className: 'bg-terracotta/10 text-terracotta' },
+    grazed: { label: 'Grazed', className: 'bg-muted text-muted-foreground' },
   }
-  const config = statusMap[status] || { label: status, className: 'bg-slate-100 text-slate-700' }
+  const config = statusMap[status] || { label: status, className: 'bg-muted text-muted-foreground' }
   return (
     <span className={cn('text-xs px-1.5 py-0.5 rounded font-medium', config.className)}>
       {config.label}

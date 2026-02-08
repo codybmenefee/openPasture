@@ -109,13 +109,13 @@ function DemoHistoryPage() {
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Approved</p>
-              <p className="text-2xl font-semibold text-green-600">{stats.approved}</p>
+              <p className="text-2xl font-semibold text-olive">{stats.approved}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm text-muted-foreground">Modified</p>
-              <p className="text-2xl font-semibold text-amber-600">{stats.modified}</p>
+              <p className="text-2xl font-semibold text-terracotta">{stats.modified}</p>
             </CardContent>
           </Card>
           <Card>

@@ -28,7 +28,6 @@ import { Route as AppHistoryRouteImport } from './routes/app/history'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
 import { Route as PublicTechnologyRouteImport } from './routes/_public/technology'
 import { Route as PublicResearchRouteImport } from './routes/_public/research'
-import { Route as PublicMarketingRouteImport } from './routes/_public/marketing'
 import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
 import { Route as PublicDocsRouteImport } from './routes/_public/docs'
 import { Route as PublicDocsIndexRouteImport } from './routes/_public/docs/index'
@@ -129,11 +128,6 @@ const PublicResearchRoute = PublicResearchRouteImport.update({
   path: '/research',
   getParentRoute: () => PublicRoute,
 } as any)
-const PublicMarketingRoute = PublicMarketingRouteImport.update({
-  id: '/marketing',
-  path: '/marketing',
-  getParentRoute: () => PublicRoute,
-} as any)
 const PublicInvestorsRoute = PublicInvestorsRouteImport.update({
   id: '/investors',
   path: '/investors',
@@ -169,7 +163,6 @@ export interface FileRoutesByFullPath {
   '/subscribe': typeof SubscribeRoute
   '/docs': typeof PublicDocsRouteWithChildren
   '/investors': typeof PublicInvestorsRoute
-  '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -192,7 +185,6 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/subscribe': typeof SubscribeRoute
   '/investors': typeof PublicInvestorsRoute
-  '/marketing': typeof PublicMarketingRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -220,7 +212,6 @@ export interface FileRoutesById {
   '/subscribe': typeof SubscribeRoute
   '/_public/docs': typeof PublicDocsRouteWithChildren
   '/_public/investors': typeof PublicInvestorsRoute
-  '/_public/marketing': typeof PublicMarketingRoute
   '/_public/research': typeof PublicResearchRoute
   '/_public/technology': typeof PublicTechnologyRoute
   '/app/analytics': typeof AppAnalyticsRoute
@@ -248,7 +239,6 @@ export interface FileRouteTypes {
     | '/subscribe'
     | '/docs'
     | '/investors'
-    | '/marketing'
     | '/research'
     | '/technology'
     | '/app/analytics'
@@ -271,7 +261,6 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/subscribe'
     | '/investors'
-    | '/marketing'
     | '/research'
     | '/technology'
     | '/app/analytics'
@@ -298,7 +287,6 @@ export interface FileRouteTypes {
     | '/subscribe'
     | '/_public/docs'
     | '/_public/investors'
-    | '/_public/marketing'
     | '/_public/research'
     | '/_public/technology'
     | '/app/analytics'
@@ -461,13 +449,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PublicResearchRouteImport
       parentRoute: typeof PublicRoute
     }
-    '/_public/marketing': {
-      id: '/_public/marketing'
-      path: '/marketing'
-      fullPath: '/marketing'
-      preLoaderRoute: typeof PublicMarketingRouteImport
-      parentRoute: typeof PublicRoute
-    }
     '/_public/investors': {
       id: '/_public/investors'
       path: '/investors'
@@ -523,7 +504,6 @@ const PublicDocsRouteWithChildren = PublicDocsRoute._addFileChildren(
 interface PublicRouteChildren {
   PublicDocsRoute: typeof PublicDocsRouteWithChildren
   PublicInvestorsRoute: typeof PublicInvestorsRoute
-  PublicMarketingRoute: typeof PublicMarketingRoute
   PublicResearchRoute: typeof PublicResearchRoute
   PublicTechnologyRoute: typeof PublicTechnologyRoute
 }
@@ -531,7 +511,6 @@ interface PublicRouteChildren {
 const PublicRouteChildren: PublicRouteChildren = {
   PublicDocsRoute: PublicDocsRouteWithChildren,
   PublicInvestorsRoute: PublicInvestorsRoute,
-  PublicMarketingRoute: PublicMarketingRoute,
   PublicResearchRoute: PublicResearchRoute,
   PublicTechnologyRoute: PublicTechnologyRoute,
 }

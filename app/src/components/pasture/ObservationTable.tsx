@@ -31,17 +31,17 @@ export function ObservationTable({
   cloudCoverage 
 }: ObservationTableProps) {
   const getNdviStatus = (ndvi: number): { text: string; color: string } => {
-    if (ndvi >= 0.5) return { text: 'Optimal', color: 'text-green-600' }
-    if (ndvi >= 0.4) return { text: 'Good', color: 'text-green-500' }
-    if (ndvi >= 0.3) return { text: 'Moderate', color: 'text-amber-600' }
-    if (ndvi >= 0.2) return { text: 'Low', color: 'text-amber-500' }
-    return { text: 'Poor', color: 'text-red-600' }
+    if (ndvi >= 0.5) return { text: 'Optimal', color: 'text-olive' }
+    if (ndvi >= 0.4) return { text: 'Good', color: 'text-olive' }
+    if (ndvi >= 0.3) return { text: 'Moderate', color: 'text-terracotta' }
+    if (ndvi >= 0.2) return { text: 'Low', color: 'text-terracotta' }
+    return { text: 'Poor', color: 'text-terracotta' }
   }
 
   const getCloudStatus = (coverage: number): { text: string; color: string } => {
-    if (coverage <= 20) return { text: 'Clear', color: 'text-green-600' }
-    if (coverage <= 50) return { text: 'Partial', color: 'text-amber-600' }
-    return { text: 'Overcast', color: 'text-red-600' }
+    if (coverage <= 20) return { text: 'Clear', color: 'text-olive' }
+    if (coverage <= 50) return { text: 'Partial', color: 'text-terracotta' }
+    return { text: 'Overcast', color: 'text-terracotta' }
   }
 
   const ndviStatus = getNdviStatus(observation.ndviMean)
@@ -63,7 +63,7 @@ export function ObservationTable({
       metric: 'EVI',
       value: observation.evi.toFixed(2),
       status: observation.evi >= 0.35 ? 'Good' : 'Moderate',
-      statusColor: observation.evi >= 0.35 ? 'text-green-600' : 'text-amber-600',
+      statusColor: observation.evi >= 0.35 ? 'text-olive' : 'text-terracotta',
     })
   }
 
@@ -72,7 +72,7 @@ export function ObservationTable({
       metric: 'NDWI',
       value: observation.ndwi.toFixed(2),
       status: observation.ndwi > -0.2 && observation.ndwi < 0.1 ? 'Normal' : 'Elevated',
-      statusColor: observation.ndwi > -0.2 && observation.ndwi < 0.1 ? 'text-green-600' : 'text-amber-600',
+      statusColor: observation.ndwi > -0.2 && observation.ndwi < 0.1 ? 'text-olive' : 'text-terracotta',
       trend: 'stable',
       trendDirection: 'stable',
     })

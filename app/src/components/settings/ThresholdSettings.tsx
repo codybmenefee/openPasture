@@ -93,9 +93,9 @@ export function ThresholdSettings({ settings, onChange }: ThresholdSettingsProps
           onChange={(v) => updateSetting('rotationFrequency', v)}
         />
         {settings.rotationFrequency > 5 && (
-          <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-md">
-            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-600 dark:text-amber-400">
+          <div className="flex items-start gap-2 px-3 py-2 bg-terracotta/10 border border-terracotta/20 rounded-md">
+            <AlertTriangle className="h-4 w-4 text-terracotta mt-0.5 shrink-0" />
+            <p className="text-xs text-terracotta">
               Rotations longer than 5 days may increase parasite load. Consider shorter rotations for better parasite control.
             </p>
           </div>
