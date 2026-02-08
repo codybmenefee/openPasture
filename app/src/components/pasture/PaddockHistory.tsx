@@ -43,7 +43,7 @@ export function PaddockHistory({ stays, title = 'Rotation History' }: PaddockHis
               key={stay.id}
               className={cn(
                 'border-l-2 pl-4 py-2',
-                isOngoing ? 'border-green-500' : 'border-muted-foreground/30'
+                isOngoing ? 'border-olive' : 'border-muted-foreground/30'
               )}
             >
               {/* Stay header */}
@@ -54,7 +54,7 @@ export function PaddockHistory({ stays, title = 'Rotation History' }: PaddockHis
                     {stay.exitDate && ` - ${formatDate(stay.exitDate)}`}
                   </span>
                   {isOngoing && (
-                    <span className="ml-2 text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-0.5 rounded">
+                    <span className="ml-2 text-xs bg-olive/20 text-olive px-2 py-0.5 rounded">
                       Current
                     </span>
                   )}
@@ -74,7 +74,7 @@ export function PaddockHistory({ stays, title = 'Rotation History' }: PaddockHis
                       className={cn(
                         'flex-1 h-2 rounded-sm transition-all',
                         isCurrentPaddock
-                          ? 'bg-green-500 animate-pulse'
+                          ? 'bg-olive animate-pulse'
                           : 'bg-muted-foreground/40'
                       )}
                       title={`Day ${paddockIndex + 1}: ${format(paddock.targetArea)}`}

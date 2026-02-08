@@ -18,10 +18,10 @@ const statusLabels: Record<Pasture['status'], string> = {
 }
 
 const statusColors: Record<Pasture['status'], string> = {
-  ready: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
-  almost_ready: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
-  recovering: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
-  grazed: 'bg-zinc-500/10 text-zinc-700 dark:text-zinc-400 border-zinc-500/20',
+  ready: 'bg-olive/10 text-olive border-olive/20',
+  almost_ready: 'bg-terracotta/10 text-terracotta border-terracotta/20',
+  recovering: 'bg-cobalt/10 text-cobalt border-cobalt/20',
+  grazed: 'bg-zinc-500/10 text-zinc-700 border-zinc-500/20',
 }
 
 export function PastureHeader({ pasture, onEdit }: PastureHeaderProps) {

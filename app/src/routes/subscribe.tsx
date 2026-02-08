@@ -3,7 +3,7 @@ import { useUser, useClerk, useAuth, PricingTable } from '@clerk/clerk-react'
 import { useQuery } from 'convex/react'
 import { useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Leaf, LogOut } from 'lucide-react'
+import { Terminal, LogOut } from 'lucide-react'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { useAppAuth } from '@/lib/auth'
 import { useAnalytics } from '@/lib/analytics'
@@ -87,7 +87,7 @@ function SubscribePageContent() {
   // Show loading while redirect is in progress (user has plan)
   if (hasPlan) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#111719]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingSpinner message="Redirecting to app..." />
       </div>
     )
@@ -96,7 +96,7 @@ function SubscribePageContent() {
   // Show loading while checking auth (only wait if user is signed in)
   if (!isUserLoaded || !isAuthLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#111719]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingSpinner message="Loading..." />
       </div>
     )
@@ -105,7 +105,7 @@ function SubscribePageContent() {
   // For authenticated users, wait for subscription check
   if (user && convexSubscription === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#111719]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingSpinner message="Checking subscription..." />
       </div>
     )
@@ -117,25 +117,21 @@ function SubscribePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#1a2429] via-[#111719] to-[#1a2429] flex flex-col relative">
-      {/* Subtle gradient accent */}
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-[#075056]/20 via-transparent to-[#075056]/20 pointer-events-none"
-        aria-hidden="true"
-      />
-
+    <div className="min-h-screen bg-background flex flex-col relative">
       {/* Header */}
-      <header className="relative z-10 border-b border-[#075056]/30 px-6 py-4 flex items-center justify-between">
+      <header className="relative z-10 border-b-2 border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Leaf className="h-6 w-6 text-[#075056]" />
-          <span className="font-semibold text-lg text-[#FDF6E3]">OpenPasture</span>
+          <div className="w-7 h-7 bg-olive flex items-center justify-center">
+            <Terminal className="h-4 w-4 text-white" />
+          </div>
+          <span className="font-semibold text-lg text-foreground">OpenPasture</span>
         </div>
         {user ? (
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="text-[#D3DBDD] hover:text-[#FDF6E3] hover:bg-[#075056]/20"
+            className="text-muted-foreground hover:text-foreground"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Sign out
@@ -145,7 +141,7 @@ function SubscribePageContent() {
             variant="ghost"
             size="sm"
             onClick={() => navigate({ to: '/sign-in' })}
-            className="text-[#D3DBDD] hover:text-[#FDF6E3] hover:bg-[#075056]/20"
+            className="text-muted-foreground hover:text-foreground"
           >
             Sign in
           </Button>
@@ -156,10 +152,10 @@ function SubscribePageContent() {
       <main className="relative z-10 flex-1 flex items-center justify-center p-6">
         <div className="max-w-3xl w-full">
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-[#FDF6E3]">
+            <h1 className="font-serif text-3xl md:text-4xl font-bold mb-3 text-foreground">
               {user ? 'Subscribe to Continue' : 'Get Early Access'}
             </h1>
-            <p className="text-lg text-[#D3DBDD]">
+            <p className="text-lg text-muted-foreground">
               {user
                 ? 'Get early access to AI-powered grazing management'
                 : 'Join OpenPasture and get AI-powered grazing recommendations'}
@@ -167,7 +163,7 @@ function SubscribePageContent() {
           </div>
 
           {/* Clerk's PricingTable component handles plan display and checkout */}
-          <div className="flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-[#1a2429]/80 [&_.cl-pricingTableCard]:border-[#075056]/30 [&_.cl-pricingTableCard]:text-[#FDF6E3] [&_.cl-pricingTableCardTitle]:text-[#FDF6E3] [&_.cl-pricingTableCardPrice]:text-[#FDF6E3] [&_.cl-pricingTableCardDescription]:text-[#D3DBDD] [&_.cl-pricingTableCardFeatureItem]:text-[#D3DBDD]">
+          <div className="flex justify-center [&_.cl-pricingTable]:bg-transparent [&_.cl-pricingTableCard]:bg-white [&_.cl-pricingTableCard]:border-2 [&_.cl-pricingTableCard]:border-border [&_.cl-pricingTableCard]:text-foreground [&_.cl-pricingTableCard]:shadow-hard-sm [&_.cl-pricingTableCardTitle]:text-foreground [&_.cl-pricingTableCardPrice]:text-foreground [&_.cl-pricingTableCardDescription]:text-muted-foreground [&_.cl-pricingTableCardFeatureItem]:text-muted-foreground">
             <PricingTable />
           </div>
 
@@ -175,8 +171,8 @@ function SubscribePageContent() {
           {user && (
             <div className="mt-6 flex justify-center">
               <Button
+                variant="brutalist"
                 size="lg"
-                className="bg-[#075056] hover:bg-[#086369] text-[#FDF6E3]"
                 onClick={() => navigate({ to: '/app' })}
               >
                 Continue to App
@@ -184,12 +180,12 @@ function SubscribePageContent() {
             </div>
           )}
 
-          <div className="mt-8 text-center text-sm text-[#D3DBDD]">
+          <div className="mt-8 text-center text-sm text-muted-foreground">
             <p>
               Questions?{' '}
               <a
                 href="mailto:support@openpasture.com"
-                className="text-[#FF5B04] hover:underline"
+                className="text-terracotta hover:underline"
               >
                 Contact us
               </a>

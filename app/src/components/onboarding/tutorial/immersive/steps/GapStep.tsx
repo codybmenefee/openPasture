@@ -33,11 +33,11 @@ export function GapStep() {
           <div className="text-xs text-muted-foreground mb-2">Year 5</div>
           <div className="w-24 h-16 overflow-hidden border-2 border-terracotta">
             <div className="w-full h-full relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-amber-200 to-amber-300" />
+              <div className="absolute inset-0 bg-gradient-to-b from-olive-muted to-olive-muted" />
               <div className="absolute top-1 left-1 w-4 h-3 bg-olive-muted/60" />
               <div className="absolute bottom-2 right-2 w-5 h-4 bg-olive-muted/40" />
-              <div className="absolute top-3 right-4 w-3 h-3 bg-amber-400" />
-              <div className="absolute bottom-4 left-3 w-4 h-3 bg-amber-400" />
+              <div className="absolute top-3 right-4 w-3 h-3 bg-terracotta" />
+              <div className="absolute bottom-4 left-3 w-4 h-3 bg-terracotta" />
             </div>
           </div>
           <div className="text-xs text-terracotta font-bold mt-1">Degraded</div>

@@ -206,7 +206,7 @@ function ensurePaddockLayers(mapInstance: maplibregl.Map) {
       type: 'fill',
       source: 'paddocks-yesterday',
       paint: {
-        'fill-color': '#eab308', // yellow-500
+        'fill-color': '#c06a62', // terracotta-muted
         'fill-opacity': 0.35,
       },
     })
@@ -219,7 +219,7 @@ function ensurePaddockLayers(mapInstance: maplibregl.Map) {
       type: 'line',
       source: 'paddocks-yesterday',
       paint: {
-        'line-color': '#ca8a04', // yellow-600
+        'line-color': '#a83a32', // terracotta
         'line-width': 2,
       },
     })

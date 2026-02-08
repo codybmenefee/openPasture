@@ -19,26 +19,26 @@ const entityConfig: Record<DragEntityType, {
   pasture: {
     icon: Pentagon,
     label: 'Pasture',
-    colorClass: 'text-green-500',
-    bgClass: 'bg-green-500/10 border-green-500/30',
+    colorClass: 'text-olive',
+    bgClass: 'bg-olive/10 border-olive/30',
   },
   noGrazeZone: {
     icon: Ban,
     label: 'No-graze Zone',
-    colorClass: 'text-red-500',
-    bgClass: 'bg-red-500/10 border-red-500/30',
+    colorClass: 'text-terracotta',
+    bgClass: 'bg-terracotta/10 border-terracotta/30',
   },
   waterPoint: {
     icon: MapPin,
     label: 'Water Marker',
-    colorClass: 'text-blue-500',
-    bgClass: 'bg-blue-500/10 border-blue-500/30',
+    colorClass: 'text-cobalt',
+    bgClass: 'bg-cobalt/10 border-cobalt/30',
   },
   waterPolygon: {
     icon: Droplet,
     label: 'Water Area',
-    colorClass: 'text-blue-500',
-    bgClass: 'bg-blue-500/10 border-blue-500/30',
+    colorClass: 'text-cobalt',
+    bgClass: 'bg-cobalt/10 border-cobalt/30',
   },
 }
 

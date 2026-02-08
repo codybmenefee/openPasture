@@ -20,10 +20,10 @@ export function RotationHeatmap({
   // Get color intensity based on paddock count
   const getPaddockColor = (count: number): string => {
     if (count === 0) return 'bg-muted'
-    if (count <= 2) return 'bg-green-300 dark:bg-green-800'
-    if (count <= 4) return 'bg-green-500 dark:bg-green-600'
-    if (count <= 6) return 'bg-green-600 dark:bg-green-500'
-    return 'bg-green-700 dark:bg-green-400'
+    if (count <= 2) return 'bg-olive/30'
+    if (count <= 4) return 'bg-olive/50'
+    if (count <= 6) return 'bg-olive/70'
+    return 'bg-olive'
   }
 
   return (
@@ -68,10 +68,10 @@ export function RotationHeatmap({
                                 'mx-auto h-6 w-6 rounded flex items-center justify-center transition-colors',
                                 showPaddockCounts
                                   ? getPaddockColor(paddockCount)
-                                  : grazed ? 'bg-green-500 dark:bg-green-600' : 'bg-muted'
+                                  : grazed ? 'bg-olive' : 'bg-muted'
                               )}>
                                 {showPaddockCounts && paddockCount > 0 && (
-                                  <span className="text-[10px] font-semibold text-white dark:text-gray-900">
+                                  <span className="text-[10px] font-semibold text-white">
                                     {paddockCount}
                                   </span>
                                 )}
@@ -104,26 +104,26 @@ export function RotationHeatmap({
                 <span>0</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-4 w-4 rounded bg-green-300 dark:bg-green-800" />
+                <div className="h-4 w-4 rounded bg-olive/30" />
                 <span>1-2</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-4 w-4 rounded bg-green-500 dark:bg-green-600" />
+                <div className="h-4 w-4 rounded bg-olive/50" />
                 <span>3-4</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-4 w-4 rounded bg-green-600 dark:bg-green-500" />
+                <div className="h-4 w-4 rounded bg-olive/70" />
                 <span>5-6</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="h-4 w-4 rounded bg-green-700 dark:bg-green-400" />
+                <div className="h-4 w-4 rounded bg-olive" />
                 <span>7+</span>
               </div>
             </>
           ) : (
             <>
               <div className="flex items-center gap-1.5">
-                <div className="h-4 w-4 rounded bg-green-500" />
+                <div className="h-4 w-4 rounded bg-olive" />
                 <span>Grazed</span>
               </div>
               <div className="flex items-center gap-1.5">

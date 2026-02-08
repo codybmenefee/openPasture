@@ -20,8 +20,8 @@ export function EvolutionStep() {
           <div className="grid grid-cols-4 grid-rows-2">
             {[
               { id: '1', color: 'bg-terracotta/20', label: 'Grazing' },
-              { id: '2', color: 'bg-amber-100', label: '' },
-              { id: '3', color: 'bg-amber-50', label: '' },
+              { id: '2', color: 'bg-terracotta/10', label: '' },
+              { id: '3', color: 'bg-terracotta/5', label: '' },
               { id: '4', color: 'bg-olive-light', label: '' },
               { id: '5', color: 'bg-olive-muted/40', label: '' },
               { id: '6', color: 'bg-olive-muted/60', label: '' },

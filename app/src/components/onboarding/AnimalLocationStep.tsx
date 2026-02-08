@@ -447,10 +447,10 @@ export function AnimalLocationStep({
   // Render pasture selection phase
   if (phase === 'select-pasture') {
     return (
-      <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
+      <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-terracotta/50">
         <CardContent className="p-3 flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
-            <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-terracotta/10">
+            <MapPin className="h-4 w-4 text-terracotta" />
           </div>
           <div className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Where are your animals?</span>
@@ -469,9 +469,9 @@ export function AnimalLocationStep({
   // Render paddock drawing phase
   if (phase === 'draw-paddock' && isDrawing) {
     return (
-      <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
+      <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-terracotta/50">
         <CardContent className="p-3 flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-terracotta animate-pulse" />
           <span className="text-xs">
             {startPoint ? 'Click opposite corner' : 'Click first corner'}
           </span>
@@ -486,10 +486,10 @@ export function AnimalLocationStep({
 
   // Render confirmation phase
   return (
-    <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-amber-500/50">
+    <Card className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 shadow-lg border-2 border-terracotta/50">
       <CardContent className="p-3 flex items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
-          <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-terracotta/10">
+          <MapPin className="h-4 w-4 text-terracotta" />
         </div>
         <div className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Animals in {selectedPasture?.name}</span>

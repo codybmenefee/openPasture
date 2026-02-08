@@ -484,10 +484,10 @@ function DemoGISRoute() {
       {/* NDVI Imagery info badge */}
       {layers.ndviHeat && ndviImageryInfo && (
         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-full shadow-lg">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-olive text-white text-xs font-medium shadow-hard-sm">
             <Satellite className="h-3.5 w-3.5" />
             <span>NDVI</span>
-            <span className="text-green-200">•</span>
+            <span className="text-white/50">•</span>
             <span>
               {new Date(ndviImageryInfo.date + 'T00:00:00').toLocaleDateString('en-US', {
                 month: 'short',

@@ -53,8 +53,8 @@ export function GrazingHistoryTable({
                 <TableRow key={event.id}>
                   <TableCell className="font-medium">{formatDate(event.date)}</TableCell>
                   <TableCell className="text-right">{event.duration} days</TableCell>
-                  <TableCell className="text-right text-green-600">{event.entryNdvi.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-amber-600">{event.exitNdvi.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-olive">{event.entryNdvi.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-terracotta">{event.exitNdvi.toFixed(2)}</TableCell>
                 </TableRow>
               ))
             )}

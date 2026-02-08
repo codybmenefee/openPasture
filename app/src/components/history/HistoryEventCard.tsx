@@ -38,32 +38,32 @@ interface HistoryEventCardProps {
 const statusConfig = {
   approved: {
     icon: Check,
-    color: 'bg-green-500',
-    badge: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20',
+    color: 'bg-olive',
+    badge: 'bg-olive/10 text-olive border-olive/20',
     label: 'Approved',
   },
   modified: {
     icon: Edit,
-    color: 'bg-amber-500',
-    badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+    color: 'bg-terracotta',
+    badge: 'bg-terracotta/10 text-terracotta border-terracotta/20',
     label: 'Modified',
   },
   pending: {
     icon: Clock,
-    color: 'bg-blue-500',
-    badge: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+    color: 'bg-cobalt',
+    badge: 'bg-cobalt/10 text-cobalt border-cobalt/20',
     label: 'Pending',
   },
   rejected: {
     icon: Clock,
-    color: 'bg-red-500',
-    badge: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20',
+    color: 'bg-terracotta',
+    badge: 'bg-terracotta/10 text-terracotta border-terracotta/20',
     label: 'Rejected',
   },
   executed: {
     icon: Check,
-    color: 'bg-purple-500',
-    badge: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20',
+    color: 'bg-cobalt',
+    badge: 'bg-cobalt/10 text-cobalt border-cobalt/20',
     label: 'Executed',
   },
 }

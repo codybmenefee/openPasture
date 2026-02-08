@@ -39,7 +39,7 @@ export function PaddocksStep({ isActive = false }: PaddocksStepProps) {
 
       {/* Content */}
       <div className="text-center">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-purple-50 dark:bg-purple-900/20 px-3 py-1 text-sm text-purple-700 dark:text-purple-300">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-cobalt/10 px-3 py-1 text-sm text-cobalt">
           <Target className="h-4 w-4" />
           Precision grazing
         </div>
@@ -54,9 +54,9 @@ export function PaddocksStep({ isActive = false }: PaddocksStepProps) {
       </div>
 
       {/* Ready message */}
-      <div className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 px-5 py-3 shadow-sm">
-        <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400" />
-        <span className="font-medium text-green-700 dark:text-green-300">
+      <div className="flex items-center gap-2 rounded-lg bg-olive-light px-5 py-3 shadow-sm">
+        <Sparkles className="h-5 w-5 text-olive" />
+        <span className="font-medium text-olive">
           You're ready to start!
         </span>
       </div>

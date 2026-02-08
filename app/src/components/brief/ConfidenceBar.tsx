@@ -7,9 +7,9 @@ interface ConfidenceBarProps {
 
 export function ConfidenceBar({ value, className }: ConfidenceBarProps) {
   const getColor = () => {
-    if (value >= 75) return 'bg-green-500'
-    if (value >= 50) return 'bg-amber-500'
-    return 'bg-red-500'
+    if (value >= 75) return 'bg-olive'
+    if (value >= 50) return 'bg-terracotta'
+    return 'bg-terracotta'
   }
 
   return (

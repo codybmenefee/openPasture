@@ -13,8 +13,8 @@ export function TrendIndicator({ trend, value, className }: TrendIndicatorProps)
   return (
     <span className={cn(
       'inline-flex items-center gap-1 text-sm',
-      trend === 'up' && 'text-green-600 dark:text-green-400',
-      trend === 'down' && 'text-red-600 dark:text-red-400',
+      trend === 'up' && 'text-olive',
+      trend === 'down' && 'text-terracotta',
       trend === 'stable' && 'text-muted-foreground',
       className
     )}>

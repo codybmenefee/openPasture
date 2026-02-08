@@ -122,8 +122,8 @@ export function SaveIndicator({ className }: SaveIndicatorProps) {
           <span className="text-destructive text-sm">{error}</span>
         ) : showSuccess ? (
           <>
-            <Check className="h-4 w-4 text-green-500" />
-            <span className="text-sm text-green-600">Saved</span>
+            <Check className="h-4 w-4 text-olive" />
+            <span className="text-sm text-olive">Saved</span>
           </>
         ) : (
           <>
