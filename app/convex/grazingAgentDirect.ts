@@ -33,10 +33,69 @@ import type { Feature, Polygon } from "geojson"
 
 const log = createLogger('grazingAgent')
 
-type OTelTracer = any
+type AnthropicClient = typeof anthropic
+type GenerateTextParams = Parameters<typeof generateText>[0]
+type TelemetrySettings = NonNullable<GenerateTextParams['experimental_telemetry']>
+type OTelTracer = NonNullable<TelemetrySettings['tracer']>
+type TraceSpan = { log: (data: unknown) => void }
+type TraceLogger = {
+  traced: <T>(
+    fn: (span: TraceSpan) => Promise<T>,
+    options?: { name?: string; metadata?: Record<string, unknown> }
+  ) => Promise<T>
+}
+type ToolCall = {
+  toolName: string
+  args?: Record<string, unknown>
+  input?: Record<string, unknown>
+}
+type UsageInfo = {
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+  input_tokens?: number
+  output_tokens?: number
+}
+type CreateDailyPlanArgs = {
+  action?: 'MOVE' | 'STAY'
+  sectionIndex?: number
+  reasoning?: string[]
+  confidence?: 'high' | 'medium' | 'low'
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 const GRAZING_AGENT_MODEL = "claude-haiku-4-5"
 const PROMPT_VERSION = "v6.0.0-autonomous-drawing"
+
+interface HarnessRuntimeContext {
+  profileId: 'conservative' | 'balanced' | 'aggressive' | 'custom'
+  behaviorConfig: {
+    riskPosture: 'low' | 'medium' | 'high'
+    explanationStyle: 'concise' | 'balanced' | 'detailed'
+    forageSensitivity: number
+    movementBias: number
+    enableWeatherSignals: boolean
+  }
+  promptContext?: string
+  memoryCount?: number
+  structuredRules?: string[]
+}
+
+function buildHarnessSystemPolicy(context?: HarnessRuntimeContext): string {
+  if (!context) return ''
+  return `## OPENPASTURE HARNESS POLICY (NON-OVERRIDABLE)
+- Profile: ${context.profileId}
+- Risk posture: ${context.behaviorConfig.riskPosture}
+- Explanation style: ${context.behaviorConfig.explanationStyle}
+- Movement bias (0-100): ${context.behaviorConfig.movementBias}
+- Forage sensitivity (0-100): ${context.behaviorConfig.forageSensitivity}
+- Weather signals: ${context.behaviorConfig.enableWeatherSignals ? 'enabled' : 'disabled'}
+- Farmer approval is mandatory before any plan mutation becomes active.
+- Structured safety rules take precedence over raw prompt overrides.`
+}
 
 /**
  * System prompt for the autonomous section-drawing agent
@@ -129,6 +188,15 @@ interface PlanGenerationResult {
   error?: string
   decision?: 'MOVE' | 'STAY'
   recommendedSectionIndex?: number
+  toolCallCount?: number
+  toolSummary?: string[]
+  draftPlan?: {
+    action: 'MOVE' | 'STAY'
+    sectionIndex: number
+    reasoning: string[]
+    confidence: 'high' | 'medium' | 'low'
+  }
+  agentText?: string
 }
 
 interface ForecastGenerationResult {
@@ -136,6 +204,10 @@ interface ForecastGenerationResult {
   forecastId?: Id<"paddockForecasts">
   sectionsDrawn?: number
   error?: string
+}
+
+interface RunGrazingAgentOptions {
+  dryRun?: boolean
 }
 
 /**
@@ -147,17 +219,29 @@ export async function runGrazingAgent(
   farmName: string,
   activePaddockId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
-  logger?: any,
-  wrappedAnthropic?: any,
-  tracer?: OTelTracer
+  logger?: TraceLogger,
+  wrappedAnthropic?: AnthropicClient,
+  tracer?: OTelTracer,
+  harnessContext?: HarnessRuntimeContext,
+  options?: RunGrazingAgentOptions
 ): Promise<PlanGenerationResult> {
   const anthropicClient = wrappedAnthropic || anthropic
 
   if (!logger) {
-    return await runDailyPlanningAgent(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+    return await runDailyPlanningAgent(
+      ctx,
+      farmExternalId,
+      farmName,
+      activePaddockId,
+      settings,
+      anthropicClient,
+      tracer,
+      harnessContext,
+      options
+    )
   }
 
-  return await logger.traced(async (rootSpan: any) => {
+  return await logger.traced(async (rootSpan) => {
     rootSpan.log({
       input: sanitizeForBraintrust({
         farmExternalId,
@@ -171,7 +255,17 @@ export async function runGrazingAgent(
       }),
     })
 
-    const result = await runDailyPlanningAgent(ctx, farmExternalId, farmName, activePaddockId, settings, anthropicClient, tracer)
+    const result = await runDailyPlanningAgent(
+      ctx,
+      farmExternalId,
+      farmName,
+      activePaddockId,
+      settings,
+      anthropicClient,
+      tracer,
+      harnessContext,
+      options
+    )
 
     rootSpan.log({
       output: sanitizeForBraintrust({
@@ -195,14 +289,19 @@ async function runDailyPlanningAgent(
   farmName: string,
   activePaddockId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
-  anthropicClient: any,
-  tracer?: OTelTracer
+  anthropicClient: AnthropicClient,
+  tracer?: OTelTracer,
+  harnessContext?: HarnessRuntimeContext,
+  options?: RunGrazingAgentOptions
 ): Promise<PlanGenerationResult> {
+  const isDryRun = options?.dryRun === true
+
   log('START - Daily Planning Agent', {
     farmExternalId,
     farmName,
     activePaddockId,
     settings,
+    dryRun: isDryRun,
   })
 
   const today = new Date().toISOString().split('T')[0]
@@ -214,7 +313,7 @@ async function runDailyPlanningAgent(
     const allPaddocks = await ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId })
 
     if (allPaddocks && allPaddocks.length > 0) {
-      const suitable = allPaddocks.filter((p: any) => p.ndviMean >= settings.minNDVIThreshold)
+      const suitable = allPaddocks.filter((p: { ndviMean: number }) => p.ndviMean >= settings.minNDVIThreshold)
       targetPaddockId = suitable.length > 0 ? suitable[0].externalId : allPaddocks[0].externalId
 
       log('Selected paddock (no active)', { targetPaddockId })
@@ -223,27 +322,78 @@ async function runDailyPlanningAgent(
     }
   }
 
+  if (!targetPaddockId) {
+    return { success: false, error: 'No paddock selected for planning' }
+  }
+  const resolvedPaddockId = targetPaddockId
+
   // 2. GET OR CREATE FORECAST (empty if new)
-  const forecast = await ctx.runMutation(api.grazingAgentTools.getOrCreateForecast, {
-    farmExternalId,
-    paddockExternalId: targetPaddockId,
-  })
+  let forecast = isDryRun
+    ? await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
+        farmExternalId,
+        paddockExternalId: resolvedPaddockId,
+      })
+    : await ctx.runMutation(api.grazingAgentTools.getOrCreateForecast, {
+        farmExternalId,
+        paddockExternalId: resolvedPaddockId,
+      })
 
   if (!forecast) {
-    return { success: false, error: 'Failed to get or create paddock forecast' }
+    if (isDryRun) {
+      return {
+        success: true,
+        planCreated: true,
+        decision: 'STAY',
+        recommendedSectionIndex: 0,
+        toolCallCount: 0,
+        toolSummary: ['dry_run_no_forecast'],
+        draftPlan: {
+          action: 'STAY',
+          sectionIndex: 0,
+          reasoning: ['No active forecast exists yet. Dry run produced a non-committing fallback recommendation.'],
+          confidence: 'low',
+        },
+        agentText: 'No active forecast exists yet. Run a live morning brief to create forecast sections before evaluating detailed move/stay decisions.',
+      }
+    }
+    return {
+      success: false,
+      error: isDryRun
+        ? 'Dry run requires an existing active forecast. Run a live morning brief first.'
+        : 'Failed to get or create paddock forecast',
+    }
   }
 
   // 3. IF FORECAST IS EMPTY, GENERATE SECTIONS FIRST
   if (forecast.forecastedSections.length === 0) {
+    if (isDryRun) {
+      return {
+        success: true,
+        planCreated: true,
+        decision: 'STAY',
+        recommendedSectionIndex: 0,
+        toolCallCount: 0,
+        toolSummary: ['dry_run_empty_forecast'],
+        draftPlan: {
+          action: 'STAY',
+          sectionIndex: 0,
+          reasoning: ['Forecast exists but has no sections yet. Dry run returned a non-committing fallback recommendation.'],
+          confidence: 'low',
+        },
+        agentText: 'Forecast is present but contains no sections. Run a live morning brief to generate sections before evaluating detailed grazing choices.',
+      }
+    }
+
     log('Forecast is empty - generating sections', { forecastId: forecast._id.toString() })
 
     const forecastResult = await generateForecastSections(
       ctx,
       farmExternalId,
-      targetPaddockId,
+      resolvedPaddockId,
       forecast._id,
       anthropicClient,
-      tracer
+      tracer,
+      harnessContext
     )
 
     if (!forecastResult.success) {
@@ -251,12 +401,12 @@ async function runDailyPlanningAgent(
     }
 
     // Refresh forecast after generation
-    const updatedForecast = await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
+    forecast = await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
       farmExternalId,
-      paddockExternalId: targetPaddockId,
+      paddockExternalId: resolvedPaddockId,
     })
 
-    if (!updatedForecast || updatedForecast.forecastedSections.length === 0) {
+    if (!forecast || forecast.forecastedSections.length === 0) {
       return { success: false, error: 'Forecast generation completed but no sections found' }
     }
   }
@@ -269,7 +419,7 @@ async function runDailyPlanningAgent(
   // 5. EVALUATE FORECAST CONTEXT
   const forecastContext = await ctx.runQuery(api.grazingAgentTools.evaluateForecastContext, {
     farmExternalId,
-    paddockExternalId: targetPaddockId,
+    paddockExternalId: resolvedPaddockId,
   })
 
   log('Forecast context', {
@@ -281,7 +431,7 @@ async function runDailyPlanningAgent(
 
   // 6. GET PADDOCK DATA FOR VISUALIZATION
   const allPaddocks = await ctx.runQuery(api.grazingAgentTools.getAllPaddocksWithObservations, { farmExternalId })
-  const targetPaddock = allPaddocks?.find((p: any) => p.externalId === targetPaddockId)
+  const targetPaddock = allPaddocks?.find((p: { externalId: string }) => p.externalId === resolvedPaddockId)
 
   if (!targetPaddock) {
     return { success: false, error: `Paddock not found: ${targetPaddockId}` }
@@ -290,7 +440,7 @@ async function runDailyPlanningAgent(
   // Re-fetch forecast for visualization
   const currentForecast = await ctx.runQuery(api.grazingAgentTools.getActiveForecast, {
     farmExternalId,
-    paddockExternalId: targetPaddockId,
+    paddockExternalId: resolvedPaddockId,
   })
 
   if (!currentForecast) {
@@ -305,7 +455,11 @@ async function runDailyPlanningAgent(
       const paddockGeometryFeature = targetPaddock.geometry as Feature<Polygon>
 
       // Build grazed sections from forecast history
-      const grazedSections: GrazedSection[] = currentForecast.grazingHistory.map((h: any, index: number) => ({
+      const grazedSections: GrazedSection[] = currentForecast.grazingHistory.map((h: {
+        geometry: Polygon
+        startedDate?: string
+        endedDate?: string
+      }, index: number) => ({
         geometry: h.geometry as Polygon,
         dayNumber: index + 1,
         date: h.startedDate || h.endedDate || today,
@@ -326,13 +480,13 @@ async function runDailyPlanningAgent(
       try {
         const ndviGrid = await ctx.runAction(api.ndviGrid.generateNDVIGrid, {
           farmExternalId,
-          paddockExternalId: targetPaddockId,
+          paddockExternalId: resolvedPaddockId,
         })
         if (ndviGrid.hasData) {
           ndviGridValues = ndviGrid.gridValues
         }
-      } catch (e: any) {
-        log.warn('NDVI grid fetch failed', { error: e.message })
+      } catch (e: unknown) {
+        log.warn('NDVI grid fetch failed', { error: getErrorMessage(e) })
       }
 
       const visualization = await generatePaddockVisualization(
@@ -351,8 +505,8 @@ async function runDailyPlanningAgent(
       )
 
       paddockVisualizationPng = visualization.pngBase64
-    } catch (vizError: any) {
-      log.error('Visualization generation failed', { error: vizError.message })
+    } catch (vizError: unknown) {
+      log.error('Visualization generation failed', { error: getErrorMessage(vizError) })
     }
   }
 
@@ -361,7 +515,11 @@ async function runDailyPlanningAgent(
 
   const activeSection = currentForecast.forecastedSections[currentForecast.activeSectionIndex]
 
-  const forecastSectionsSummary = currentForecast.forecastedSections.map((s: any) => {
+  const forecastSectionsSummary = currentForecast.forecastedSections.map((s: {
+    index: number
+    areaHa: number
+    quadrant: string
+  }) => {
     const status = s.index < currentForecast.activeSectionIndex ? 'COMPLETED'
       : s.index === currentForecast.activeSectionIndex ? 'ACTIVE'
       : 'UPCOMING'
@@ -369,6 +527,9 @@ async function runDailyPlanningAgent(
   }).join('\n')
 
   const textPrompt = `Create today's grazing plan for farm "${farmName}".
+
+${harnessContext?.promptContext ? `${harnessContext.promptContext}
+` : ''}
 
 ${principlesPrompt}
 
@@ -438,9 +599,14 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
   })
 
   // 9. RUN AGENT
+  const systemPrompt = [
+    GRAZING_AGENT_SYSTEM_PROMPT,
+    buildHarnessSystemPolicy(harnessContext),
+  ].filter(Boolean).join('\n\n')
+
   const result = await generateText({
-    model: anthropicClient(GRAZING_AGENT_MODEL) as any,
-    system: GRAZING_AGENT_SYSTEM_PROMPT,
+    model: anthropicClient(GRAZING_AGENT_MODEL),
+    system: systemPrompt,
     messages: [{ role: 'user', content: messageContent }],
     tools: {
       createDailyPlan: tool({
@@ -457,7 +623,7 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
         inputSchema: z.object({}),
       }),
     },
-    ...(tracer && {
+    ...(tracer ? {
       experimental_telemetry: {
         isEnabled: true,
         tracer,
@@ -471,29 +637,32 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           model: GRAZING_AGENT_MODEL,
         },
       },
-    }),
+    } : {}),
   })
 
-  const toolCalls = (result as any).toolCalls || []
-  const usage = (result as any).usage || (result as any).experimental_providerMetadata?.anthropic?.usage
+  const toolCalls = ((result as { toolCalls?: ToolCall[] }).toolCalls ?? [])
+  const usage =
+    (result as { usage?: UsageInfo }).usage ??
+    (result as { experimental_providerMetadata?: { anthropic?: { usage?: UsageInfo } } })
+      .experimental_providerMetadata?.anthropic?.usage
 
   log('LLM response', {
     textLength: result.text?.length,
     toolCallsCount: toolCalls.length,
-    toolNames: toolCalls.map((tc: any) => tc.toolName),
+    toolNames: toolCalls.map((tc) => tc.toolName),
   })
 
   // Log LLM call
   const llmSpanId = logLLMCall({
     model: GRAZING_AGENT_MODEL,
     prompt: textPrompt,
-    systemPrompt: GRAZING_AGENT_SYSTEM_PROMPT,
+    systemPrompt,
     response: result.text || '',
     toolCalls,
     usage: usage ? {
       promptTokens: usage.promptTokens || usage.input_tokens,
       completionTokens: usage.completionTokens || usage.output_tokens,
-      totalTokens: usage.totalTokens || (usage.input_tokens + usage.output_tokens),
+      totalTokens: usage.totalTokens ?? ((usage.input_tokens ?? 0) + (usage.output_tokens ?? 0)),
     } : undefined,
     metadata: { farmExternalId, farmName, promptVersion: PROMPT_VERSION },
   })
@@ -502,11 +671,13 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
   let planCreated = false
   let createdDailyPlanId: Id<'dailyPlans'> | undefined
   let createdBriefId: Id<'dailyBriefs'> | undefined
+  let createdPlanId: Id<'plans'> | undefined
   let finalDecision: 'MOVE' | 'STAY' | undefined
   let recommendedSectionIndex: number | undefined
+  let draftPlan: PlanGenerationResult['draftPlan']
 
   for (const toolCall of toolCalls) {
-    const args = (toolCall as any).args ?? (toolCall as any).input ?? {}
+    const args = ((toolCall.args ?? toolCall.input ?? {}) as CreateDailyPlanArgs)
     const toolStartTime = Date.now()
 
     if (toolCall.toolName === 'getUngrazedRemaining') {
@@ -522,12 +693,12 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           output: { areaHa: ungrazedResult.areaHa, percentOfPaddock: ungrazedResult.percentOfPaddock },
           durationMs: Date.now() - toolStartTime,
         })
-      } catch (toolError: any) {
+      } catch (toolError: unknown) {
         logToolCall({
           parentSpanId: llmSpanId,
           toolName: toolCall.toolName,
           input: args,
-          error: toolError.message,
+          error: getErrorMessage(toolError),
           durationMs: Date.now() - toolStartTime,
         })
       }
@@ -535,33 +706,54 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
 
     if (toolCall.toolName === 'createDailyPlan') {
       try {
-        finalDecision = args.action as 'MOVE' | 'STAY'
-        recommendedSectionIndex = args.sectionIndex
+        const sectionIndex = args.sectionIndex ?? currentForecast.activeSectionIndex
+        finalDecision = args.action ?? 'STAY'
+        recommendedSectionIndex = sectionIndex
 
-        const section = currentForecast.forecastedSections[args.sectionIndex]
+        const section = currentForecast.forecastedSections[sectionIndex]
         if (!section) {
-          throw new Error(`Invalid section index: ${args.sectionIndex}`)
+          throw new Error(`Invalid section index: ${sectionIndex}`)
         }
 
         const confidenceMap: Record<string, number> = { high: 85, medium: 70, low: 50 }
-        const confidenceNum = confidenceMap[args.confidence] ?? 70
+        const confidenceKey = args.confidence ?? 'medium'
+        const confidenceNum = confidenceMap[confidenceKey]
+        const reasoning = args.reasoning || []
+
+        if (isDryRun) {
+          draftPlan = {
+            action: finalDecision,
+            sectionIndex,
+            reasoning,
+            confidence: confidenceKey,
+          }
+          planCreated = true
+          logToolCall({
+            parentSpanId: llmSpanId,
+            toolName: toolCall.toolName,
+            input: args,
+            output: { simulated: true, decision: finalDecision, sectionIndex },
+            durationMs: Date.now() - toolStartTime,
+          })
+          continue
+        }
 
         // Create daily plan
         const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
           farmExternalId,
           date: today,
           forecastId: currentForecast._id,
-          paddockExternalId: targetPaddockId,
-          recommendedSectionIndex: args.sectionIndex,
+          paddockExternalId: resolvedPaddockId,
+          recommendedSectionIndex: sectionIndex,
           sectionGeometry: section.geometry,
           sectionAreaHa: section.areaHa,
           sectionCentroid: section.centroid,
-          daysInSection: args.sectionIndex === currentForecast.activeSectionIndex
+          daysInSection: sectionIndex === currentForecast.activeSectionIndex
             ? currentForecast.daysInActiveSection
             : 1,
           estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
           currentNdvi: forecastContext.currentNdvi,
-          reasoning: args.reasoning || [],
+          reasoning,
           confidence: confidenceNum,
         })
 
@@ -573,26 +765,26 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           farmExternalId,
           date: today,
           decision: finalDecision,
-          paddockExternalId: targetPaddockId,
+          paddockExternalId: resolvedPaddockId,
           sectionGeometry: section.geometry,
           sectionAreaHa: section.areaHa,
           sectionCentroid: section.centroid,
-          daysInCurrentSection: args.sectionIndex === currentForecast.activeSectionIndex
+          daysInCurrentSection: sectionIndex === currentForecast.activeSectionIndex
             ? currentForecast.daysInActiveSection
             : 1,
           estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
           currentNdvi: forecastContext.currentNdvi,
-          reasoning: args.reasoning || [],
+          reasoning,
           confidence: confidenceNum,
           forecastId: currentForecast._id,
         })
 
         // Create legacy plan
-        await createLegacyPlan(ctx, {
+        createdPlanId = await createLegacyPlan(ctx, {
           farmExternalId,
-          paddockExternalId: targetPaddockId,
+          paddockExternalId: resolvedPaddockId,
           decision: finalDecision,
-          reasoning: args.reasoning || [],
+          reasoning,
           confidence: confidenceNum / 100,
           sectionGeometry: section.geometry,
           sectionAreaHa: section.areaHa,
@@ -611,14 +803,14 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
         log('Daily plan created', {
           dailyPlanId: dailyPlanId.toString(),
           decision: finalDecision,
-          sectionIndex: args.sectionIndex,
+          sectionIndex,
         })
-      } catch (toolError: any) {
+      } catch (toolError: unknown) {
         logToolCall({
           parentSpanId: llmSpanId,
           toolName: toolCall.toolName,
           input: args,
-          error: toolError.message,
+          error: getErrorMessage(toolError),
           durationMs: Date.now() - toolStartTime,
         })
         throw toolError
@@ -639,11 +831,20 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
       return { success: false, error: `Invalid section index: ${sectionIndex}` }
     }
 
+    if (isDryRun) {
+      planCreated = true
+      draftPlan = {
+        action: 'STAY',
+        sectionIndex,
+        reasoning: ['System fallback - agent did not provide recommendation'],
+        confidence: 'low',
+      }
+    } else {
     const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
       farmExternalId,
       date: today,
       forecastId: currentForecast._id,
-      paddockExternalId: targetPaddockId,
+      paddockExternalId: resolvedPaddockId,
       recommendedSectionIndex: sectionIndex,
       sectionGeometry: section.geometry,
       sectionAreaHa: section.areaHa,
@@ -657,6 +858,19 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
 
     createdDailyPlanId = dailyPlanId
     planCreated = true
+
+    createdPlanId = await createLegacyPlan(ctx, {
+      farmExternalId,
+      paddockExternalId: resolvedPaddockId,
+      decision: 'STAY',
+      reasoning: ['System fallback - agent did not provide recommendation'],
+      confidence: 0.5,
+      sectionGeometry: section.geometry,
+      sectionAreaHa: section.areaHa,
+      sectionCentroid: section.centroid,
+      grazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
+    })
+    }
   }
 
   log('END - Daily Planning Agent', {
@@ -671,7 +885,12 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
     recommendedSectionIndex,
     dailyPlanId: createdDailyPlanId,
     briefId: createdBriefId,
+    planId: createdPlanId,
     planCreated,
+    toolCallCount: toolCalls.length,
+    toolSummary: toolCalls.map((toolCall) => String(toolCall.toolName)),
+    draftPlan,
+    agentText: result.text || undefined,
   }
 }
 
@@ -683,8 +902,9 @@ async function generateForecastSections(
   farmExternalId: string,
   paddockExternalId: string,
   forecastId: Id<"paddockForecasts">,
-  anthropicClient: any,
-  tracer?: OTelTracer
+  anthropicClient: AnthropicClient,
+  tracer?: OTelTracer,
+  harnessContext?: HarnessRuntimeContext
 ): Promise<ForecastGenerationResult> {
   log('START - Forecast Section Generation', { farmExternalId, paddockExternalId, forecastId })
 
@@ -777,9 +997,9 @@ IMPORTANT:
 
   // Run agent to draw sections
   // Tools have execute handlers so maxSteps loop works correctly
-  await generateText({
-    model: anthropicClient(GRAZING_AGENT_MODEL) as any,
-    system: GRAZING_AGENT_SYSTEM_PROMPT,
+  const forecastGenerationInput = {
+    model: anthropicClient(GRAZING_AGENT_MODEL),
+    system: [GRAZING_AGENT_SYSTEM_PROMPT, buildHarnessSystemPolicy(harnessContext)].filter(Boolean).join('\n\n'),
     messages: [{ role: 'user', content: forecastPrompt }],
     maxSteps: 15, // Allow multiple tool calls
     tools: {
@@ -816,12 +1036,13 @@ IMPORTANT:
                 message: 'Section validation failed - try different coordinates',
               }
             }
-          } catch (drawError: any) {
-            log.error('drawSection error', { error: drawError.message })
+          } catch (drawError: unknown) {
+            const errorMessage = getErrorMessage(drawError)
+            log.error('drawSection error', { error: errorMessage })
             return {
               success: false,
-              error: drawError.message,
-              message: `Error: ${drawError.message}`,
+              error: errorMessage,
+              message: `Error: ${errorMessage}`,
             }
           }
         },
@@ -846,17 +1067,18 @@ IMPORTANT:
               geometry: remaining.geometry,
               message: `${remaining.areaHa?.toFixed(2)} ha remaining (${remaining.percentOfPaddock?.toFixed(0)}% of paddock) in ${remaining.approximateLocation}`,
             }
-          } catch (e: any) {
-            log.error('getUngrazedRemaining error', { error: e.message })
+          } catch (e: unknown) {
+            const errorMessage = getErrorMessage(e)
+            log.error('getUngrazedRemaining error', { error: errorMessage })
             return {
-              error: e.message,
-              message: `Error getting ungrazed area: ${e.message}`,
+              error: errorMessage,
+              message: `Error getting ungrazed area: ${errorMessage}`,
             }
           }
         },
       }),
     },
-    ...(tracer && {
+    ...(tracer ? {
       experimental_telemetry: {
         isEnabled: true,
         tracer,
@@ -869,8 +1091,10 @@ IMPORTANT:
           promptVersion: PROMPT_VERSION,
         },
       },
-    }),
-  })
+    } : {}),
+  } as unknown as GenerateTextParams
+
+  await generateText(forecastGenerationInput)
 
   log('END - Forecast Section Generation', { sectionsDrawn })
 
@@ -892,12 +1116,12 @@ async function createLegacyPlan(
     decision: 'MOVE' | 'STAY'
     reasoning: string[]
     confidence: number
-    sectionGeometry: any
+    sectionGeometry: unknown
     sectionAreaHa?: number
     sectionCentroid?: number[]
     grazedPercentage: number
   }
-) {
+): Promise<Id<'plans'>> {
   const {
     farmExternalId,
     paddockExternalId,
@@ -915,7 +1139,7 @@ async function createLegacyPlan(
     : 'STAY in current section: '
   const justification = decisionPrefix + (reasoning[0] || 'Based on grazing forecast')
 
-  await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, {
+  const createdPlanId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, {
     farmExternalId,
     targetPaddockId: paddockExternalId,
     sectionGeometry,
@@ -931,4 +1155,6 @@ async function createLegacyPlan(
   await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
     farmExternalId,
   })
+
+  return createdPlanId as Id<'plans'>
 }

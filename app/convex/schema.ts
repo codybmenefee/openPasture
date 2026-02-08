@@ -177,6 +177,55 @@ const forecastStatus = v.union(
   v.literal('paused'),
 )
 
+const agentProfileId = v.union(
+  v.literal('conservative'),
+  v.literal('balanced'),
+  v.literal('aggressive'),
+  v.literal('custom'),
+)
+
+const agentRiskPosture = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
+const agentExplanationStyle = v.union(
+  v.literal('concise'),
+  v.literal('balanced'),
+  v.literal('detailed'),
+)
+
+const agentBehaviorConfig = v.object({
+  riskPosture: agentRiskPosture,
+  explanationStyle: agentExplanationStyle,
+  forageSensitivity: v.number(),
+  movementBias: v.number(),
+  enableWeatherSignals: v.boolean(),
+})
+
+const agentRunStatus = v.union(
+  v.literal('started'),
+  v.literal('succeeded'),
+  v.literal('failed'),
+  v.literal('blocked'),
+)
+
+const agentMemoryScope = v.union(
+  v.literal('farm'),
+  v.literal('paddock'),
+)
+
+const agentMemoryStatus = v.union(
+  v.literal('active'),
+  v.literal('archived'),
+)
+
+const agentMemorySource = v.union(
+  v.literal('farmer'),
+  v.literal('system'),
+)
+
 export default defineSchema({
   farms: defineTable({
     externalId: v.string(),  // Will store Clerk org ID (org_xxx) for new farms
@@ -230,6 +279,8 @@ export default defineSchema({
     subscriptionPlanId: v.optional(v.string()),     // Clerk plan ID
     subscriptionId: v.optional(v.string()),         // Clerk subscription ID
     subscriptionCurrentPeriodEnd: v.optional(v.string()),
+    // Mirrored entitlement for backend enforcement of power-user features
+    agentDashboardEnabled: v.optional(v.boolean()),
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index('by_externalId', ['externalId']),
@@ -246,6 +297,8 @@ export default defineSchema({
     pushNotifications: v.boolean(),
     virtualFenceProvider: v.optional(v.string()),
     apiKey: v.optional(v.string()),
+    // Default profile for the Agent Command Center
+    agentProfileId: v.optional(agentProfileId),
     mapPreferences: v.optional(v.object({
       showRGBSatellite: v.boolean(),
       showNDVIHeatmap: v.optional(v.boolean()),
@@ -782,4 +835,66 @@ export default defineSchema({
     updatedAt: v.string(),
   })
     .index('by_farm', ['farmExternalId']),
+
+  // ============================================================================
+  // AGENT COMMAND CENTER
+  // ============================================================================
+  agentRuns: defineTable({
+    farmExternalId: v.string(),
+    trigger: v.union(
+      v.literal('morning_brief'),
+      v.literal('observation_refresh'),
+      v.literal('plan_execution'),
+    ),
+    profileId: agentProfileId,
+    adapterId: v.string(),
+    provider: v.optional(v.string()),
+    model: v.optional(v.string()),
+    status: agentRunStatus,
+    dryRun: v.boolean(),
+    requestedBy: v.string(),
+    toolCallCount: v.optional(v.number()),
+    toolSummary: v.optional(v.array(v.string())),
+    outputPlanId: v.optional(v.id('plans')),
+    errorCode: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    startedAt: v.string(),
+    completedAt: v.optional(v.string()),
+    latencyMs: v.optional(v.number()),
+  })
+    .index('by_farm_startedAt', ['farmExternalId', 'startedAt'])
+    .index('by_farm_status', ['farmExternalId', 'status']),
+
+  agentConfigs: defineTable({
+    farmExternalId: v.string(),
+    profileId: agentProfileId,
+    behaviorConfig: agentBehaviorConfig,
+    promptOverrideEnabled: v.boolean(),
+    promptOverrideText: v.optional(v.string()),
+    promptOverrideVersion: v.number(),
+    updatedBy: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index('by_farm', ['farmExternalId']),
+
+  agentMemories: defineTable({
+    farmExternalId: v.string(),
+    scope: agentMemoryScope,
+    targetId: v.optional(v.string()),
+    title: v.string(),
+    content: v.string(),
+    tags: v.optional(v.array(v.string())),
+    priority: v.number(),
+    status: agentMemoryStatus,
+    source: agentMemorySource,
+    createdBy: v.string(),
+    updatedBy: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+    lastUsedAt: v.optional(v.string()),
+  })
+    .index('by_farm_status', ['farmExternalId', 'status'])
+    .index('by_target_status', ['targetId', 'status'])
+    .index('by_farm_priority', ['farmExternalId', 'priority']),
 })

@@ -27,8 +27,9 @@
 
 import { action } from './_generated/server'
 import { v } from 'convex/values'
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
 import type { ActionCtx } from './_generated/server'
+import type { Doc, Id } from './_generated/dataModel'
 // Internal: Legacy agent implementation - only used by this gateway
 import { runGrazingAgent } from './grazingAgentDirect'
 import { getLogger, flushLogs } from '../lib/braintrust'
@@ -53,16 +54,38 @@ async function flushAllTelemetry(): Promise<void> {
  */
 export type MorningBriefContext = {
   planGenerationData: {
-    existingPlanId: any | null
-    observations: any[] | null
-    grazingEvents: any[] | null
-    settings: any | null
-    farm: any | null
-    mostRecentGrazingEvent: any | null
-    pastures: any[] | null
+    existingPlanId: Id<'plans'> | null
+    observations: unknown[] | null
+    grazingEvents: unknown[] | null
+    settings: { minNDVIThreshold?: number; minRestPeriod?: number } | null
+    farm: { name?: string } | null
+    mostRecentGrazingEvent: { paddockExternalId?: string } | null
+    pastures: Array<{ externalId: string }> | null
   }
   farmName: string
 }
+
+type HarnessState = {
+  config: {
+    profileId: 'conservative' | 'balanced' | 'aggressive' | 'custom'
+    behaviorConfig: {
+      riskPosture: 'low' | 'medium' | 'high'
+      explanationStyle: 'concise' | 'balanced' | 'detailed'
+      forageSensitivity: number
+      movementBias: number
+      enableWeatherSignals: boolean
+    }
+    promptOverrideEnabled: boolean
+    promptOverrideText?: string
+    promptOverrideVersion: number
+  }
+  principles: Doc<'grazingPrinciples'> | null
+  memories: Array<Pick<Doc<'agentMemories'>, '_id' | 'title' | 'content'>>
+  structuredRules: string[]
+  promptContext: string
+}
+
+type TraceSpan = { log: (data: unknown) => void }
 
 /**
  * PRIMARY ENTRY POINT: Agent Gateway Action
@@ -90,6 +113,13 @@ export const agentGateway = action({
     farmId: v.id('farms'),
     farmExternalId: v.string(),
     userId: v.string(),
+    profileOverride: v.optional(v.union(
+      v.literal('conservative'),
+      v.literal('balanced'),
+      v.literal('aggressive'),
+      v.literal('custom')
+    )),
+    dryRun: v.optional(v.boolean()),
     additionalContext: v.optional(v.object({
       planGenerationData: v.any(), // PlanGenerationData type
       farmName: v.string(),
@@ -101,6 +131,21 @@ export const agentGateway = action({
     planId?: string
     error?: string
     message: string
+    dryRunOutput?: {
+      profileId: string
+      behaviorConfig: HarnessState['config']['behaviorConfig']
+      promptPreview: string
+      activeMemoryCount: number
+      structuredRules: string[]
+      draftPlan?: {
+        action: 'MOVE' | 'STAY'
+        sectionIndex: number
+        reasoning: string[]
+        confidence: 'high' | 'medium' | 'low'
+      }
+      renderedDraft?: string
+      triggerDetails?: string[]
+    }
   }> => {
     // Initialize OTel (async, runs once per cold start)
     await initOTelOnce()
@@ -117,7 +162,7 @@ export const agentGateway = action({
 
     // Use try/finally to ensure telemetry is flushed before returning
     try {
-      return await logger.traced(async (rootSpan: any) => {
+      return await logger.traced(async (rootSpan: TraceSpan) => {
         console.log('[agentGateway] Inside logger.traced, rootSpan:', {
           hasRootSpan: !!rootSpan,
           rootSpanType: typeof rootSpan,
@@ -146,10 +191,35 @@ export const agentGateway = action({
         contextKeys: args.additionalContext ? Object.keys(args.additionalContext) : [],
       })
 
+    const runStart = Date.now()
+    const harnessState = await ctx.runQuery(internal.agentAdmin.getHarnessContextInternal, {
+      farmExternalId: args.farmExternalId,
+    }) as HarnessState
+    const selectedProfileId = args.profileOverride || harnessState.config.profileId || 'balanced'
+
+    const runId = await ctx.runMutation(internal.agentAdmin.startAgentRunInternal, {
+      farmExternalId: args.farmExternalId,
+      trigger: args.trigger,
+      profileId: selectedProfileId,
+      adapterId: 'managed_ai_sdk',
+      provider: 'anthropic',
+      model: 'claude-haiku-4-5',
+      dryRun: !!args.dryRun,
+      requestedBy: args.userId,
+    })
+
+    const dryRunBase = {
+      profileId: selectedProfileId,
+      behaviorConfig: harnessState.config.behaviorConfig,
+      promptPreview: harnessState.promptContext,
+      activeMemoryCount: harnessState.memories.length,
+      structuredRules: harnessState.structuredRules,
+    }
+
     // For morning_brief trigger, generate a daily plan
     if (args.trigger === 'morning_brief') {
       const today = new Date().toISOString().split('T')[0]
-      
+
       // Use provided context or fetch plan generation data
       const hasProvidedContext = !!args.additionalContext?.planGenerationData
       console.log('[agentGateway] Data source decision:', {
@@ -158,12 +228,30 @@ export const agentGateway = action({
         optimization: hasProvidedContext ? 'Using provided context (query saved)' : 'Fetching data (no context provided)',
       })
 
-      const planData = hasProvidedContext
-        ? args.additionalContext!.planGenerationData
-        : await ctx.runQuery(api.intelligence.getPlanGenerationData as any, {
+      const providedPlanData = args.additionalContext?.planGenerationData as MorningBriefContext['planGenerationData'] | undefined
+      let planData = hasProvidedContext && providedPlanData
+        ? providedPlanData
+        : await ctx.runQuery(api.intelligence.getPlanGenerationData, {
             farmExternalId: args.farmExternalId,
             date: today,
-          }) as any
+          })
+
+      if (args.dryRun && planData.existingPlanId && (!planData.pastures || !planData.settings || !planData.farm)) {
+        const [settings, farm, mostRecentGrazingEvent, pastures] = await Promise.all([
+          ctx.runQuery(api.intelligence.getSettingsForFarm, { farmExternalId: args.farmExternalId }),
+          ctx.runQuery(api.intelligence.getFarmByExternalId, { externalId: args.farmExternalId }),
+          ctx.runQuery(api.intelligence.getMostRecentGrazingEvent, { farmExternalId: args.farmExternalId }),
+          ctx.runQuery(api.intelligence.getPasturesForFarm, { farmExternalId: args.farmExternalId }),
+        ])
+
+        planData = {
+          ...planData,
+          settings,
+          farm,
+          mostRecentGrazingEvent,
+          pastures,
+        }
+      }
 
       console.log('[agentGateway] Plan data available:', {
         source: hasProvidedContext ? 'provided context' : 'fetched',
@@ -176,26 +264,41 @@ export const agentGateway = action({
         hasGrazingEvents: !!planData.grazingEvents,
       })
 
-      if (planData.existingPlanId) {
-        console.log('[agentGateway] Plan already exists, returning early:', {
-          existingPlanId: planData.existingPlanId.toString(),
-        })
-        return {
+      if (planData.existingPlanId && !args.dryRun) {
+        const existingPlanResult = {
           success: true,
           trigger: args.trigger,
           planId: planData.existingPlanId.toString(),
           message: 'Plan already exists for today',
         }
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'blocked',
+          toolCallCount: 0,
+          toolSummary: ['existing_plan'],
+          outputPlanId: planData.existingPlanId,
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(existingPlanResult) })
+        return existingPlanResult
       }
 
       if (!planData.pastures || planData.pastures.length === 0) {
-        console.log('[agentGateway] No pastures found, returning error')
-        return {
+        const noPasturesResult = {
           success: false,
           trigger: args.trigger,
           error: 'No pastures found for farm',
           message: 'Cannot generate plan: farm has no pastures',
         }
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'failed',
+          errorCode: 'no_pastures',
+          errorMessage: noPasturesResult.error,
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(noPasturesResult) })
+        return noPasturesResult
       }
 
       const activePastureId = planData.mostRecentGrazingEvent?.paddockExternalId ||
@@ -224,23 +327,13 @@ export const agentGateway = action({
         settings,
         today,
         usingProvidedContext: !!args.additionalContext?.planGenerationData,
-        optimizationSummary: {
-          planGenerationDataQuery: hasProvidedContext ? 'SKIPPED (using context)' : 'EXECUTED',
-          getFarmContextQuery: 'SKIPPED (using farmName from context)',
-        },
+        selectedProfileId,
+        memoryCount: harnessState.memories.length,
       })
 
       console.log('[agentGateway] Delegating to runGrazingAgent...')
 
-      // Initialize Braintrust logger
-      // Note: wrapAnthropic doesn't support @ai-sdk/anthropic, so we'll log LLM calls manually
       const logger = getLogger()
-
-      // Call the grazing agent through the gateway with Braintrust logging
-      console.log('[agentGateway] Calling runGrazingAgent with tracer:', {
-        hasTracer: !!tracer,
-        tracerType: typeof tracer,
-      })
 
       const result = await runGrazingAgent(
         ctx,
@@ -249,9 +342,25 @@ export const agentGateway = action({
         activePastureId,
         settings,
         logger,
-        null, // wrappedAnthropic not supported with @ai-sdk/anthropic
-        tracer // OTel tracer for experimental_telemetry
+        undefined,
+        tracer,
+        {
+          profileId: selectedProfileId,
+          behaviorConfig: harnessState.config.behaviorConfig,
+          promptContext: harnessState.promptContext,
+          memoryCount: harnessState.memories.length,
+          structuredRules: harnessState.structuredRules,
+        },
+        {
+          dryRun: !!args.dryRun,
+        },
       )
+
+      if (!args.dryRun && harnessState.memories.length > 0) {
+        await ctx.runMutation(internal.agentAdmin.touchMemoriesInternal, {
+          memoryIds: harnessState.memories.map((m) => m._id),
+        })
+      }
 
       console.log('[agentGateway] runGrazingAgent result received:', {
         success: result.success,
@@ -262,88 +371,314 @@ export const agentGateway = action({
       })
 
       if (!result.success) {
-        console.error('[agentGateway] Agent execution failed:', {
-          error: result.error || 'Agent execution failed',
-        })
-        
         const errorResult = {
           success: false,
           trigger: args.trigger,
           error: result.error || 'Agent execution failed',
           message: 'Failed to generate plan',
         }
-        
-        rootSpan.log({
-          output: sanitizeForBraintrust(errorResult),
+
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'failed',
+          toolCallCount: result.toolCallCount ?? 0,
+          toolSummary: result.toolSummary ?? [],
+          errorCode: 'execution_failed',
+          errorMessage: errorResult.error,
+          latencyMs: Date.now() - runStart,
         })
-        
+
+        rootSpan.log({ output: sanitizeForBraintrust(errorResult) })
         return errorResult
       }
 
       if (!result.planCreated) {
-        console.warn('[agentGateway] Agent did not create a plan:', {
-          success: result.success,
-          planCreated: result.planCreated,
-          planId: result.planId?.toString(),
-        })
-        
         const noPlanResult = {
           success: false,
           trigger: args.trigger,
           error: 'Agent did not create a plan',
           message: 'Plan generation completed but no plan was created',
         }
-        
-        rootSpan.log({
-          output: sanitizeForBraintrust(noPlanResult),
+
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'failed',
+          toolCallCount: result.toolCallCount ?? 0,
+          toolSummary: result.toolSummary ?? [],
+          errorCode: 'no_plan_created',
+          errorMessage: noPlanResult.error,
+          latencyMs: Date.now() - runStart,
         })
-        
+
+        rootSpan.log({ output: sanitizeForBraintrust(noPlanResult) })
         return noPlanResult
       }
 
-      // Use planId from result instead of re-fetching (optimization: no getTodayPlan query)
+      if (args.dryRun) {
+        const dryRunResult = {
+          success: true,
+          trigger: args.trigger,
+          message: 'Dry run completed for morning brief',
+          dryRunOutput: {
+            ...dryRunBase,
+            draftPlan: result.draftPlan,
+            renderedDraft: result.agentText,
+          },
+        }
+
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'succeeded',
+          toolCallCount: result.toolCallCount ?? 0,
+          toolSummary: [...(result.toolSummary ?? []), 'dry_run'],
+          latencyMs: Date.now() - runStart,
+        })
+
+        rootSpan.log({ output: sanitizeForBraintrust(dryRunResult) })
+        return dryRunResult
+      }
+
       const finalPlanId = result.planId?.toString()
-      console.log('[agentGateway] END - Success:', {
-        planId: finalPlanId,
-        optimization: 'Using planId from runGrazingAgent result (getTodayPlan query SKIPPED)',
-        queryOptimizations: {
-          getPlanGenerationData: hasProvidedContext ? 'SKIPPED (using context)' : 'EXECUTED',
-          getFarmContext: 'SKIPPED (using farmName from context)',
-          getTodayPlan: 'SKIPPED (using planId from result)',
-        },
+      const successResult = {
+        success: true,
+        trigger: args.trigger,
+        planId: finalPlanId ? String(finalPlanId) : undefined,
+        message: 'Plan generated successfully',
+      }
+
+      await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+        runId,
+        status: 'succeeded',
+        toolCallCount: result.toolCallCount ?? 0,
+        toolSummary: result.toolSummary ?? [],
+        outputPlanId: result.planId,
+        latencyMs: Date.now() - runStart,
+      })
+
+      rootSpan.log({ output: sanitizeForBraintrust(successResult) })
+      return successResult
+    }
+
+    if (args.trigger === 'observation_refresh') {
+      const activeJob = await ctx.runQuery(api.satelliteFetchJobs.getActiveJob, {
+        farmExternalId: args.farmExternalId,
+      })
+      const latestObservationDate = await ctx.runQuery(api.observations.getLatestObservationDate, {
+        farmExternalId: args.farmExternalId,
+      })
+
+      if (args.dryRun) {
+        const dryRunResult = {
+          success: true,
+          trigger: args.trigger,
+          message: 'Dry run completed for observation refresh',
+          dryRunOutput: {
+            ...dryRunBase,
+            triggerDetails: [
+              latestObservationDate
+                ? `Latest observation date: ${latestObservationDate}`
+                : 'No observations available yet',
+              activeJob
+                ? `Active fetch job already exists (${activeJob.status})`
+                : 'A new manual refresh job would be queued',
+            ],
+          },
+        }
+
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'succeeded',
+          toolCallCount: 0,
+          toolSummary: ['observation_refresh', 'dry_run'],
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(dryRunResult) })
+        return dryRunResult
+      }
+
+      if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'processing')) {
+        const blockedResult = {
+          success: true,
+          trigger: args.trigger,
+          message: `Observation refresh already in progress (${activeJob.status}).`,
+        }
+
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'blocked',
+          toolCallCount: 0,
+          toolSummary: ['active_job_exists'],
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(blockedResult) })
+        return blockedResult
+      }
+
+      const jobId = await ctx.runMutation(api.satelliteFetchJobs.createForManualRefresh, {
+        farmExternalId: args.farmExternalId,
       })
 
       const successResult = {
         success: true,
         trigger: args.trigger,
-        planId: finalPlanId ? String(finalPlanId) : undefined, // Convert Convex ID to string
-        message: 'Plan generated successfully',
+        message: `Observation refresh job queued (${jobId}).`,
       }
 
-      rootSpan.log({
-        output: sanitizeForBraintrust(successResult),
+      await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+        runId,
+        status: 'succeeded',
+        toolCallCount: 1,
+        toolSummary: ['create_manual_refresh_job'],
+        latencyMs: Date.now() - runStart,
       })
 
+      rootSpan.log({ output: sanitizeForBraintrust(successResult) })
       return successResult
     }
 
-    // For other triggers, return context (to be implemented)
-    console.log('[agentGateway] Other trigger (not morning_brief):', {
-      trigger: args.trigger,
-      note: 'Not yet fully implemented',
-    })
-    
-    const otherTriggerResult = {
-      success: true,
-      trigger: args.trigger,
-      message: `Trigger ${args.trigger} not yet fully implemented - returning context only`,
+    if (args.trigger === 'plan_execution') {
+      const [todayDailyPlan, todayLegacyPlan] = await Promise.all([
+        ctx.runQuery(api.grazingAgentTools.getTodayPlan, {
+          farmExternalId: args.farmExternalId,
+        }),
+        ctx.runQuery(api.intelligence.getTodayPlan, {
+          farmExternalId: args.farmExternalId,
+        }),
+      ])
+
+      if (args.dryRun) {
+        const dryRunResult = {
+          success: true,
+          trigger: args.trigger,
+          message: 'Dry run completed for plan execution',
+          dryRunOutput: {
+            ...dryRunBase,
+            triggerDetails: [
+              todayDailyPlan
+                ? `Daily plan status: ${todayDailyPlan.status}`
+                : 'No daily plan exists for today',
+              todayLegacyPlan
+                ? `Legacy plan status: ${todayLegacyPlan.status}`
+                : 'No legacy plan exists for today',
+            ],
+          },
+        }
+
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'succeeded',
+          toolCallCount: 0,
+          toolSummary: ['plan_execution', 'dry_run'],
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(dryRunResult) })
+        return dryRunResult
+      }
+
+      if (todayDailyPlan) {
+        if (todayDailyPlan.status !== 'approved') {
+          const blockedResult = {
+            success: false,
+            trigger: args.trigger,
+            message: `Daily plan is ${todayDailyPlan.status}. Farmer approval is required before execution.`,
+          }
+          await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+            runId,
+            status: 'blocked',
+            toolCallCount: 0,
+            toolSummary: ['approval_required'],
+            latencyMs: Date.now() - runStart,
+          })
+          rootSpan.log({ output: sanitizeForBraintrust(blockedResult) })
+          return blockedResult
+        }
+
+        const successResult = {
+          success: true,
+          trigger: args.trigger,
+          message: 'Daily plan is approved. Execution can proceed in the manual workflow.',
+        }
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'succeeded',
+          toolCallCount: 0,
+          toolSummary: ['approved_plan_ready'],
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(successResult) })
+        return successResult
+      }
+
+      if (todayLegacyPlan) {
+        if (todayLegacyPlan.status !== 'approved') {
+          const blockedResult = {
+            success: false,
+            trigger: args.trigger,
+            planId: todayLegacyPlan._id.toString(),
+            message: `Legacy plan is ${todayLegacyPlan.status}. Farmer approval is required before execution.`,
+          }
+          await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+            runId,
+            status: 'blocked',
+            outputPlanId: todayLegacyPlan._id,
+            toolCallCount: 0,
+            toolSummary: ['approval_required'],
+            latencyMs: Date.now() - runStart,
+          })
+          rootSpan.log({ output: sanitizeForBraintrust(blockedResult) })
+          return blockedResult
+        }
+
+        const successResult = {
+          success: true,
+          trigger: args.trigger,
+          planId: todayLegacyPlan._id.toString(),
+          message: 'Legacy plan is approved. Execution can proceed in the manual workflow.',
+        }
+        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+          runId,
+          status: 'succeeded',
+          outputPlanId: todayLegacyPlan._id,
+          toolCallCount: 0,
+          toolSummary: ['approved_plan_ready'],
+          latencyMs: Date.now() - runStart,
+        })
+        rootSpan.log({ output: sanitizeForBraintrust(successResult) })
+        return successResult
+      }
+
+      const blockedResult = {
+        success: false,
+        trigger: args.trigger,
+        message: 'No plan exists for today. Generate a morning brief first.',
+      }
+      await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+        runId,
+        status: 'blocked',
+        toolCallCount: 0,
+        toolSummary: ['no_plan_for_today'],
+        latencyMs: Date.now() - runStart,
+      })
+      rootSpan.log({ output: sanitizeForBraintrust(blockedResult) })
+      return blockedResult
     }
 
-    rootSpan.log({
-      output: sanitizeForBraintrust(otherTriggerResult),
+    const unsupportedTriggerResult = {
+      success: false,
+      trigger: args.trigger,
+      message: `Unsupported trigger: ${args.trigger}`,
+    }
+    await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
+      runId,
+      status: 'failed',
+      toolCallCount: 0,
+      toolSummary: ['unsupported_trigger'],
+      errorCode: 'unsupported_trigger',
+      errorMessage: unsupportedTriggerResult.message,
+      latencyMs: Date.now() - runStart,
     })
-
-    return otherTriggerResult
+    rootSpan.log({ output: sanitizeForBraintrust(unsupportedTriggerResult) })
+    return unsupportedTriggerResult
       }, { name: 'Agent Gateway', metadata: { trigger: args.trigger, farmExternalId: args.farmExternalId, userId: args.userId } })
     } finally {
       // Always flush telemetry before the action completes

@@ -197,6 +197,7 @@ export interface MapPreferences {
 
 // Area unit type
 export type AreaUnit = 'hectares' | 'acres'
+export type AgentProfileId = 'conservative' | 'balanced' | 'aggressive' | 'custom'
 
 // Settings types
 export interface FarmSettings {
@@ -209,8 +210,77 @@ export interface FarmSettings {
   pushNotifications: boolean
   virtualFenceProvider?: string
   apiKey?: string
+  agentProfileId?: AgentProfileId
   mapPreferences?: MapPreferences
   areaUnit?: AreaUnit
+}
+
+export type AgentRunStatus = 'started' | 'succeeded' | 'failed' | 'blocked'
+export type AgentTriggerType = 'morning_brief' | 'observation_refresh' | 'plan_execution'
+export type AgentRiskPosture = 'low' | 'medium' | 'high'
+export type AgentExplanationStyle = 'concise' | 'balanced' | 'detailed'
+export type AgentMemoryScope = 'farm' | 'paddock'
+export type AgentMemoryStatus = 'active' | 'archived'
+export type AgentMemorySource = 'farmer' | 'system'
+
+export interface AgentBehaviorConfig {
+  riskPosture: AgentRiskPosture
+  explanationStyle: AgentExplanationStyle
+  forageSensitivity: number
+  movementBias: number
+  enableWeatherSignals: boolean
+}
+
+export interface AgentRun {
+  _id: string
+  farmExternalId: string
+  trigger: AgentTriggerType
+  profileId: AgentProfileId
+  adapterId: string
+  provider?: string
+  model?: string
+  status: AgentRunStatus
+  dryRun: boolean
+  requestedBy: string
+  toolCallCount?: number
+  toolSummary?: string[]
+  outputPlanId?: string
+  errorCode?: string
+  errorMessage?: string
+  startedAt: string
+  completedAt?: string
+  latencyMs?: number
+}
+
+export interface AgentConfig {
+  _id: string
+  farmExternalId: string
+  profileId: AgentProfileId
+  behaviorConfig: AgentBehaviorConfig
+  promptOverrideEnabled: boolean
+  promptOverrideText?: string
+  promptOverrideVersion: number
+  updatedBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentMemory {
+  _id: string
+  farmExternalId: string
+  scope: AgentMemoryScope
+  targetId?: string
+  title: string
+  content: string
+  tags?: string[]
+  priority: number
+  status: AgentMemoryStatus
+  source: AgentMemorySource
+  createdBy: string
+  updatedBy: string
+  createdAt: string
+  updatedAt: string
+  lastUsedAt?: string
 }
 
 // Analytics types

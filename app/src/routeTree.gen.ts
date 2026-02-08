@@ -26,6 +26,7 @@ import { Route as AppOnboardingRouteImport } from './routes/app/onboarding'
 import { Route as AppMapRouteImport } from './routes/app/map'
 import { Route as AppHistoryRouteImport } from './routes/app/history'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
+import { Route as AppAgentRouteImport } from './routes/app/agent'
 import { Route as PublicTechnologyRouteImport } from './routes/_public/technology'
 import { Route as PublicResearchRouteImport } from './routes/_public/research'
 import { Route as PublicInvestorsRouteImport } from './routes/_public/investors'
@@ -118,6 +119,11 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAgentRoute = AppAgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => AppRoute,
+} as any)
 const PublicTechnologyRoute = PublicTechnologyRouteImport.update({
   id: '/technology',
   path: '/technology',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/investors': typeof PublicInvestorsRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/app/agent': typeof AppAgentRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/history': typeof AppHistoryRoute
   '/app/map': typeof AppMapRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/investors': typeof PublicInvestorsRoute
   '/research': typeof PublicResearchRoute
   '/technology': typeof PublicTechnologyRoute
+  '/app/agent': typeof AppAgentRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/history': typeof AppHistoryRoute
   '/app/map': typeof AppMapRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/_public/investors': typeof PublicInvestorsRoute
   '/_public/research': typeof PublicResearchRoute
   '/_public/technology': typeof PublicTechnologyRoute
+  '/app/agent': typeof AppAgentRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/history': typeof AppHistoryRoute
   '/app/map': typeof AppMapRoute
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/investors'
     | '/research'
     | '/technology'
+    | '/app/agent'
     | '/app/analytics'
     | '/app/history'
     | '/app/map'
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/investors'
     | '/research'
     | '/technology'
+    | '/app/agent'
     | '/app/analytics'
     | '/app/history'
     | '/app/map'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/_public/investors'
     | '/_public/research'
     | '/_public/technology'
+    | '/app/agent'
     | '/app/analytics'
     | '/app/history'
     | '/app/map'
@@ -435,6 +447,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/agent': {
+      id: '/app/agent'
+      path: '/agent'
+      fullPath: '/app/agent'
+      preLoaderRoute: typeof AppAgentRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_public/technology': {
       id: '/_public/technology'
       path: '/technology'
@@ -519,6 +538,7 @@ const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
 
 interface AppRouteChildren {
+  AppAgentRoute: typeof AppAgentRoute
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppMapRoute: typeof AppMapRoute
@@ -530,6 +550,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAgentRoute: AppAgentRoute,
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppMapRoute: AppMapRoute,

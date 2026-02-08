@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as agentAdmin from "../agentAdmin.js";
 import type * as bugReports from "../bugReports.js";
 import type * as bugReportsAction from "../bugReportsAction.js";
 import type * as crons from "../crons.js";
@@ -24,6 +25,7 @@ import type * as http from "../http.js";
 import type * as intelligence from "../intelligence.js";
 import type * as intelligenceActions from "../intelligenceActions.js";
 import type * as internal_ from "../internal.js";
+import type * as lib_agentAccess from "../lib/agentAccess.js";
 import type * as lib_areaConstants from "../lib/areaConstants.js";
 import type * as lib_geoCompat from "../lib/geoCompat.js";
 import type * as lib_grazingPrinciples from "../lib/grazingPrinciples.js";
@@ -58,6 +60,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agentAdmin: typeof agentAdmin;
   bugReports: typeof bugReports;
   bugReportsAction: typeof bugReportsAction;
   crons: typeof crons;
@@ -74,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   intelligence: typeof intelligence;
   intelligenceActions: typeof intelligenceActions;
   internal: typeof internal_;
+  "lib/agentAccess": typeof lib_agentAccess;
   "lib/areaConstants": typeof lib_areaConstants;
   "lib/geoCompat": typeof lib_geoCompat;
   "lib/grazingPrinciples": typeof lib_grazingPrinciples;

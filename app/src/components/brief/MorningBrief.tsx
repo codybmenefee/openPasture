@@ -67,8 +67,6 @@ function planDocToPaddock(plan: PlanDocument | null | undefined): Paddock | unde
 export function MorningBrief({
   farmExternalId,
   compact = false,
-  onClose: _onClose,
-  onZoomToPaddock: _onZoomToPaddock,
   onEnterModifyMode,
   modifyModeActive = false,
   onSaveModification,
@@ -261,7 +259,7 @@ export function MorningBrief({
   // Use remaining reasoning items as expandable details
   // Filter out the "Decision: X" line if present
   const reasoningDetails = plan.reasoning && plan.reasoning.length > 1
-    ? plan.reasoning.slice(1).filter(r => !r.startsWith('Decision:'))
+    ? plan.reasoning.slice(1).filter((r: string) => !r.startsWith('Decision:'))
     : []
 
   if (planStatus === 'approved' || planStatus === 'modified') {
