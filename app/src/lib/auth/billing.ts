@@ -24,6 +24,34 @@ function parseSlugList(raw: string | undefined): string[] {
     .filter((s) => s.length > 0)
 }
 
+function normalizeSlug(value: string): string {
+  return value.trim().toLowerCase().replace(/^u:/, '').replace(/^o:/, '').replace(/-/g, '_')
+}
+
+function expandScopedSlug(slug: string): string[] {
+  const trimmed = slug.trim()
+  if (!trimmed) return []
+  if (trimmed.startsWith('u:') || trimmed.startsWith('o:')) return [trimmed]
+  return [trimmed, `u:${trimmed}`, `o:${trimmed}`]
+}
+
+function collectClaimEntries(claim: unknown): string[] {
+  if (Array.isArray(claim)) {
+    return claim
+      .filter((entry): entry is string => typeof entry === 'string')
+      .flatMap((entry) => entry.split(','))
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+  }
+  if (typeof claim === 'string') {
+    return claim
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+  }
+  return []
+}
+
 export function getAppBillingPlanSlugs(): string[] {
   const fromEnv = parseSlugList(import.meta.env.VITE_BILLING_PLAN_SLUGS as string | undefined)
   if (fromEnv.length === 0) return [...DEFAULT_APP_BILLING_PLAN_SLUGS]
@@ -48,14 +76,24 @@ export function hasAnyPlan(
   hasPlan: (plan: string) => boolean,
   plans: readonly string[] = getAppBillingPlanSlugs()
 ): boolean {
-  return plans.some((plan) => safeCheck(hasPlan, plan))
+  const candidates = Array.from(new Set(plans.flatMap((plan) => expandScopedSlug(plan))))
+  return candidates.some((plan) => safeCheck(hasPlan, plan))
 }
 
 export function hasAnyFeature(
   hasFeature: (feature: string) => boolean,
   features: readonly string[]
 ): boolean {
-  return features.some((feature) => safeCheck(hasFeature, feature))
+  const candidates = Array.from(new Set(features.flatMap((feature) => expandScopedSlug(feature))))
+  return candidates.some((feature) => safeCheck(hasFeature, feature))
+}
+
+export function claimHasAnySlug(claim: unknown, slugs: readonly string[]): boolean {
+  const claimEntries = collectClaimEntries(claim)
+  if (claimEntries.length === 0 || slugs.length === 0) return false
+
+  const normalizedClaims = new Set(claimEntries.map((entry) => normalizeSlug(entry)))
+  return slugs.some((slug) => normalizedClaims.has(normalizeSlug(slug)))
 }
 
 export function hasBillingAccess(args: {

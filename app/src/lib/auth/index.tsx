@@ -4,6 +4,7 @@ import { ClerkProvider, SignIn, useAuth, useOrganization, useOrganizationList } 
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { LoadingSpinner } from '@/components/ui/loading/LoadingSpinner'
 import { identifyUser, setFarmGroup, resetAnalytics } from '@/lib/analytics'
+import { claimHasAnySlug, hasAnyFeature, hasAnyPlan } from '@/lib/auth/billing'
 import { clerkAppearance } from './clerkTheme'
 import { DEV_DEFAULT_ORG_ID, DEV_ORGS, DEV_USER_EXTERNAL_ID } from './constants'
 
@@ -41,7 +42,7 @@ const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 function ClerkAuthBridge({ children }: { children: ReactNode }) {
   // Use useAuth() instead of useUser() - useAuth() tells us when Clerk is loaded
   // regardless of sign-in state, while useUser() only loads with a signed-in user
-  const { userId, isLoaded, isSignedIn, has } = useAuth()
+  const { userId, isLoaded, isSignedIn, has, sessionClaims } = useAuth()
 
   // Organization hooks
   const { organization, isLoaded: isOrgLoaded } = useOrganization()
@@ -57,7 +58,9 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     isSignedIn,
     organizationId: organization?.id,
     isOrgLoaded,
-    membershipCount: userMemberships?.data?.length
+    membershipCount: userMemberships?.data?.length,
+    planClaim: (sessionClaims as Record<string, unknown> | null | undefined)?.pla,
+    featureClaim: (sessionClaims as Record<string, unknown> | null | undefined)?.fea,
   })
 
   // Link PostHog anonymous visitor to Clerk user on sign-in
@@ -104,20 +107,30 @@ function ClerkAuthBridge({ children }: { children: ReactNode }) {
     return organizationList.length === 0
   }, [isLoaded, isOrgLoaded, isSignedIn, organization?.id, organizationList.length])
 
-  // Wrap Clerk's has() function for plan checking
   const hasPlan = useCallback((plan: string) => {
-    if (!has) return false
-    return has({ plan })
-  }, [has])
+    if (has) {
+      const hasScopedPlan = hasAnyPlan((planToCheck) => has({ plan: planToCheck }), [plan])
+      if (hasScopedPlan) return true
+    }
+    return claimHasAnySlug(
+      (sessionClaims as Record<string, unknown> | null | undefined)?.pla,
+      [plan]
+    )
+  }, [has, sessionClaims])
 
   const hasFeature = useCallback((featureKey: string) => {
-    if (!has) return false
-    try {
-      return has({ feature: featureKey })
-    } catch {
-      return false
+    if (has) {
+      const hasScopedFeature = hasAnyFeature(
+        (featureToCheck) => has({ feature: featureToCheck }),
+        [featureKey]
+      )
+      if (hasScopedFeature) return true
     }
-  }, [has])
+    return claimHasAnySlug(
+      (sessionClaims as Record<string, unknown> | null | undefined)?.fea,
+      [featureKey]
+    )
+  }, [has, sessionClaims])
 
   const value = useMemo<AppAuthContextValue>(() => {
     return {
