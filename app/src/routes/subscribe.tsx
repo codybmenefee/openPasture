@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useUser, useClerk, useAuth, PricingTable } from '@clerk/clerk-react'
+import { useUser, useClerk, PricingTable } from '@clerk/clerk-react'
 import { useEffect, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Terminal, LogOut } from 'lucide-react'
@@ -43,7 +43,11 @@ function SubscribePage() {
 
 function SubscribePageContent() {
   const { user, isLoaded: isUserLoaded } = useUser()
-  const { has, isLoaded: isAuthLoaded } = useAuth()
+  const {
+    hasPlan: checkPlan,
+    hasFeature: checkFeature,
+    isPlanLoaded,
+  } = useAppAuth()
   const { signOut } = useClerk()
   const navigate = useNavigate()
   const { trackSubscriptionStarted } = useAnalytics()
@@ -52,34 +56,33 @@ function SubscribePageContent() {
 
   // B2C billing source of truth: Clerk plans/features via has().
   const checkHasPlan = useCallback(() => {
-    if (!has) return false
     return hasBillingAccess({
-      hasPlan: (plan) => has({ plan }),
-      hasFeature: (feature) => has({ feature }),
+      hasPlan: checkPlan,
+      hasFeature: checkFeature,
       planSlugs: billingPlanSlugs,
       featureSlugs: billingFeatureSlugs,
     })
-  }, [has, billingPlanSlugs, billingFeatureSlugs])
+  }, [checkPlan, checkFeature, billingPlanSlugs, billingFeatureSlugs])
 
-  // Debug: log active plan checks
+  // Debug: log active entitlement checks using same source as /app.
   useEffect(() => {
     if (isUserLoaded && user) {
       console.log('[Subscribe] User ID:', user.id)
       console.log(
         '[Subscribe] Clerk plan checks:',
-        billingPlanSlugs.map((plan) => [plan, has?.({ plan })])
+        billingPlanSlugs.map((plan) => [plan, checkPlan(plan)])
       )
       console.log(
         '[Subscribe] Clerk feature checks:',
-        billingFeatureSlugs.map((feature) => [feature, has?.({ feature })])
+        billingFeatureSlugs.map((feature) => [feature, checkFeature(feature)])
       )
     }
-  }, [isUserLoaded, user, has, billingPlanSlugs, billingFeatureSlugs])
+  }, [isUserLoaded, user, checkPlan, checkFeature, billingPlanSlugs, billingFeatureSlugs])
 
   // Paywall is enabled by default, can be disabled via env var (useful for dev)
   const paywallDisabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
   const paywallEnabled = !paywallDisabled
-  const isSubscriptionLoaded = isAuthLoaded && isUserLoaded
+  const isSubscriptionLoaded = isPlanLoaded && isUserLoaded
   const hasPlan = isSubscriptionLoaded ? checkHasPlan() : false
 
   // If paywall disabled or user already has a plan, redirect to main app
@@ -100,7 +103,7 @@ function SubscribePageContent() {
   }
 
   // Show loading while checking auth (only wait if user is signed in)
-  if (!isUserLoaded || !isAuthLoaded) {
+  if (!isUserLoaded || !isPlanLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <LoadingSpinner message="Loading..." />
