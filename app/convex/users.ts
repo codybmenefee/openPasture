@@ -32,6 +32,19 @@ export const createUser = mutation({
       .first()
 
     if (existingUser) {
+      const farmExternalIdMissing = !existingUser.farmExternalId || existingUser.farmExternalId.trim() === ''
+      const activeFarmExternalIdMissing =
+        !existingUser.activeFarmExternalId || existingUser.activeFarmExternalId.trim() === ''
+      const shouldBackfillFarm =
+        !!args.farmExternalId && (farmExternalIdMissing || activeFarmExternalIdMissing)
+
+      if (shouldBackfillFarm) {
+        await ctx.db.patch(existingUser._id, {
+          ...(farmExternalIdMissing ? { farmExternalId: args.farmExternalId } : {}),
+          ...(activeFarmExternalIdMissing ? { activeFarmExternalId: args.farmExternalId } : {}),
+          updatedAt: now,
+        })
+      }
       return { userId: existingUser._id, created: false }
     }
 
@@ -72,6 +85,7 @@ export const setActiveFarm = mutation({
 
     await ctx.db.patch(user._id, {
       activeFarmExternalId: args.farmExternalId,
+      ...(user.farmExternalId ? {} : { farmExternalId: args.farmExternalId }),
       updatedAt: now,
     })
 

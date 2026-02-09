@@ -100,6 +100,18 @@ function getIdentityFarmExternalId(identity: Record<string, unknown> | null | un
   return orgId
 }
 
+function userCanAccessFarm(args: {
+  user: Doc<'users'>
+  requestedFarmExternalId: string
+  identityFarmExternalId: string | null
+}): boolean {
+  return (
+    args.user.activeFarmExternalId === args.requestedFarmExternalId ||
+    args.user.farmExternalId === args.requestedFarmExternalId ||
+    args.identityFarmExternalId === args.requestedFarmExternalId
+  )
+}
+
 async function assertAgentDashboardAccessForAction(
   ctx: ActionCtx,
   farmExternalId: string
@@ -138,8 +150,12 @@ async function assertAgentDashboardAccessForAction(
     return userExternalId
   }
 
-  const canAccessFarm =
-    user.activeFarmExternalId === farmExternalId || user.farmExternalId === farmExternalId
+  const identityFarmId = getIdentityFarmExternalId(identity as Record<string, unknown> | null)
+  const canAccessFarm = userCanAccessFarm({
+    user,
+    requestedFarmExternalId: farmExternalId,
+    identityFarmExternalId: identityFarmId,
+  })
   if (!canAccessFarm) {
     throw new Error('Farm access denied')
   }
