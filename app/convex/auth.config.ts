@@ -1,21 +1,35 @@
 import { AuthConfig } from "convex/server";
 
-const clerkIssuerDomain = process.env.CLERK_JWT_ISSUER_DOMAIN!;
+function normalizeIssuerDomain(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+const issuerDomain = normalizeIssuerDomain(
+  process.env.CLERK_JWT_ISSUER_DOMAIN ||
+    // Common fallback in Clerk setups.
+    process.env.CLERK_FRONTEND_API_URL ||
+    // Workspace default fallback for this app.
+    "https://clerk.themodernstrategy.com"
+);
+
+const issuerVariants = Array.from(new Set([issuerDomain, `${issuerDomain}/`]));
+
+const providers: AuthConfig["providers"] = [
+  // Preferred path: Clerk "convex" JWT template with aud=convex.
+  {
+    domain: issuerDomain,
+    applicationID: "convex",
+  },
+  // Compatibility path: accept Clerk-issued JWTs without requiring aud=convex.
+  // Include both issuer variants because some setups emit a trailing slash.
+  ...issuerVariants.map((issuer) => ({
+    type: "customJwt" as const,
+    issuer,
+    jwks: `${issuerDomain}/.well-known/jwks.json`,
+    algorithm: "RS256" as const,
+  })),
+];
 
 export default {
-  providers: [
-    // Preferred path: Clerk "convex" JWT template with aud=convex.
-    {
-      domain: clerkIssuerDomain,
-      applicationID: "convex",
-    },
-    // Compatibility path: accept Clerk-issued JWTs without requiring aud=convex.
-    // This keeps auth working while environments migrate to the convex template.
-    {
-      type: "customJwt",
-      issuer: clerkIssuerDomain,
-      jwks: `${clerkIssuerDomain}/.well-known/jwks.json`,
-      algorithm: "RS256",
-    },
-  ],
+  providers,
 } satisfies AuthConfig;
