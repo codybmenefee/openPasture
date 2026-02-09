@@ -1,10 +1,13 @@
+/* eslint-disable react-refresh/only-export-components */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { ConvexProvider, ConvexReactClient } from 'convex/react'
+import { ConvexReactClient } from 'convex/react'
+import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { PostHogProvider } from 'posthog-js/react'
 import { Toaster } from 'sonner'
 import { AppAuthProvider, useAppAuth } from '@/lib/auth'
+import { useAuth } from '@clerk/clerk-react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ErrorState } from '@/components/ui/error/ErrorState'
 import { initAnalytics } from '@/lib/analytics'
@@ -43,11 +46,11 @@ function InnerApp() {
 
 function AppTree() {
   return convexClient ? (
-    <ConvexProvider client={convexClient}>
-      <AppAuthProvider>
+    <AppAuthProvider>
+      <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         <InnerApp />
-      </AppAuthProvider>
-    </ConvexProvider>
+      </ConvexProviderWithClerk>
+    </AppAuthProvider>
   ) : (
     <ErrorState
       title="Convex configuration missing"
