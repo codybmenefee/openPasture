@@ -3,23 +3,7 @@
 > This file is the primary reference for AI agents working on this codebase.
 > Read this first before making any changes.
 
-## What This Project Is
-
-A **daily decision intelligence system for adaptive grazing**, powered by satellite data and human-in-the-loop AI. The core product is called the **Morning Farm Brief** - a daily ritual where farmers receive land status and recommended grazing actions.
-
-**Core thesis:** Grass is dynamic, fences are static. Satellite sensing lets us understand land conditions daily. We build the software brain that translates land signals into clear daily grazing decisions.
-
-## What This Project Is NOT
-
-Do not build or propose:
-- Livestock collar integration or firmware
-- Real-time livestock tracking/movement
-- Custom hardware
-- Automated actuation systems
-- Drone-based sensing
-- Real-time autonomous herding
-
-This is a **decision support system**, not an automation or control system.
+For the product thesis and philosophy, read [docs/vision.md](docs/vision.md) first.
 
 ## Core User Flow
 
@@ -118,14 +102,6 @@ These rules are intentionally simple and explainable for farmer trust.
 - **Format:** Cloud-Optimized GeoTIFFs (COGs)
 - **API:** STAC (SpatioTemporal Asset Catalog)
 
-## Design Principles
-
-1. **Plain language over charts** - Briefs should read like a farmer talking to a farmer
-2. **Transparency over magic** - Show assumptions and confidence, not black box scores
-3. **Daily cadence is sufficient** - Satellite refresh aligns with biological reality
-4. **Cloud cover is manageable** - Use rolling composites and multiple sources
-5. **Collar-agnostic output** - Generate geometry and copy-ready instructions, no direct integration
-
 ## File Structure Convention
 
 ```
@@ -143,13 +119,6 @@ These rules are intentionally simple and explainable for farmer trust.
 │   └── app/               # Web application
 └── ...
 ```
-
-## Success Metrics
-
-The demo succeeds when:
-- A farmer says: "This matches how I think about my land."
-- An investor says: "This has a clear wedge and expansion path."
-- A collar company says: "This would make our product more valuable."
 
 ## Questions to Ask Before Building
 

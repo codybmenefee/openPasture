@@ -1,6 +1,6 @@
 # Contributing to OpenPasture
 
-Thanks for helping improve OpenPasture! This project focuses on the Morning Farm Brief experience and adaptive grazing intelligence.
+Thanks for helping improve OpenPasture! See [docs/vision.md](docs/vision.md) for the product thesis before diving in.
 
 ## Table of Contents
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenPasture - an open-source AI-powered decision support system that translates satellite-derived vegetation data into daily grazing recommendations. The core experience is a "Morning Farm Brief" that recommends which pasture to graze today.
+OpenPasture - an open-source adaptive grazing intelligence platform. See [docs/vision.md](../docs/vision.md) for the product thesis.
 
 ## Commands
 
