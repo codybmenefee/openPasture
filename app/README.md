@@ -13,13 +13,20 @@ npm run dev
 
 ## Environment
 
-Required env vars (set in `app/.env.local`):
+Copy and fill the app env template:
 
-- `VITE_CONVEX_URL` - Convex deployment URL
-- `VITE_DEV_AUTH=true` - bypass Clerk sign-in locally
-- `VITE_CLERK_PUBLISHABLE_KEY` - required when `VITE_DEV_AUTH` is not set
-- `CLERK_JWT_ISSUER_DOMAIN` (or `CLERK_FRONTEND_API_URL`) - Clerk issuer domain used by `convex/auth.config.ts`
-- Clerk JWT template named `convex` with audience `convex` - required for `ConvexProviderWithClerk`
+```bash
+cp .env.example .env.local
+```
+
+Primary app variables:
+
+- `VITE_CONVEX_URL` - required
+- `VITE_DEV_AUTH=true` - optional local auth bypass
+- `VITE_CLERK_PUBLISHABLE_KEY` - required when `VITE_DEV_AUTH=false`
+- `VITE_PAYWALL_DISABLED=true` - optional local paywall bypass
+
+Server-side Convex variables (`ANTHROPIC_API_KEY`, `BRAINTRUST_API_KEY`, etc.) are documented in [docs/environment.md](../docs/environment.md) and should be set in Convex Dashboard env vars.
 
 ## Scripts
 

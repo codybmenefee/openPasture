@@ -119,7 +119,7 @@ python src/ingestion/pipeline.py --dev --write-convex --output /tmp/pan_output
 
 ### Why This Phase Matters
 
-The product IS the Morning Farm Brief. If this experience isn't crisp, nothing else matters. Skipping this results in UI rework loops later.
+The recommendation UI is the primary farmer touchpoint. If it isn't crisp, nothing else matters. Skipping this results in UI rework loops later.
 
 ---
 

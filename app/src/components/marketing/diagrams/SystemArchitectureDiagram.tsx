@@ -43,7 +43,7 @@ export function SystemArchitectureDiagram() {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Brain className="h-3 w-3 text-terracotta" />
-            <span>Scores paddocks, generates daily grazing plans with confidence levels</span>
+            <span>applies grazing science to your conditions. draws a polygon. explains its reasoning.</span>
           </div>
         </div>
 

@@ -28,7 +28,7 @@ export function PageSection({
   children,
 }: PageSectionProps) {
   return (
-    <section className={cn('px-6 py-24', bgMap[bg], className)}>
+    <section className={cn('px-6 py-12', bgMap[bg], className)}>
       <div className={cn('mx-auto', maxWidthMap[maxWidth])}>
         {children}
       </div>

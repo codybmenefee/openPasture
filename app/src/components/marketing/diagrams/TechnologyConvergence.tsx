@@ -1,22 +1,10 @@
-import { Satellite, MapPin, Cpu, Brain, Check, Sparkles } from 'lucide-react'
+import { Satellite, Brain, Plane, Check, Sparkles } from 'lucide-react'
 
 const technologies = [
   {
     icon: Satellite,
-    label: 'Daily satellite observation',
+    label: 'Satellite resolution -- SpaceX/Blue Origin era',
     year: '2015+',
-    highlight: false,
-  },
-  {
-    icon: MapPin,
-    label: 'GPS-enabled animal tracking',
-    year: '2018+',
-    highlight: false,
-  },
-  {
-    icon: Cpu,
-    label: 'Cheap sensors & cloud',
-    year: '2020+',
     highlight: false,
   },
   {
@@ -24,6 +12,12 @@ const technologies = [
     label: 'LLMs that can reason & draw',
     year: '2022+',
     highlight: true,
+  },
+  {
+    icon: Plane,
+    label: 'Drone accessibility -- falling costs, loosening regs',
+    year: '2023+',
+    highlight: false,
   },
 ]
 
@@ -90,14 +84,14 @@ export function TechnologyConvergence() {
         {/* Expandable detail */}
         <details className="mt-3">
           <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors text-center">
-            Why 2022 changed everything
+            Why now changed everything
           </summary>
           <div className="mt-2 pt-2 border-t border-border text-[10px] text-muted-foreground space-y-1.5">
             <p>
               Before LLMs, you'd need a custom model for each farm's unique conditions -- prohibitively expensive.
             </p>
             <p>
-              <span className="text-foreground">Modern LLMs already know how to reason.</span>{' '}
+              <span className="text-foreground">Modern language models already know how to reason.</span>{' '}
               They weigh tradeoffs, understand cause and effect, and can follow complex instructions.
               We just tell them about your land.
             </p>

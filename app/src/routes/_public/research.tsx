@@ -58,6 +58,7 @@ function ResearchPage() {
                 <li>-- Forage utilization efficiency</li>
                 <li>-- Grazing season length extension</li>
                 <li>-- Input cost reduction</li>
+                <li>-- recommendation accuracy vs. experienced farmer judgment</li>
               </ul>
             </div>
 
@@ -81,7 +82,7 @@ function ResearchPage() {
                 <span className="rsc-badge-solid ml-3" style={{ verticalAlign: 'middle' }}>Roadmap</span>
               </h3>
               <p className="text-muted-foreground mb-4">
-                GPS collar integration is on our roadmap and will open new research possibilities in livestock behavior and welfare:
+                GPS collar integration is on our roadmap and will open new research possibilities in livestock behavior and welfare. collar data also enables the shift from decision support to autonomous operation -- the unlock that removes labor burden, not just cognitive burden.
               </p>
               <ul className="text-muted-foreground space-y-2 text-sm">
                 <li>-- Grazing distribution and preference patterns</li>

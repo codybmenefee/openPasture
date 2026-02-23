@@ -1,26 +1,6 @@
 # OpenPasture
 
-An open-source intelligence and orchestration layer for adaptive grazing. This system translates satellite-derived land signals into clear daily grazing decisions.
-
-## Overview
-
-Grass is dynamic. Fences are static. Modern sensing allows us to understand land conditions daily - what's been missing is software that turns those signals into actionable guidance.
-
-This project provides the **decision-making brain** that tells farmers:
-
-> "Here is the current state of your land, and here is the best grazing action for today."
-
-## The Morning Farm Brief
-
-The core experience is a daily ritual:
-
-1. **Open the app** each morning
-2. **Receive a status report** on your farm's pasture conditions
-3. **Review the recommended grazing plan** for today
-4. **Approve or adjust** using natural language feedback
-5. **Get execution instructions** ready for your virtual fencing system or manual workflow
-
-This is decision support - you stay in control.
+An open-source intelligence layer for adaptive grazing. See [docs/vision.md](docs/vision.md) for the thesis and product philosophy.
 
 ## Features
 
@@ -57,8 +37,6 @@ We use publicly available satellite imagery (primarily Sentinel-2) to compute ve
 - Frequent revisits (daily to every few days)
 - Historical archive for trend analysis
 
-Satellite cadence aligns with biological reality - grazing decisions are daily or multi-day decisions, not minute-by-minute.
-
 ### Vegetation Indices
 
 | Index | Purpose |
@@ -76,17 +54,6 @@ Satellite cadence aligns with biological reality - grazing decisions are daily o
 5. Calculate zonal statistics per pasture
 6. Score pasture readiness using transparent rules
 7. Generate recommendation with confidence level
-
-## What This Is Not
-
-To maintain focus, this demo does not include:
-
-- Real-time livestock tracking
-- Custom hardware or collars
-- Automated fence actuation
-- Drone-based sensing
-
-These are future integration points, not current scope.
 
 ## Getting Started
 
@@ -107,11 +74,22 @@ Common scripts:
 
 ### Environment Variables
 
-The following environment variables are required for full functionality:
+Environment setup is documented in [docs/environment.md](docs/environment.md).
 
-- `BRAINTRUST_API_KEY` - API key for Braintrust observability platform. Required for agent behavior tracking and debugging. Get your API key from [Braintrust](https://www.braintrust.dev). Set this in your Convex dashboard environment variables for production, or in `.env.local` for local development.
+Quick start:
 
-  Without this key, agent logging will be disabled but the application will continue to function.
+```bash
+cp app/.env.example app/.env.local
+cp src/ingestion/.env.example src/ingestion/.env.local
+```
+
+Set server-side keys (for Convex backend actions) in Convex Dashboard environment variables:
+
+- `ANTHROPIC_API_KEY` (required for AI recommendations)
+- `BRAINTRUST_API_KEY` (optional observability)
+- `BRAINTRUST_PROJECT_NAME` (optional, defaults to `grazing-agent`)
+- `GITHUB_TOKEN` (optional, enables GitHub issue creation from reports)
+- `CONVEX_DEBUG` (optional backend debug logging)
 
 ## Tech Stack
 
@@ -132,6 +110,7 @@ The following environment variables are required for full functionality:
 │   ├── src/
 │   └── ...
 ├── docs/
+│   ├── vision.md          # Thesis and product philosophy
 │   ├── architecture.md    # Technical architecture details
 │   ├── domain.md          # Remote sensing domain knowledge
 │   └── phasing.md         # Development phases
@@ -140,9 +119,11 @@ The following environment variables are required for full functionality:
 
 ## Documentation
 
-- [Development Phasing](docs/phasing.md) - How we build this incrementally
+- [Vision](docs/vision.md) - Thesis and product philosophy
 - [Technical Architecture](docs/architecture.md) - System design and data flow
 - [Domain Knowledge](docs/domain.md) - Remote sensing and vegetation science primer
+- [Development Phasing](docs/phasing.md) - How we build this incrementally
+- [Environment Setup](docs/environment.md) - Required and optional variables by runtime
 
 ## Contributing
 
@@ -156,6 +137,3 @@ If you discover a vulnerability, see [SECURITY.md](SECURITY.md).
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
----
-
-*OpenPasture - Building the intelligence layer for regenerative grazing.*
