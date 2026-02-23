@@ -122,7 +122,6 @@ Set server-side keys (for Convex backend actions) in Convex Dashboard environmen
 - [Vision](docs/vision.md) - Thesis and product philosophy
 - [Technical Architecture](docs/architecture.md) - System design and data flow
 - [Domain Knowledge](docs/domain.md) - Remote sensing and vegetation science primer
-- [Development Phasing](docs/phasing.md) - How we build this incrementally
 - [Environment Setup](docs/environment.md) - Required and optional variables by runtime
 
 ## Contributing
