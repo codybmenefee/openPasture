@@ -367,7 +367,7 @@ function TechnologyPage() {
             <div className="border-2 border-border p-5 shadow-hard-sm hover:border-olive hover:shadow-hard hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <h3 className="text-base font-semibold mb-2">Virtual Fencing Systems</h3>
               <p className="text-muted-foreground text-sm">
-                Export fence geometry and grazing schedules in formats compatible with major virtual fencing providers. Instructions can be pushed directly to collars.
+                Export fence geometry and grazing schedules in formats compatible with major virtual fencing providers. Direct collar integration is on the roadmap -- collar APIs are not yet open.
               </p>
             </div>
 
