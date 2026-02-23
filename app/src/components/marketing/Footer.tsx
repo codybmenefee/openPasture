@@ -14,7 +14,7 @@ export function Footer() {
                   to="/technology"
                   className="hover:text-cream transition-colors"
                 >
-                  Technology
+                  How It Works
                 </Link>
               </li>
               <li>

@@ -27,7 +27,7 @@ function TechnologyPage() {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl">
-            How we turn satellite data, weather patterns, and farmer knowledge into daily grazing decisions.
+            how we predict what a trained farmer would do, using satellite imagery, grazing science, and farmer feedback.
           </p>
         </div>
       </PageSection>
@@ -117,7 +117,7 @@ function TechnologyPage() {
             </p>
 
             <p className="text-terracotta font-semibold text-lg mb-5">
-              Modern AI models like Claude already know how to reason. They understand cause
+              modern language models already know how to reason. They understand cause
               and effect. They can weigh tradeoffs. They can explain their thinking. They
               just need context about YOUR land.
             </p>
@@ -194,14 +194,14 @@ function TechnologyPage() {
               <Cpu className="h-7 w-7 text-terracotta mx-auto mb-3" />
               <h3 className="font-semibold mb-2">Scoring Engine</h3>
               <p className="text-sm text-muted-foreground">
-                Multi-factor analysis considering recovery, weather, and grazing history
+                the system applies accumulated grazing science to your specific conditions
               </p>
             </div>
             <div className="text-center">
               <Code className="h-7 w-7 text-cobalt mx-auto mb-3" />
               <h3 className="font-semibold mb-2">Recommendation AI</h3>
               <p className="text-sm text-muted-foreground">
-                Natural language explanations with confidence scores and assumptions
+                a movement recommendation with transparent reasoning. adjust or approve.
               </p>
             </div>
           </div>
@@ -334,8 +334,8 @@ function TechnologyPage() {
                 <div className="flex items-start gap-3">
                   <Plus className="h-4 w-4 text-terracotta mt-0.5 flex-shrink-0" />
                   <div>
-                    <div className="font-medium text-sm">GPS Collars</div>
-                    <div className="text-muted-foreground text-sm">Animal behavior insights</div>
+                    <div className="font-medium text-sm">GPS Collars (the unlock)</div>
+                    <div className="text-muted-foreground text-sm">decision support becomes autonomous operation</div>
                   </div>
                 </div>
               </div>

@@ -11,23 +11,22 @@ function LandingPage() {
       <MarketingHeader />
 
       {/* Hero */}
-      <section className="px-6 py-28 relative">
+      <section className="px-6 py-16 relative">
         <div className="rsc-grid-bg" />
         <div className="max-w-5xl mx-auto relative z-10">
           <div className="flex items-center gap-3 mb-8 rsc-fade rsc-d1">
-            <span className="rsc-badge">satellite-input</span>
+            <span className="rsc-badge">satellite-imagery</span>
             <span className="font-bold text-olive">&rarr;</span>
-            <span className="rsc-badge">probability-output</span>
+            <span className="rsc-badge">farmer-judgment</span>
           </div>
 
           <h1 className="font-serif text-5xl md:text-6xl lg:text-8xl font-bold leading-[0.92] mb-8 rsc-fade rsc-d2" style={{ textWrap: 'balance' }}>
-            Two Layers.<br />
-            <span className="text-olive italic">One Intelligence.</span>
+            what a trained farmer would do.<br />
+            <span className="text-olive italic">every morning. every paddock.</span>
           </h1>
 
           <p className="text-lg md:text-xl max-w-3xl leading-relaxed mb-10 text-muted-foreground rsc-fade rsc-d3">
-            Satellite imagery meets probability theory. Your morning brief delivers
-            gradient confidence, not binary answers. All data, all reasoning, all open source.
+            satellite imagery and grazing science, combined into a daily movement recommendation. the system predicts what an experienced farmer would decide -- then asks you to confirm, adjust, or override.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 rsc-fade rsc-d3">
@@ -58,10 +57,10 @@ function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <span className="rsc-badge-solid mb-4 inline-block">early-access-beta</span>
           <h2 className="text-2xl md:text-3xl font-bold mb-3" style={{ textWrap: 'balance' }}>
-            join ranchers testing probability-powered grazing
+            join farmers testing ai-augmented grazing
           </h2>
           <p className="text-sm text-muted-foreground">
-            be among the first to experience gradient intelligence. free during beta.
+            the system learns how you think about your land. reduced pricing during beta.
           </p>
         </div>
       </section>
@@ -72,18 +71,17 @@ function LandingPage() {
           <div>
             <span className="rsc-badge mb-6 inline-block">available-now</span>
             <h2 className="text-3xl md:text-4xl font-bold mb-6 leading-tight">
-              <span className="rsc-prompt">morning_brief</span><br />
-              <span className="text-olive">--probability-scored</span>
+              <span className="rsc-prompt">morning_report</span><br />
+              <span className="text-olive">--daily</span>
             </h2>
             <p className="text-sm mb-8 leading-relaxed text-muted-foreground">
-              AI analyzes satellite data overnight and delivers a recommended grazing plan
-              with probability distributions and reasoning you can interrogate.
+              imagine <a href="https://youtu.be/wZagcP4U8-0?si=-oa0dDgLkYShvuAg" target="_blank" rel="noopener noreferrer" className="text-olive underline hover:text-terracotta transition-colors">greg judy</a> staring at satellite images of your farm all day. every morning, a text and a map: &apos;move the animals here today.&apos; the reasoning is transparent. adjust or approve with one tap.
             </p>
             <ul className="space-y-3">
               {[
-                'confidence scores replace yes/no',
-                'probability reasoning for each suggestion',
-                'override --force when conditions change',
+                'daily movement recommendation with full reasoning',
+                'targeted observation request to close data gaps',
+                'approve, adjust, or override. your call.',
               ].map((item, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-xs">
                   <span className="font-bold mt-0.5 text-olive">[x]</span>
@@ -94,7 +92,7 @@ function LandingPage() {
           </div>
 
           <WindowChrome title="brief --daily">
-            <img src="/marketing/morning-brief.png" alt="AI-powered grazing recommendation with probability reasoning" className="w-full" />
+            <img src="/marketing/morning-brief.png" alt="AI-powered grazing recommendation with movement plan and reasoning" className="w-full" />
           </WindowChrome>
         </div>
       </PageSection>
@@ -114,14 +112,13 @@ function LandingPage() {
               see what&apos;s invisible<br /><span className="text-terracotta">from the ground</span>
             </h2>
             <p className="text-sm mb-8 leading-relaxed text-muted-foreground">
-              NDVI heatmaps reveal vegetation health as probability distributions.
-              Historical patterns show recovery trends as continuous fields.
+              daily satellite imagery shows vegetation health across your whole farm. track recovery paddock by paddock. spot what you&apos;d miss on foot.
             </p>
             <ul className="space-y-3">
               {[
-                'probability-colored vegetation health',
-                'recovery distributions over time',
-                'uncertainty zones flagged early',
+                'ndvi vegetation health by paddock',
+                'rest period and recovery tracking',
+                'known gap: grass height needs field notes (for now)',
               ].map((item, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-xs">
                   <span className="font-bold mt-0.5 text-terracotta">[x]</span>
@@ -141,17 +138,16 @@ function LandingPage() {
           <div>
             <span className="rsc-badge mb-6 inline-block">available-now</span>
             <h2 className="text-3xl md:text-4xl font-bold mb-6 leading-tight">
-              track recovery<br /><span className="text-cobalt">quantify certainty</span>
+              track recovery<br /><span className="text-cobalt">earn trust.</span>
             </h2>
             <p className="text-sm mb-8 leading-relaxed text-muted-foreground">
-              Monitor rest periods as probability distributions. Recovery rates as data fields.
-              Know not just if ready, but how confident.
+              the system earns trust by matching your judgment. it earns the right to exceed it by showing better outcomes. land health is the feedback mechanism.
             </p>
             <ul className="space-y-3">
               {[
-                'real-time pasture probability tracking',
-                'historical confidence trend analysis',
-                'uncertainty-aware rotation planning',
+                'pasture health trends over time',
+                'recommendation accuracy vs. your decisions',
+                'the land tells you if the system is working',
               ].map((item, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-xs">
                   <span className="font-bold mt-0.5 text-cobalt">[x]</span>
@@ -162,7 +158,7 @@ function LandingPage() {
           </div>
 
           <WindowChrome title="analytics --recovery --trends">
-            <img src="/marketing/analytics-dashboard.png" alt="Analytics dashboard with pasture recovery, rest periods, NDVI trends, and AI partnership stats" className="w-full" />
+            <img src="/marketing/analytics-dashboard.png" alt="Analytics dashboard with pasture recovery, rest periods, NDVI trends, and recommendation accuracy" className="w-full" />
           </WindowChrome>
         </div>
       </PageSection>
@@ -173,13 +169,13 @@ function LandingPage() {
       <PageSection bg="white" maxWidth="6xl">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-3">how_it_works()</h2>
-          <p className="text-sm text-muted-foreground">three steps to probability-powered grazing</p>
+          <p className="text-sm text-muted-foreground">three steps. satellite to suggestion.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { num: '01', title: 'capture', desc: 'sentinel-2 delivers multispectral imagery every 5 days. discrete pixels become raw material.', color: 'text-olive' },
-            { num: '02', title: 'process', desc: 'models transform point measurements into continuous probability fields. uncertainty is a feature.', color: 'text-terracotta' },
-            { num: '03', title: 'harvest', desc: 'wake up to probability-scored guidance. not just where to graze but how certain we are.', color: 'text-cobalt' },
+            { num: '01', title: 'observe', desc: 'satellite imagery captures vegetation health across your farm daily. resolution: 3m. coverage: every paddock.', color: 'text-olive' },
+            { num: '02', title: 'reason', desc: 'the system applies grazing science to your specific conditions. weather, rest periods, recovery rates, herd pressure. then it draws a plan.', color: 'text-terracotta' },
+            { num: '03', title: 'decide', desc: 'you wake up to a recommendation and a map. approve, adjust, or override. your correction makes the next suggestion better.', color: 'text-cobalt' },
           ].map((step, idx) => (
             <div key={idx} className="rsc-card">
               <div className={`text-4xl font-bold mb-4 ${step.color}`}>{step.num}</div>
@@ -216,21 +212,21 @@ function LandingPage() {
       </PageSection>
 
       {/* CTA */}
-      <section className="px-6 py-28 bg-dark">
+      <section className="px-6 py-16 bg-dark">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-8 text-white" style={{ textWrap: 'balance' }}>
-            ready to harvest<br />
-            <span className="text-terracotta">probability?</span>
+            ready to scale<br />
+            <span className="text-terracotta">your judgment?</span>
           </h2>
           <p className="text-sm mb-12 max-w-2xl mx-auto text-terracotta-muted">
-            join the beta. start using data intelligence for adaptive grazing.
+            join the beta. the system learns how you think about your land.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/sign-in"
               className="px-10 py-4 bg-white font-bold border-2 border-white transition-all shadow-[4px_4px_0_rgba(168,58,50,0.5)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0_rgba(168,58,50,0.5)] flex items-center justify-center gap-2 text-xs uppercase tracking-wider group text-dark"
             >
-              ./signup --free
+              ./signup --beta
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
             </Link>
             <Link

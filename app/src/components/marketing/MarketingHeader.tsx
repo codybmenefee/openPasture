@@ -17,7 +17,7 @@ export function MarketingHeader() {
             to="/technology"
             className="hover:opacity-70 transition-opacity text-muted-foreground"
           >
-            technology
+            how-it-works
           </Link>
           <Link
             to="/investors"

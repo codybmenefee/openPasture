@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Factory, Leaf, TrendingUp, Users, Globe, RefreshCw, Lock } from 'lucide-react'
+import { Factory, Leaf, TrendingUp, Users, Globe, RefreshCw, Lock, Target, Zap, Cpu } from 'lucide-react'
 import { MarketingHeader, Footer } from '@/components/marketing'
 import {
   DecisionScaleDiagram,
@@ -30,16 +30,15 @@ function InvestorsPage() {
           </h1>
 
           <p className="text-xl md:text-2xl font-light text-muted-foreground mb-4">
-            Pasture farming works. It just couldn't scale.
+            regenerative grazing increases stocking density. this system increases operational scale.
           </p>
 
           <p className="text-xl md:text-2xl font-light text-terracotta mb-6">
-            Until now.
+            multiplicative, not additive.
           </p>
 
           <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-            How AI-automated decision-making unlocks industrial-scale output from regenerative methods --
-            and why this is the inflection point for sustainable livestock.
+            how small and mid-size farmers begin to compete with operations far larger than their own. and why the timing is now.
           </p>
         </div>
       </section>
@@ -63,7 +62,7 @@ function InvestorsPage() {
               The limiting factor isn't land, livestock, or biology.
             </p>
             <p className="text-base text-terracotta font-semibold mt-1">
-              It's human bandwidth for decisions.
+              it's time on pasture. the attention required to observe conditions and make daily movement decisions across a whole farm.
             </p>
           </div>
         </div>
@@ -71,63 +70,168 @@ function InvestorsPage() {
 
       <SectionDivider />
 
-      {/* AI Breakthrough */}
+      {/* The Value Proposition */}
       <PageSection className="py-10">
         <div className="max-w-3xl mx-auto">
+          <div className="flex items-center gap-3 mb-4 justify-center">
+            <TrendingUp className="h-5 w-5 text-terracotta" />
+            <h2 className="text-2xl md:text-3xl font-bold">
+              The Value Proposition
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground text-center mb-6">
+            two forces. one unlock.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="border-2 border-border p-5 shadow-hard-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Leaf className="h-4 w-4 text-olive" />
+                <h3 className="text-sm font-semibold">Regenerative Grazing</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">increases stocking density</p>
+              <p className="text-sm">
+                more animals on the same acreage. the land is healthier and more productive.
+              </p>
+            </div>
+
+            <div className="border-2 border-olive/50 p-5 bg-olive-light shadow-hard-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="h-4 w-4 text-terracotta" />
+                <h3 className="text-sm font-semibold">This System</h3>
+              </div>
+              <p className="text-xs text-terracotta mb-3">increases operational scale</p>
+              <p className="text-sm">
+                more acres managed by the same farmer. daily observation and decision-making handled autonomously.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-2 border-border p-5 shadow-hard-sm text-center">
+            <p className="text-sm font-medium mb-1">
+              these are multiplicative, not additive.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              the unlock for small and mid-size farmers competing with operations far larger than their own.
+            </p>
+          </div>
+        </div>
+      </PageSection>
+
+      <SectionDivider />
+
+      {/* The Product */}
+      <PageSection bg="white" className="py-10">
+        <div className="max-w-3xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-2">
-            The AI Breakthrough (2022-2024)
+            The Product
           </h2>
           <p className="text-sm text-muted-foreground text-center mb-6">
-            Why this wasn't possible before -- and why it is now.
+            a complete stack from raw data to actionable recommendations.
           </p>
 
           <div className="border-2 border-border p-5 mb-6 shadow-hard-sm">
             <p className="text-sm mb-4">
-              Before large language models, automating grazing decisions required building
-              a custom mathematical model for every farm -- capturing every variable, every
-              interaction, every edge case. That's prohibitively expensive for each
-              operation's unique conditions.
+              imagine <a href="https://youtu.be/wZagcP4U8-0?si=-oa0dDgLkYShvuAg" target="_blank" rel="noopener noreferrer" className="text-olive underline hover:text-terracotta transition-colors">greg judy</a>, joel salatin, or richard perkins staring at images of your farm all day. every morning they send you a text and a map: "move the animals here today." the suggestion is adjacent to where the animals currently are, timed and measured to benefit both the paddock being vacated and the broader farm system -- accounting for forward projections, weather, rest periods, and herd pressure.
             </p>
 
             <p className="text-sm text-terracotta font-semibold mb-4">
-              The insight: Modern LLMs already know how to reason.
+              that is what this system builds.
             </p>
 
+            <p className="text-sm text-muted-foreground mb-4">
+              the recommendation is rendered as a polygon on an orthomosaic representation of the farm. the farmer approves, adjusts, or rejects. that feedback improves future suggestions.
+            </p>
+
+            <p className="text-sm text-muted-foreground">
+              critically, the system does not just receive farmer input -- it directs the farmer's observational attention. each morning report includes a request for the specific field observation that would most reduce uncertainty in that day's recommendation: a grass height sample, a gut read on time left in the current paddock. the farmer spends less time walking the farm randomly and more time collecting targeted signal. this is how the system scales a farmer's attention rather than replacing it.
+            </p>
+          </div>
+
+          <SystemArchitectureDiagram />
+        </div>
+      </PageSection>
+
+      <SectionDivider />
+
+      {/* The Farmer as Benchmark */}
+      <PageSection className="py-10">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center gap-3 mb-4 justify-center">
+            <Target className="h-5 w-5 text-olive" />
+            <h2 className="text-2xl md:text-3xl font-bold">
+              The Farmer as Benchmark
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground text-center mb-6">
+            not the ceiling.
+          </p>
+
+          <div className="border-2 border-border p-5 mb-4 shadow-hard-sm">
             <p className="text-sm mb-4">
-              They understand cause and effect, weigh tradeoffs, and explain their thinking.
-              They just need context about <em>your</em> land.
+              the system earns trust by matching farmer judgment. it earns the right to exceed farmer judgment by showing better outcomes -- tracked over time through pasture health trends, stocking performance, and land recovery rates. the land itself is the feedback mechanism.
             </p>
+            <p className="text-sm text-muted-foreground">
+              this design prevents the atrophy risk: a farmer who always defers to the system does not lose their intuition as long as the outcomes confirm the decisions were right. outcome tracking is how the system proves it is working -- and how it surfaces when it isn't.
+            </p>
+          </div>
 
-            <div className="space-y-2 mb-4">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Our Architecture</h4>
-              <div className="grid gap-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-olive font-bold text-xs">1.</span>
-                  <div>
-                    <span className="text-sm font-medium">Data Pipeline</span>
-                    <span className="text-sm text-muted-foreground"> &rarr; Gather the facts (satellite, weather, history)</span>
-                  </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="border-2 border-border p-4 shadow-hard-sm bg-olive-light">
+              <div className="text-xs font-semibold text-olive uppercase tracking-wider mb-2">Success</div>
+              <p className="text-sm">
+                "this matches how i think about my land" -- and they say it without having walked the pasture that morning.
+              </p>
+            </div>
+            <div className="border-2 border-border p-4 shadow-hard-sm bg-olive-light">
+              <div className="text-xs font-semibold text-terracotta uppercase tracking-wider mb-2">Wins</div>
+              <p className="text-sm">
+                "i couldn't run this many acres without it."
+              </p>
+            </div>
+          </div>
+        </div>
+      </PageSection>
+
+      <SectionDivider />
+
+      {/* Why Now */}
+      <PageSection bg="white" className="py-10">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center gap-3 mb-4 justify-center">
+            <Zap className="h-5 w-5 text-terracotta" />
+            <h2 className="text-2xl md:text-3xl font-bold">
+              Why Now
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground text-center mb-6">
+            three vectors converging simultaneously.
+          </p>
+
+          <div className="border-2 border-border p-5 mb-6 shadow-hard-sm">
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="text-olive font-bold text-xs mt-1">01</span>
+                <div>
+                  <span className="text-sm font-medium">Satellite Resolution</span>
+                  <p className="text-xs text-muted-foreground mt-1">SpaceX and Blue Origin dramatically reduced the cost of reaching orbit. cheaper launch economics enabled commercial operators like Planet Labs to deploy large constellations, increasing revisit frequency and resolution while driving down cost. daily 3m imagery at commercial prices is a direct downstream effect of the reusable rocket era.</p>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-olive font-bold text-xs">2.</span>
-                  <div>
-                    <span className="text-sm font-medium">Encoded Wisdom</span>
-                    <span className="text-sm text-muted-foreground"> &rarr; Explain grazing principles in the prompt</span>
-                  </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-terracotta font-bold text-xs mt-1">02</span>
+                <div>
+                  <span className="text-sm font-medium">LLM and Agent Maturity</span>
+                  <p className="text-xs text-muted-foreground mt-1">the ability to reason over complex, multi-variable decisions using codified domain knowledge -- and to do so as an autonomous agent operating on a daily loop -- has only recently become viable and affordable.</p>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-olive font-bold text-xs">3.</span>
-                  <div>
-                    <span className="text-sm font-medium">Structured Output</span>
-                    <span className="text-sm text-muted-foreground"> &rarr; Let the model draw a polygon and justify its choice</span>
-                  </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-cobalt font-bold text-xs mt-1">03</span>
+                <div>
+                  <span className="text-sm font-medium">Drone Accessibility</span>
+                  <p className="text-xs text-muted-foreground mt-1">falling hardware costs and loosening regulations make drone imagery a credible near-term input for ground-truth validation of satellite estimates.</p>
                 </div>
               </div>
             </div>
-
-            <p className="text-sm text-muted-foreground">
-              This became possible in 2022. It became <em>practical</em> with 2024's frontier models.
-            </p>
           </div>
 
           <div className="mt-6">
@@ -139,7 +243,7 @@ function InvestorsPage() {
               to="/technology"
               className="text-sm text-olive hover:text-terracotta transition-colors"
             >
-              Deep dive: How LLMs became agricultural reasoning engines &rarr;
+              Deep dive: how we predict what a trained farmer would do &rarr;
             </Link>
           </div>
         </div>
@@ -147,24 +251,46 @@ function InvestorsPage() {
 
       <SectionDivider />
 
-      {/* The System */}
-      <PageSection bg="white" className="py-10">
+      {/* The Collar Dependency */}
+      <PageSection className="py-10">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-2">
-            The System: Three Layers
-          </h2>
+          <div className="flex items-center gap-3 mb-4 justify-center">
+            <Cpu className="h-5 w-5 text-cobalt" />
+            <h2 className="text-2xl md:text-3xl font-bold">
+              The Collar Dependency
+            </h2>
+          </div>
           <p className="text-sm text-muted-foreground text-center mb-6">
-            A complete stack from raw data to actionable recommendations.
+            decision support today. autonomous operation tomorrow.
           </p>
 
-          <SystemArchitectureDiagram />
+          <div className="border-2 border-border p-5 shadow-hard-sm">
+            <p className="text-sm mb-4">
+              collar integration is the unlock that converts this system from decision support into autonomous operation. without it, the system reduces cognitive burden but not labor burden. with it, the farmer's role shifts from daily physical execution to daily review and approval.
+            </p>
+
+            <p className="text-sm text-muted-foreground mb-4">
+              the collar market is currently locked behind proprietary software with no open apis.
+            </p>
+
+            <div className="bg-olive-light p-4 border-2 border-border mb-4">
+              <div className="text-xs font-semibold text-olive uppercase tracking-wider mb-2">Strategy</div>
+              <p className="text-sm text-muted-foreground">
+                build the decision-making layer aggressively and let its value create pressure on collar companies to integrate. if they don't open their apis, compete at the hardware layer with a cheap, cots-based, open-source collar design that commoditizes the market and breaks the lock.
+              </p>
+            </div>
+
+            <p className="text-sm font-semibold text-terracotta">
+              the brain is the defensible asset. the collar is not.
+            </p>
+          </div>
         </div>
       </PageSection>
 
       <SectionDivider />
 
       {/* Industrial Scale */}
-      <PageSection className="py-10">
+      <PageSection bg="white" className="py-10">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-2">
             Industrial Scale, Biological Methods
@@ -210,7 +336,7 @@ function InvestorsPage() {
       <SectionDivider />
 
       {/* Market Opportunity */}
-      <PageSection bg="white" className="py-10">
+      <PageSection className="py-10">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-3 mb-4 justify-center">
             <TrendingUp className="h-5 w-5 text-terracotta" />
@@ -244,6 +370,9 @@ function InvestorsPage() {
             <p className="text-sm text-terracotta font-medium mb-3">
               We remove that bottleneck.
             </p>
+            <p className="text-sm text-muted-foreground mb-3">
+              higher stocking density combined with greater operational scale means the same acreage supports more animals, managed by fewer people. the addressable market expands as adoption compounds.
+            </p>
             <div className="pt-3 border-t-2 border-border">
               <p className="text-xs text-muted-foreground">
                 <span className="text-olive font-semibold">Currently in beta</span> with early adopter farmers -- building the training data flywheel now.
@@ -256,7 +385,7 @@ function InvestorsPage() {
       <SectionDivider />
 
       {/* Platform Vision */}
-      <PageSection className="py-10">
+      <PageSection bg="white" className="py-10">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-3 mb-4 justify-center">
             <Globe className="h-5 w-5 text-olive" />
@@ -265,12 +394,12 @@ function InvestorsPage() {
             </h2>
           </div>
           <p className="text-sm text-muted-foreground text-center mb-6">
-            Not just software. An integrated stack for regenerative livestock at scale.
+            not just software. a recommendation engine that becomes an operating system.
           </p>
 
           <div className="border-2 border-border p-5 mb-4 shadow-hard-sm">
             <p className="text-sm font-medium mb-4">
-              We're building what John Deere built for industrial farming -- but for rotational grazing.
+              not just software. a recommendation engine that becomes an operating system for regenerative grazing at scale.
             </p>
             <div className="grid md:grid-cols-3 gap-4">
               <div>
@@ -282,7 +411,7 @@ function InvestorsPage() {
               <div>
                 <div className="text-xs font-semibold text-olive uppercase tracking-wider mb-2">Sensors</div>
                 <p className="text-xs text-muted-foreground">
-                  Integration with satellite, collar, soil, and forage measurement systems
+                  satellite imagery today. collar integration as the unlock. open-source hardware if proprietary apis remain closed.
                 </p>
               </div>
               <div>
@@ -308,7 +437,7 @@ function InvestorsPage() {
       <SectionDivider />
 
       {/* The Moat */}
-      <PageSection bg="white" className="py-10">
+      <PageSection className="py-10">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-3 mb-4 justify-center">
             <Lock className="h-5 w-5 text-cobalt" />
@@ -332,7 +461,7 @@ function InvestorsPage() {
                     has thousands of farmer corrections paired with satellite observations.
                   </p>
                   <p className="text-xs text-terracotta font-medium">
-                    We're building it. One decision at a time. Across thousands of farms.
+                    one approval, one correction, one field note at a time.
                   </p>
                 </div>
               </div>
@@ -361,7 +490,7 @@ function InvestorsPage() {
       <SectionDivider />
 
       {/* Get Involved */}
-      <PageSection className="py-10">
+      <PageSection bg="white" className="py-10">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-2">
             Learn More
@@ -395,7 +524,7 @@ function InvestorsPage() {
               to="/sign-in"
               className="border-2 border-border p-4 shadow-hard-sm hover:border-olive hover:shadow-hard hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all block"
             >
-              <h3 className="text-sm font-semibold mb-1">Try It Free</h3>
+              <h3 className="text-sm font-semibold mb-1">Try the Beta</h3>
               <p className="text-xs text-muted-foreground">
                 See it working today
               </p>
