@@ -715,6 +715,7 @@ export default defineSchema({
     createdAt: v.string(),
   })
     .index('by_rotation', ['rotationId'])
+    .index('by_plan', ['planId'])
     .index('by_paddock_date', ['paddockExternalId', 'date']),
 
   // ============================================================================

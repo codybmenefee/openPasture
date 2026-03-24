@@ -152,6 +152,15 @@ export const approvePlan = mutation({
       throw new Error('Plan not found')
     }
 
+    if (plan.status === 'approved') {
+      log.debug('Ignoring duplicate plan approval', {
+        planId: args.planId.toString(),
+        approvedAt: plan.approvedAt,
+        approvedBy: plan.approvedBy,
+      })
+      return args.planId
+    }
+
     const now = new Date().toISOString()
     const today = now.split('T')[0]
 
@@ -262,6 +271,19 @@ export const recordApprovedSection = internalMutation({
   handler: async (ctx, args) => {
     const now = new Date().toISOString()
     const today = now.split('T')[0]
+
+    const existingSection = await ctx.db
+      .query('sectionGrazingEvents')
+      .withIndex('by_plan', (q) => q.eq('planId', args.planId))
+      .first()
+
+    if (existingSection) {
+      log.debug('Ignoring duplicate approved section recording', {
+        planId: args.planId.toString(),
+        sectionEventId: existingSection._id.toString(),
+      })
+      return existingSection._id
+    }
 
     // Calculate section centroid (simple average of polygon vertices)
     let sectionCentroid: number[] = [0, 0]
