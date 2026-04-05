@@ -1,11 +1,9 @@
 import { query } from '../../_generated/server'
 import { v } from 'convex/values'
 import { DEFAULT_FARM_EXTERNAL_ID } from '../../seedData'
-import area from '@turf/area'
 import type { Feature, Polygon } from 'geojson'
-import { HECTARES_PER_SQUARE_METER } from '../../lib/areaConstants'
 import { getPaddockContext } from '../../lib/sectionSizing'
-import { findFarmByExternalId } from './_helpers'
+import { findFarmByExternalId, calculateAreaHectares } from './_helpers'
 
 interface PaddockData {
   externalId: string
@@ -43,10 +41,7 @@ export const getAllPaddocksWithObservations = query({
   handler: async (ctx, args): Promise<PaddockSummary[]> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
 
-    const farm = await ctx.db
-      .query('farms')
-      .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
-      .first()
+    const farm = await findFarmByExternalId(ctx, farmExternalId)
 
     if (!farm) {
       return []
@@ -54,7 +49,7 @@ export const getAllPaddocksWithObservations = query({
 
     const paddocks = await ctx.db
       .query('paddocks')
-      .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
     if (paddocks.length === 0) {
@@ -63,33 +58,21 @@ export const getAllPaddocksWithObservations = query({
 
     const observations = await ctx.db
       .query('observations')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
     const grazingEvents = await ctx.db
       .query('grazingEvents')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
-    // Get farm settings for cloudCoverTolerance
     const settings = await ctx.db
       .query('farmSettings')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .first()
 
     // cloudCoverTolerance is stored as percentage (0-100), convert to 0-1
     const minCloudFreePct = (settings?.cloudCoverTolerance ?? 50) / 100
-
-    const calculateAreaHectares = (geometry: any): number => {
-      try {
-        const sqMeters = area(geometry)
-        return Number.isFinite(sqMeters)
-          ? Math.round(sqMeters * HECTARES_PER_SQUARE_METER * 10) / 10
-          : 0
-      } catch {
-        return 0
-      }
-    }
 
     return paddocks
       .map((paddock: any) => {
@@ -196,10 +179,7 @@ export const getPaddockData = query({
   handler: async (ctx, args): Promise<PaddockData | null> => {
     const farmExternalId = args.farmExternalId ?? DEFAULT_FARM_EXTERNAL_ID
 
-    const farm = await ctx.db
-      .query('farms')
-      .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
-      .first()
+    const farm = await findFarmByExternalId(ctx, farmExternalId)
 
     if (!farm) {
       return null
@@ -207,7 +187,7 @@ export const getPaddockData = query({
 
     const paddocks = await ctx.db
       .query('paddocks')
-      .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
     if (paddocks.length === 0) {
@@ -216,12 +196,12 @@ export const getPaddockData = query({
 
     const observations = await ctx.db
       .query('observations')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
     const grazingEvents = await ctx.db
       .query('grazingEvents')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .collect()
 
     const mostRecentGrazingEvent =
@@ -261,17 +241,6 @@ export const getPaddockData = query({
     )
 
     const daysGrazed = paddockGrazingEvents.length
-
-    const calculateAreaHectares = (geometry: any): number => {
-      try {
-        const sqMeters = area(geometry)
-        return Number.isFinite(sqMeters)
-          ? Math.round(sqMeters * HECTARES_PER_SQUARE_METER * 10) / 10
-          : 0
-      } catch {
-        return 0
-      }
-    }
 
     let ndviTrend = 'stable'
     if (paddockObservations.length >= 2) {
@@ -351,7 +320,7 @@ export const getPaddockContextForAgent = query({
 
     const paddock = await ctx.db
       .query('paddocks')
-      .withIndex('by_farm_externalId', (q: any) =>
+      .withIndex('by_farm_externalId', (q) =>
         q.eq('farmId', farm._id).eq('externalId', args.paddockExternalId)
       )
       .first()

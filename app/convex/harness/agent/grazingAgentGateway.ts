@@ -85,21 +85,7 @@ type HarnessState = {
   promptContext: string
 }
 
-type TraceSpan = { log: (data: unknown) => void }
-type AgentRunStepType = 'prompt' | 'tool_call' | 'tool_result' | 'decision' | 'error' | 'info'
-type AgentRunStepPayload = {
-  stepType: AgentRunStepType
-  title: string
-  toolName?: string
-  justification?: string
-  input?: unknown
-  output?: unknown
-  error?: string
-}
-
-type AgentRunStepRecorder = {
-  recordStep: (payload: AgentRunStepPayload) => Promise<void>
-}
+import type { TraceSpan, AgentRunStepRecorder } from './types'
 
 function createRunStepRecorder(
   ctx: ActionCtx,
@@ -197,23 +183,9 @@ export const agentGateway = action({
     const logger = getLogger()
     const tracer = getTracer()
 
-    console.log('[agentGateway] Telemetry status:', {
-      hasLogger: !!logger,
-      loggerType: typeof logger,
-      hasTracer: !!tracer,
-      tracerType: typeof tracer,
-    })
-
     // Use try/finally to ensure telemetry is flushed before returning
     try {
       return await logger.traced(async (rootSpan: TraceSpan) => {
-        console.log('[agentGateway] Inside logger.traced, rootSpan:', {
-          hasRootSpan: !!rootSpan,
-          rootSpanType: typeof rootSpan,
-          rootSpanMethods: rootSpan ? Object.keys(rootSpan) : 'null',
-        })
-
-        // Log gateway invocation (sanitize to remove Convex internal fields)
         rootSpan.log({
           input: sanitizeForBraintrust({
             trigger: args.trigger,
@@ -226,16 +198,7 @@ export const agentGateway = action({
           }),
         })
 
-        console.log('[agentGateway] START:', {
-        trigger: args.trigger,
-        farmId: args.farmId.toString(),
-        farmExternalId: args.farmExternalId,
-        userId: args.userId,
-        hasAdditionalContext: !!args.additionalContext,
-        contextKeys: args.additionalContext ? Object.keys(args.additionalContext) : [],
-      })
-
-    const runStart = Date.now()
+        const runStart = Date.now()
     const harnessState = await ctx.runQuery(internal.harness.agent.agentAdmin.getHarnessContextInternal, {
       farmExternalId: args.farmExternalId,
     }) as HarnessState
@@ -278,13 +241,7 @@ export const agentGateway = action({
     if (args.trigger === 'morning_brief') {
       const today = new Date().toISOString().split('T')[0]
 
-      // Use provided context or fetch plan generation data
       const hasProvidedContext = !!args.additionalContext?.planGenerationData
-      console.log('[agentGateway] Data source decision:', {
-        hasProvidedContext,
-        willFetch: !hasProvidedContext,
-        optimization: hasProvidedContext ? 'Using provided context (query saved)' : 'Fetching data (no context provided)',
-      })
 
       const providedPlanData = args.additionalContext?.planGenerationData as MorningBriefContext['planGenerationData'] | undefined
       let planData = hasProvidedContext && providedPlanData
@@ -310,17 +267,6 @@ export const agentGateway = action({
           pastures,
         }
       }
-
-      console.log('[agentGateway] Plan data available:', {
-        source: hasProvidedContext ? 'provided context' : 'fetched',
-        hasExistingPlan: !!planData.existingPlanId,
-        existingPlanId: planData.existingPlanId?.toString(),
-        pasturesCount: planData.pastures?.length || 0,
-        hasFarm: !!planData.farm,
-        hasSettings: !!planData.settings,
-        hasObservations: !!planData.observations,
-        hasGrazingEvents: !!planData.grazingEvents,
-      })
 
       if (planData.existingPlanId && !args.dryRun) {
         const existingPlanResult = {
@@ -390,20 +336,6 @@ export const agentGateway = action({
       const farmNameFromContext = args.additionalContext?.farmName
       const farmName = farmNameFromContext || (planData.farm?.name || args.farmExternalId)
 
-      console.log('[agentGateway] Prepared agent inputs:', {
-        farmExternalId: args.farmExternalId,
-        farmName,
-        farmNameSource: farmNameFromContext ? 'provided context' : (planData.farm?.name ? 'planData.farm' : 'fallback to externalId'),
-        activePastureId,
-        activePastureSource: planData.mostRecentGrazingEvent?.paddockExternalId ? 'mostRecentGrazingEvent' : 'first pasture',
-        settings,
-        today,
-        usingProvidedContext: !!args.additionalContext?.planGenerationData,
-        selectedProfileId,
-        memoryCount: harnessState.memories.length,
-      })
-
-      console.log('[agentGateway] Delegating to runGrazingAgent...')
       await recorder.recordStep({
         stepType: 'info',
         title: 'Prepared morning brief agent inputs',
@@ -418,7 +350,7 @@ export const agentGateway = action({
         },
       })
 
-      const logger = getLogger()
+      const agentLogger = getLogger()
 
       const result = await runGrazingAgent(
         ctx,
@@ -426,7 +358,7 @@ export const agentGateway = action({
         farmName,
         activePastureId,
         settings,
-        logger,
+        agentLogger,
         undefined,
         tracer,
         {
@@ -447,14 +379,6 @@ export const agentGateway = action({
           memoryIds: harnessState.memories.map((m) => m._id),
         })
       }
-
-      console.log('[agentGateway] runGrazingAgent result received:', {
-        success: result.success,
-        planCreated: result.planCreated,
-        planId: result.planId?.toString(),
-        hasPlanId: !!result.planId,
-        error: result.error,
-      })
 
       if (!result.success) {
         const errorResult = {

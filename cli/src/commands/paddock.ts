@@ -21,17 +21,14 @@ export function registerPaddockCommands(program: Command) {
     })
 
   paddock
-    .command('state <paddockId>')
-    .description('Get detailed state for a specific paddock')
+    .command('state')
+    .description('Get detailed state for the active paddock')
     .option('-f, --farm <id>', 'Farm external ID')
-    .action(async (paddockId: string, opts: { farm?: string }) => {
+    .action(async (opts: { farm?: string }) => {
       const client = getClient()
       const data = await client.query(
         api.harness.tools.grazingAgentTools.getPaddockData,
-        {
-          farmExternalId: opts.farm,
-          paddockExternalId: paddockId,
-        }
+        { farmExternalId: opts.farm }
       )
       console.log(JSON.stringify(data, null, 2))
     })

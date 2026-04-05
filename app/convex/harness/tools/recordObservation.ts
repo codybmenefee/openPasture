@@ -1,6 +1,5 @@
-import { mutation, action } from '../../_generated/server'
+import { mutation } from '../../_generated/server'
 import { v } from 'convex/values'
-import { api } from '../../_generated/api'
 import { createLogger } from '../../lib/logger'
 
 const log = createLogger('recordObservation')

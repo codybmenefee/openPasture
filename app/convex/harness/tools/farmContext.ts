@@ -16,7 +16,7 @@ export const getFarmSettings = query({
 
     const settings = await ctx.db
       .query('farmSettings')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .first()
 
     if (!settings) {
@@ -47,10 +47,9 @@ export const getLivestockContextForAgent = query({
   handler: async (ctx, args) => {
     const { farmExternalId, paddockAreaHa } = args
 
-    // Get farm by external ID
     const farm = await ctx.db
       .query('farms')
-      .withIndex('by_externalId', (q: any) => q.eq('externalId', farmExternalId))
+      .withIndex('by_externalId', (q) => q.eq('externalId', farmExternalId))
       .first()
 
     if (!farm) {
@@ -74,10 +73,9 @@ export const getLivestockContextForAgent = query({
       }
     }
 
-    // Get farm settings
     const settings = await ctx.db
       .query('farmSettings')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', farmExternalId))
       .first()
 
     const livestockSettings = settings?.livestockSettings
@@ -93,10 +91,9 @@ export const getLivestockContextForAgent = query({
     const pastureYieldKgPerHa =
       livestockSettings?.pastureYieldKgPerHa ?? DEFAULT_PASTURE_YIELD_KG_PER_HA
 
-    // Get livestock entries
     const entries = await ctx.db
       .query('livestock')
-      .withIndex('by_farm', (q: any) => q.eq('farmId', farm._id))
+      .withIndex('by_farm', (q) => q.eq('farmId', farm._id))
       .collect()
 
     // Aggregate livestock counts
@@ -155,7 +152,7 @@ export const getGrazingPrinciples = query({
   handler: async (ctx, args) => {
     const farmPrinciples = await ctx.db
       .query('grazingPrinciples')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', args.farmExternalId))
+      .withIndex('by_farm', (q) => q.eq('farmExternalId', args.farmExternalId))
       .first()
 
     if (!farmPrinciples) {

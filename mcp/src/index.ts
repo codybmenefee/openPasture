@@ -46,15 +46,14 @@ server.tool(
 
 server.tool(
   'get_paddock_state',
-  'Get detailed state for a specific paddock including observations and grazing history',
+  'Get detailed state for the active paddock on a farm, including observations and grazing history',
   {
     farmExternalId: z.string().optional().describe('Farm external ID'),
-    paddockExternalId: z.string().describe('Paddock external ID'),
   },
-  async ({ farmExternalId, paddockExternalId }) => {
+  async ({ farmExternalId }) => {
     const data = await convex.query(
       api.harness.tools.grazingAgentTools.getPaddockData,
-      { farmExternalId, paddockExternalId }
+      { farmExternalId }
     )
     return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
   }
@@ -64,7 +63,7 @@ server.tool(
   'get_paddock_context',
   'Get paddock context formatted for agent decision-making',
   {
-    farmExternalId: z.string().optional().describe('Farm external ID'),
+    farmExternalId: z.string().describe('Farm external ID'),
     paddockExternalId: z.string().describe('Paddock external ID'),
   },
   async ({ farmExternalId, paddockExternalId }) => {
@@ -91,12 +90,15 @@ server.tool(
 
 server.tool(
   'get_livestock',
-  'Get livestock context including animal units and daily consumption',
-  { farmExternalId: z.string().optional().describe('Farm external ID') },
-  async ({ farmExternalId }) => {
+  'Get livestock context including animal units, daily consumption, and section size recommendation',
+  {
+    farmExternalId: z.string().describe('Farm external ID'),
+    paddockAreaHa: z.number().describe('Paddock area in hectares (for section size calculation)'),
+  },
+  async ({ farmExternalId, paddockAreaHa }) => {
     const livestock = await convex.query(
       api.harness.tools.grazingAgentTools.getLivestockContextForAgent,
-      { farmExternalId }
+      { farmExternalId, paddockAreaHa }
     )
     return { content: [{ type: 'text' as const, text: JSON.stringify(livestock, null, 2) }] }
   }
@@ -105,7 +107,7 @@ server.tool(
 server.tool(
   'get_grazing_principles',
   'Get grazing principles and custom farm rules that guide rotation decisions',
-  { farmExternalId: z.string().optional().describe('Farm external ID') },
+  { farmExternalId: z.string().describe('Farm external ID') },
   async ({ farmExternalId }) => {
     const principles = await convex.query(
       api.harness.tools.grazingAgentTools.getGrazingPrinciples,

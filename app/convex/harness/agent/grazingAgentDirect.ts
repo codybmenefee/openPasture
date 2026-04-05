@@ -33,17 +33,12 @@ import type { Feature, Polygon } from "geojson"
 
 const log = createLogger('grazingAgent')
 
+import type { TraceLogger, AgentRunStepPayload, AgentRunStepRecorder } from './types'
+
 type AnthropicClient = typeof anthropic
 type GenerateTextParams = Parameters<typeof generateText>[0]
 type TelemetrySettings = NonNullable<GenerateTextParams['experimental_telemetry']>
 type OTelTracer = NonNullable<TelemetrySettings['tracer']>
-type TraceSpan = { log: (data: unknown) => void }
-type TraceLogger = {
-  traced: <T>(
-    fn: (span: TraceSpan) => Promise<T>,
-    options?: { name?: string; metadata?: Record<string, unknown> }
-  ) => Promise<T>
-}
 type ToolCall = {
   toolName: string
   args?: Record<string, unknown>
@@ -61,19 +56,6 @@ type CreateDailyPlanArgs = {
   sectionIndex?: number
   reasoning?: string[]
   confidence?: 'high' | 'medium' | 'low'
-}
-type AgentRunStepType = 'prompt' | 'tool_call' | 'tool_result' | 'decision' | 'error' | 'info'
-type AgentRunStepPayload = {
-  stepType: AgentRunStepType
-  title: string
-  toolName?: string
-  justification?: string
-  input?: unknown
-  output?: unknown
-  error?: string
-}
-type AgentRunStepRecorder = {
-  recordStep: (payload: AgentRunStepPayload) => Promise<void>
 }
 
 function getErrorMessage(error: unknown): string {
