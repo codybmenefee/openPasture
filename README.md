@@ -85,7 +85,7 @@ cp ingestion/satellite/.env.example ingestion/satellite/.env.local
 
 Set server-side keys (for Convex backend actions) in Convex Dashboard environment variables:
 
-- `ANTHROPIC_API_KEY` (required for AI recommendations)
+- `AI_GATEWAY_API_KEY` (required for AI recommendations via Vercel AI Gateway)
 - `BRAINTRUST_API_KEY` (optional observability)
 - `BRAINTRUST_PROJECT_NAME` (optional, defaults to `grazing-agent`)
 - `GITHUB_TOKEN` (optional, enables GitHub issue creation from reports)

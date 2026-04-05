@@ -116,7 +116,7 @@ async function analyzePhotoWithVision(
     confidence: 0.3,
     rawAnalysis: {
       status: 'placeholder',
-      message: 'Vision model integration not yet configured. Set ANTHROPIC_API_KEY and enable photo analysis.',
+      message: 'Vision model integration not yet configured. Set AI_GATEWAY_API_KEY and enable photo analysis.',
     },
   }
 }

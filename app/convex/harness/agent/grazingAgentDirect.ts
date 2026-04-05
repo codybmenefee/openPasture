@@ -12,8 +12,7 @@
  * It's imported by an action with "use node", so it runs in Node.js context.
  */
 
-import { anthropic } from "@ai-sdk/anthropic"
-import { generateText, tool } from "ai"
+import { gateway, generateText, tool } from "ai"
 import { api } from "../../_generated/api"
 import type { ActionCtx } from "../../_generated/server"
 import type { Id } from "../../_generated/dataModel"
@@ -35,7 +34,6 @@ const log = createLogger('grazingAgent')
 
 import type { TraceLogger, AgentRunStepPayload, AgentRunStepRecorder } from './types'
 
-type AnthropicClient = typeof anthropic
 type GenerateTextParams = Parameters<typeof generateText>[0]
 type TelemetrySettings = NonNullable<GenerateTextParams['experimental_telemetry']>
 type OTelTracer = NonNullable<TelemetrySettings['tracer']>
@@ -62,7 +60,7 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-const GRAZING_AGENT_MODEL = "claude-haiku-4-5"
+const GRAZING_AGENT_MODEL = "anthropic/claude-haiku-4.5"
 const PROMPT_VERSION = "v6.0.0-autonomous-drawing"
 
 interface HarnessRuntimeContext {
@@ -229,13 +227,10 @@ export async function runGrazingAgent(
   activePaddockId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
   logger?: TraceLogger,
-  wrappedAnthropic?: AnthropicClient,
   tracer?: OTelTracer,
   harnessContext?: HarnessRuntimeContext,
   options?: RunGrazingAgentOptions
 ): Promise<PlanGenerationResult> {
-  const anthropicClient = wrappedAnthropic || anthropic
-
   if (!logger) {
     return await runDailyPlanningAgent(
       ctx,
@@ -243,7 +238,6 @@ export async function runGrazingAgent(
       farmName,
       activePaddockId,
       settings,
-      anthropicClient,
       tracer,
       harnessContext,
       options
@@ -270,7 +264,6 @@ export async function runGrazingAgent(
       farmName,
       activePaddockId,
       settings,
-      anthropicClient,
       tracer,
       harnessContext,
       options
@@ -298,7 +291,6 @@ async function runDailyPlanningAgent(
   farmName: string,
   activePaddockId: string | null,
   settings: { minNDVIThreshold: number; minRestPeriod: number },
-  anthropicClient: AnthropicClient,
   tracer?: OTelTracer,
   harnessContext?: HarnessRuntimeContext,
   options?: RunGrazingAgentOptions
@@ -431,7 +423,6 @@ async function runDailyPlanningAgent(
       farmExternalId,
       resolvedPaddockId,
       forecast._id,
-      anthropicClient,
       tracer,
       harnessContext,
       recorder
@@ -682,7 +673,7 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
   })
 
   const result = await generateText({
-    model: anthropicClient(GRAZING_AGENT_MODEL),
+    model: gateway(GRAZING_AGENT_MODEL),
     system: systemPrompt,
     messages: [{ role: 'user', content: messageContent }],
     tools: {
@@ -1029,7 +1020,6 @@ async function generateForecastSections(
   farmExternalId: string,
   paddockExternalId: string,
   forecastId: Id<"paddockForecasts">,
-  anthropicClient: AnthropicClient,
   tracer?: OTelTracer,
   harnessContext?: HarnessRuntimeContext,
   recorder?: AgentRunStepRecorder
@@ -1144,7 +1134,7 @@ IMPORTANT:
     },
   })
   const forecastGenerationInput = {
-    model: anthropicClient(GRAZING_AGENT_MODEL),
+    model: gateway(GRAZING_AGENT_MODEL),
     system: forecastSystemPrompt,
     messages: [{ role: 'user', content: forecastPrompt }],
     maxSteps: 15, // Allow multiple tool calls

@@ -22,7 +22,7 @@ pnpm run lint        # ESLint
 
 ## Architecture
 
-**Stack:** React 19 + TypeScript, TanStack Router (file-based), Tailwind CSS v4, Convex (serverless backend), Claude AI via @ai-sdk/anthropic
+**Stack:** React 19 + TypeScript, TanStack Router (file-based), Tailwind CSS v4, Convex (serverless backend), Claude AI via Vercel AI Gateway
 
 **Key directories:**
 - `src/routes/` - TanStack Router file-based routes (auto-generates `routeTree.gen.ts`)

@@ -68,7 +68,7 @@ If you work on the ingestion layer (the satellite pipeline lives in `ingestion/s
 cp ingestion/satellite/.env.example ingestion/satellite/.env.local
 ```
 
-For the complete env matrix (including Convex Dashboard server-side vars like `ANTHROPIC_API_KEY`), see [docs/environment.md](docs/environment.md).
+For the complete env matrix (including Convex Dashboard server-side vars like `AI_GATEWAY_API_KEY`), see [docs/environment.md](docs/environment.md).
 
 ### 3. Set Up Convex
 

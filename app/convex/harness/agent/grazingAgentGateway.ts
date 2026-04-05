@@ -209,8 +209,8 @@ export const agentGateway = action({
       trigger: args.trigger,
       profileId: selectedProfileId,
       adapterId: 'managed_ai_sdk',
-      provider: 'anthropic',
-      model: 'claude-haiku-4-5',
+      provider: 'ai-gateway',
+      model: 'anthropic/claude-haiku-4.5',
       dryRun: !!args.dryRun,
       requestedBy: args.userId,
     })
@@ -225,7 +225,7 @@ export const agentGateway = action({
         dryRun: !!args.dryRun,
         profileId: selectedProfileId,
         requestedBy: args.userId,
-        model: 'claude-haiku-4-5',
+        model: 'anthropic/claude-haiku-4.5',
       },
     })
 
@@ -359,7 +359,6 @@ export const agentGateway = action({
         activePastureId,
         settings,
         agentLogger,
-        undefined,
         tracer,
         {
           profileId: selectedProfileId,

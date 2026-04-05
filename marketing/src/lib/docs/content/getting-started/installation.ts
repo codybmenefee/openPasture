@@ -45,7 +45,7 @@ App-local keys:
 - \`VITE_PAYWALL_DISABLED=true\` - Disable paywall checks locally
 
 **Set in Convex dashboard (server-side):**
-- \`ANTHROPIC_API_KEY\` - Required for AI recommendations
+- \`AI_GATEWAY_API_KEY\` - Required for AI recommendations (Vercel AI Gateway)
 - \`BRAINTRUST_API_KEY\` - Optional agent observability
 - \`BRAINTRUST_PROJECT_NAME\` - Optional, defaults to 'grazing-agent'`,
       codeExample: {
@@ -112,7 +112,7 @@ Alternatively, use the Convex CLI:`,
 
 1. **Convex Production Deployment**
    - Create a production deployment in Convex dashboard
-   - Set environment variables (including ANTHROPIC_API_KEY)
+   - Set environment variables (including AI_GATEWAY_API_KEY)
    - Deploy with \`npx convex deploy\`
 
 2. **Frontend Hosting**

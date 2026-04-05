@@ -26,7 +26,7 @@ Primary app variables:
 - `VITE_CLERK_PUBLISHABLE_KEY` - required when `VITE_DEV_AUTH=false`
 - `VITE_PAYWALL_DISABLED=true` - optional local paywall bypass
 
-Server-side Convex variables (`ANTHROPIC_API_KEY`, `BRAINTRUST_API_KEY`, etc.) are documented in [docs/environment.md](../docs/environment.md) and should be set in Convex Dashboard env vars.
+Server-side Convex variables (`AI_GATEWAY_API_KEY`, `BRAINTRUST_API_KEY`, etc.) are documented in [docs/environment.md](../docs/environment.md) and should be set in Convex Dashboard env vars.
 
 ## Scripts
 

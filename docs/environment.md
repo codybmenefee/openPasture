@@ -47,7 +47,7 @@ Set these in Convex Dashboard for backend actions:
 
 Required:
 
-- `ANTHROPIC_API_KEY`
+- `AI_GATEWAY_API_KEY`
 
 Optional:
 
@@ -66,7 +66,7 @@ These are server-side only. Do not prefix them with `VITE_`.
 | `VITE_DEV_AUTH` | Vite | No | `false` | `app/src/lib/auth/index.tsx` | Local toggle, no external provider needed |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Vite | Conditional (`VITE_DEV_AUTH=false`) | none | `app/src/lib/auth/index.tsx` | Clerk dashboard publishable key per [Clerk env docs](https://clerk.com/docs/deployments/clerk-environment-variables) |
 | `VITE_PAYWALL_DISABLED` | Vite | No | `false` | `app/src/routes/app.tsx` | Local toggle, no external provider needed |
-| `ANTHROPIC_API_KEY` | Convex | Yes (AI path) | none | `app/convex/grazingAgentDirect.ts` | Anthropic console key per [Anthropic getting started](https://docs.anthropic.com/en/api/getting-started) |
+| `AI_GATEWAY_API_KEY` | Convex | Yes (AI path) | none | `app/convex/harness/agent/grazingAgentDirect.ts` | Vercel AI Gateway key from [Vercel Dashboard](https://vercel.com) -> Project Settings -> AI Gateway |
 | `BRAINTRUST_API_KEY` | Convex | No | none | `app/lib/braintrust.ts` | Braintrust org API key per [Braintrust API intro](https://www.braintrust.dev/docs/api-reference/introduction) |
 | `BRAINTRUST_PROJECT_NAME` | Convex | No | `grazing-agent` | `app/lib/braintrust.ts` | Optional name from [Braintrust projects](https://www.braintrust.dev/docs/core/projects) |
 | `GITHUB_TOKEN` | Convex | No | none | `app/convex/bugReportsAction.ts` and `app/convex/featureRequestsAction.ts` | GitHub PAT per [token docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) |
@@ -98,7 +98,7 @@ Reference: [Convex env docs](https://docs.convex.dev/production/environment-vari
 
 ```bash
 npx convex env list
-npx convex env get ANTHROPIC_API_KEY
-npx convex env set ANTHROPIC_API_KEY "your_value"
+npx convex env get AI_GATEWAY_API_KEY
+npx convex env set AI_GATEWAY_API_KEY "your_value"
 npx convex env remove CONVEX_DEBUG
 ```

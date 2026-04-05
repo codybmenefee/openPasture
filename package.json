@@ -12,7 +12,6 @@
     "url": "https://github.com/codybmenefee/pan/issues"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.18",
     "ai": "^6.0.44"
   }
 }
