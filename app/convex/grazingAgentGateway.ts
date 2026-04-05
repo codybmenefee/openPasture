@@ -708,29 +708,18 @@ export const agentGateway = action({
     }
 
     if (args.trigger === 'plan_execution') {
-      const [todayDailyPlan, todayLegacyPlan] = await Promise.all([
-        ctx.runQuery(api.grazingAgentTools.getTodayPlan, {
-          farmExternalId: args.farmExternalId,
-        }),
-        ctx.runQuery(api.intelligence.getTodayPlan, {
-          farmExternalId: args.farmExternalId,
-        }),
-      ])
+      const todayPlan = await ctx.runQuery(api.intelligence.getTodayPlan, {
+        farmExternalId: args.farmExternalId,
+      })
       await recorder.recordStep({
         stepType: 'info',
         title: 'Plan execution context loaded',
-        justification: 'Gateway inspected today’s daily and legacy plan states before evaluating execution readiness.',
+        justification: 'Gateway inspected today\'s plan state before evaluating execution readiness.',
         output: {
-          todayDailyPlan: todayDailyPlan
+          todayPlan: todayPlan
             ? {
-                id: todayDailyPlan._id.toString(),
-                status: todayDailyPlan.status,
-              }
-            : null,
-          todayLegacyPlan: todayLegacyPlan
-            ? {
-                id: todayLegacyPlan._id.toString(),
-                status: todayLegacyPlan.status,
+                id: todayPlan._id.toString(),
+                status: todayPlan.status,
               }
             : null,
         },
@@ -744,12 +733,9 @@ export const agentGateway = action({
           dryRunOutput: {
             ...dryRunBase,
             triggerDetails: [
-              todayDailyPlan
-                ? `Daily plan status: ${todayDailyPlan.status}`
-                : 'No daily plan exists for today',
-              todayLegacyPlan
-                ? `Legacy plan status: ${todayLegacyPlan.status}`
-                : 'No legacy plan exists for today',
+              todayPlan
+                ? `Plan status: ${todayPlan.status}`
+                : 'No plan exists for today',
             ],
           },
         }
@@ -771,25 +757,27 @@ export const agentGateway = action({
         return dryRunResult
       }
 
-      if (todayDailyPlan) {
-        if (todayDailyPlan.status !== 'approved') {
+      if (todayPlan) {
+        if (todayPlan.status !== 'approved') {
           const blockedResult = {
             success: false,
             trigger: args.trigger,
-            message: `Daily plan is ${todayDailyPlan.status}. Farmer approval is required before execution.`,
+            planId: todayPlan._id.toString(),
+            message: `Plan is ${todayPlan.status}. Farmer approval is required before execution.`,
           }
           await recorder.recordStep({
             stepType: 'decision',
-            title: 'Execution blocked: daily plan not approved',
+            title: 'Execution blocked: plan not approved',
             justification: 'Manual workflow requires explicit farmer approval before execution.',
             output: {
-              planId: todayDailyPlan._id.toString(),
-              status: todayDailyPlan.status,
+              planId: todayPlan._id.toString(),
+              status: todayPlan.status,
             },
           })
           await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
             runId,
             status: 'blocked',
+            outputPlanId: todayPlan._id,
             toolCallCount: 0,
             toolSummary: ['approval_required'],
             latencyMs: Date.now() - runStart,
@@ -801,76 +789,22 @@ export const agentGateway = action({
         const successResult = {
           success: true,
           trigger: args.trigger,
-          message: 'Daily plan is approved. Execution can proceed in the manual workflow.',
+          planId: todayPlan._id.toString(),
+          message: 'Plan is approved. Execution can proceed in the manual workflow.',
         }
         await recorder.recordStep({
           stepType: 'decision',
-          title: 'Execution ready: daily plan approved',
-          justification: 'Approved daily plan satisfies execution prerequisites.',
+          title: 'Execution ready: plan approved',
+          justification: 'Approved plan satisfies execution prerequisites.',
           output: {
-            planId: todayDailyPlan._id.toString(),
-            status: todayDailyPlan.status,
+            planId: todayPlan._id.toString(),
+            status: todayPlan.status,
           },
         })
         await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
           runId,
           status: 'succeeded',
-          toolCallCount: 0,
-          toolSummary: ['approved_plan_ready'],
-          latencyMs: Date.now() - runStart,
-        })
-        rootSpan.log({ output: sanitizeForBraintrust(successResult) })
-        return successResult
-      }
-
-      if (todayLegacyPlan) {
-        if (todayLegacyPlan.status !== 'approved') {
-          const blockedResult = {
-            success: false,
-            trigger: args.trigger,
-            planId: todayLegacyPlan._id.toString(),
-            message: `Legacy plan is ${todayLegacyPlan.status}. Farmer approval is required before execution.`,
-          }
-          await recorder.recordStep({
-            stepType: 'decision',
-            title: 'Execution blocked: legacy plan not approved',
-            justification: 'Legacy plans also require farmer approval before execution.',
-            output: {
-              planId: todayLegacyPlan._id.toString(),
-              status: todayLegacyPlan.status,
-            },
-          })
-          await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
-            runId,
-            status: 'blocked',
-            outputPlanId: todayLegacyPlan._id,
-            toolCallCount: 0,
-            toolSummary: ['approval_required'],
-            latencyMs: Date.now() - runStart,
-          })
-          rootSpan.log({ output: sanitizeForBraintrust(blockedResult) })
-          return blockedResult
-        }
-
-        const successResult = {
-          success: true,
-          trigger: args.trigger,
-          planId: todayLegacyPlan._id.toString(),
-          message: 'Legacy plan is approved. Execution can proceed in the manual workflow.',
-        }
-        await recorder.recordStep({
-          stepType: 'decision',
-          title: 'Execution ready: legacy plan approved',
-          justification: 'Approved legacy plan satisfies execution prerequisites.',
-          output: {
-            planId: todayLegacyPlan._id.toString(),
-            status: todayLegacyPlan.status,
-          },
-        })
-        await ctx.runMutation(internal.agentAdmin.completeAgentRunInternal, {
-          runId,
-          status: 'succeeded',
-          outputPlanId: todayLegacyPlan._id,
+          outputPlanId: todayPlan._id,
           toolCallCount: 0,
           toolSummary: ['approved_plan_ready'],
           latencyMs: Date.now() - runStart,

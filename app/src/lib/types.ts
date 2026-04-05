@@ -476,14 +476,7 @@ export interface SectionGrazingEvent {
 
 export type BriefDecision = 'MOVE' | 'STAY'
 
-export type BriefStatus = 'pending' | 'approved' | 'rejected' | 'executed'
-
-export type DailyPlanStatus = 'pending' | 'approved' | 'rejected'
-
 export type ForecastStatus = 'active' | 'completed' | 'paused'
-
-// Legacy type alias
-export type GrazingPlanStatus = ForecastStatus
 
 /**
  * Forecasted Section
@@ -534,31 +527,6 @@ export interface PaddockForecast {
   updatedAt: string
 }
 
-/**
- * Daily Plan
- * Today's concrete grazing recommendation
- */
-export interface DailyPlan {
-  id: string
-  farmExternalId: string
-  date: string
-  forecastId: string
-  paddockExternalId: string
-  recommendedSectionIndex: number
-  sectionGeometry: Feature<Polygon>
-  sectionAreaHa: number
-  sectionCentroid: [number, number]
-  daysInSection: number
-  estimatedForageRemaining?: number
-  currentNdvi?: number
-  reasoning: string[]
-  confidence: number
-  status: DailyPlanStatus
-  createdAt: string
-  approvedAt?: string
-  approvedBy?: string
-}
-
 // Legacy types for backward compatibility
 export interface CompletedSectionRecord {
   geometry: Feature<Polygon>
@@ -575,52 +543,6 @@ export interface CurrentSectionState {
   quadrant: string
   startedDate: string
   daysInSection: number
-}
-
-/**
- * @deprecated Use PaddockForecast instead
- */
-export interface PaddockGrazingPlan {
-  id: string
-  farmExternalId: string
-  paddockExternalId: string
-  status: GrazingPlanStatus
-  startingCorner: StartingCorner
-  progressionDirection: ProgressionDirection
-  targetSectionHa: number
-  targetSectionPct: number
-  sectionsCompleted: number
-  totalAreaGrazedHa: number
-  grazedPercentage: number
-  currentSection?: CurrentSectionState
-  completedSections: CompletedSectionRecord[]
-  createdAt: string
-  createdBy: 'agent' | 'farmer'
-  updatedAt: string
-}
-
-/**
- * @deprecated Use DailyPlan instead
- */
-export interface DailyBrief {
-  id: string
-  farmExternalId: string
-  date: string
-  decision: BriefDecision
-  paddockExternalId: string
-  sectionGeometry?: Feature<Polygon>
-  sectionAreaHa?: number
-  sectionCentroid?: [number, number]
-  daysInCurrentSection: number
-  estimatedForageRemaining?: number
-  currentNdvi?: number
-  reasoning: string[]
-  confidence: number
-  status: BriefStatus
-  grazingPlanId?: string
-  createdAt: string
-  approvedAt?: string
-  approvedBy?: string
 }
 
 /**

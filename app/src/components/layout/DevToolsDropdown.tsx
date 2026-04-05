@@ -205,7 +205,7 @@ export function DevToolsDropdown() {
     try {
       const result = await resetAllPaddockGrazingData({ farmExternalId: activeFarmId })
       const total = result.paddockForecasts + result.sectionGrazingEvents + result.paddockRotations +
-                    result.dailyPlans + result.dailyBriefs + result.plans + result.grazingEvents
+                    result.plans + result.grazingEvents
       toast.success(`Reset complete: ${total} records deleted`)
       setShowResetConfirm(false)
     } catch (error) {

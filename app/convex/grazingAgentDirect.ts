@@ -299,7 +299,7 @@ export async function runGrazingAgent(
         success: result.success,
         decision: result.decision,
         recommendedSectionIndex: result.recommendedSectionIndex,
-        dailyPlanId: result.dailyPlanId ? String(result.dailyPlanId) : undefined,
+        planId: result.planId ? String(result.planId) : undefined,
       }),
     })
 
@@ -924,8 +924,8 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           },
         })
 
-        log('Daily plan created', {
-          dailyPlanId: dailyPlanId.toString(),
+        log('Plan created', {
+          planId: createdPlanId?.toString(),
           decision: finalDecision,
           sectionIndex,
         })

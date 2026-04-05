@@ -1268,7 +1268,7 @@ export const updatePlanDate = mutation({
 })
 
 // Dev utility: Reset all paddock grazing data for a farm
-// Clears forecasts, sections, rotations, and daily briefs - returns paddocks to clean state
+// Clears forecasts, sections, rotations, and plans - returns paddocks to clean state
 export const resetAllPaddockGrazingData = mutation({
   args: {
     farmExternalId: v.optional(v.string()),
@@ -1280,8 +1280,6 @@ export const resetAllPaddockGrazingData = mutation({
       paddockForecasts: 0,
       sectionGrazingEvents: 0,
       paddockRotations: 0,
-      dailyPlans: 0,
-      dailyBriefs: 0,
       plans: 0,
       grazingEvents: 0,
     }
@@ -1316,27 +1314,7 @@ export const resetAllPaddockGrazingData = mutation({
       results.paddockRotations++
     }
 
-    // Delete dailyPlans
-    const dailyPlans = await ctx.db
-      .query('dailyPlans')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
-      .collect()
-    for (const plan of dailyPlans) {
-      await ctx.db.delete(plan._id)
-      results.dailyPlans++
-    }
-
-    // Delete dailyBriefs
-    const dailyBriefs = await ctx.db
-      .query('dailyBriefs')
-      .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
-      .collect()
-    for (const brief of dailyBriefs) {
-      await ctx.db.delete(brief._id)
-      results.dailyBriefs++
-    }
-
-    // Delete plans (legacy)
+    // Delete plans
     const plans = await ctx.db
       .query('plans')
       .withIndex('by_farm', (q: any) => q.eq('farmExternalId', farmExternalId))
