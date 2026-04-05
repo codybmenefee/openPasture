@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAppAuth } from '@/lib/auth'
 import { getAppBillingFeatureSlugs, getAppBillingPlanSlugs, hasBillingAccess } from '@/lib/auth/billing'
 
+const devAuthEnabled = import.meta.env.VITE_DEV_AUTH === 'true'
+
 type BillingAccessSource = 'dev_auth' | 'billing_subscription' | 'session_claims' | 'none'
 
 export interface ResolvedBillingAccess {
@@ -11,6 +13,14 @@ export interface ResolvedBillingAccess {
   source: BillingAccessSource
   subscriptionPlanSlugs: string[]
   subscriptionFeatureSlugs: string[]
+}
+
+const DEV_BILLING_ACCESS: ResolvedBillingAccess = {
+  isLoaded: true,
+  hasAccess: true,
+  source: 'dev_auth',
+  subscriptionPlanSlugs: [],
+  subscriptionFeatureSlugs: [],
 }
 
 interface SubscriptionEntitlementResult {
@@ -81,10 +91,16 @@ function getSubscriptionEntitlement(
   }
 }
 
-export function useResolvedBillingAccess(): ResolvedBillingAccess {
+/**
+ * Clerk-backed billing access hook. Only safe to call when ClerkProvider is
+ * mounted (i.e. NOT in dev-auth mode). The public `useResolvedBillingAccess`
+ * below gates on the module-level `devAuthEnabled` constant so that this
+ * function is never reached without a provider.
+ */
+function useClerkBillingAccess(): ResolvedBillingAccess {
   const { user, isLoaded: isUserLoaded } = useUser()
   const clerk = useClerk()
-  const { isDevAuth, isLoaded, isSignedIn, hasPlan, hasFeature } = useAppAuth()
+  const { isLoaded, isSignedIn, hasPlan, hasFeature } = useAppAuth()
 
   const billingPlanSlugs = useMemo(() => getAppBillingPlanSlugs(), [])
   const billingFeatureSlugs = useMemo(() => getAppBillingFeatureSlugs(), [])
@@ -104,13 +120,12 @@ export function useResolvedBillingAccess(): ResolvedBillingAccess {
   useEffect(() => {
     let cancelled = false
 
-    if (isDevAuth || !isLoaded || !isUserLoaded || !isSignedIn || !user?.id || !clerk.billing?.getSubscription) {
+    if (!isLoaded || !isUserLoaded || !isSignedIn || !user?.id || !clerk.billing?.getSubscription) {
       return
     }
 
     void (async () => {
       try {
-        // Explicitly evaluate user-scoped B2C subscription regardless of active organization context.
         const subscription = await clerk.billing.getSubscription({})
         if (cancelled) return
 
@@ -133,7 +148,6 @@ export function useResolvedBillingAccess(): ResolvedBillingAccess {
       cancelled = true
     }
   }, [
-    isDevAuth,
     isLoaded,
     isSignedIn,
     isUserLoaded,
@@ -144,16 +158,6 @@ export function useResolvedBillingAccess(): ResolvedBillingAccess {
   ])
 
   return useMemo((): ResolvedBillingAccess => {
-    if (isDevAuth) {
-      return {
-        isLoaded: true,
-        hasAccess: true,
-        source: 'dev_auth',
-        subscriptionPlanSlugs: [],
-        subscriptionFeatureSlugs: [],
-      }
-    }
-
     if (!isLoaded || !isUserLoaded) {
       return {
         isLoaded: false,
@@ -214,7 +218,6 @@ export function useResolvedBillingAccess(): ResolvedBillingAccess {
       subscriptionFeatureSlugs: [],
     }
   }, [
-    isDevAuth,
     isLoaded,
     isUserLoaded,
     isSignedIn,
@@ -223,4 +226,12 @@ export function useResolvedBillingAccess(): ResolvedBillingAccess {
     sessionHasAccess,
     subscriptionFetchState,
   ])
+}
+
+// eslint-disable-next-line react-hooks/rules-of-hooks -- `devAuthEnabled` is a build-time constant; the branch taken is always the same across renders.
+export function useResolvedBillingAccess(): ResolvedBillingAccess {
+  if (devAuthEnabled) {
+    return DEV_BILLING_ACCESS
+  }
+  return useClerkBillingAccess()
 }

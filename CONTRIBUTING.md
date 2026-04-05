@@ -29,7 +29,7 @@ Welcome! Here's how to get started:
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+ and pnpm
 - A [Convex](https://convex.dev) account (free tier available)
 - A [Clerk](https://clerk.dev) account (free tier available) - or use dev auth mode
 
@@ -37,7 +37,7 @@ Welcome! Here's how to get started:
 
 ```bash
 cd app
-npm install
+pnpm install
 ```
 
 ### 2. Configure Environment
@@ -102,7 +102,7 @@ In separate terminals:
 npx convex dev
 
 # Terminal 2: Start Vite dev server
-npm run dev
+pnpm run dev
 ```
 
 The app will be available at http://localhost:5173
@@ -113,8 +113,8 @@ The app will be available at http://localhost:5173
 2. **Make small, focused changes** - One feature or fix per PR
 3. **Run checks before committing**:
    ```bash
-   npm run lint      # Check for linting errors
-   npm run test      # Run unit tests
+   pnpm run lint     # Check for linting errors
+   pnpm run test     # Run unit tests
    npx tsc -b        # TypeScript compilation check
    ```
 4. **Include tests** for new functionality when possible
@@ -124,10 +124,10 @@ The app will be available at http://localhost:5173
 
 ```bash
 # Run all tests once
-npm run test
+pnpm run test
 
 # Run tests in watch mode during development
-npm run test:watch
+pnpm run test:watch
 ```
 
 Tests are located alongside source files with `.test.ts` or `.test.tsx` extensions.
@@ -145,13 +145,13 @@ We use ESLint and Prettier for code consistency.
 
 ```bash
 # Check for linting issues
-npm run lint
+pnpm run lint
 
 # Check formatting
-npm run format:check
+pnpm run format:check
 
 # Auto-fix formatting
-npm run format
+pnpm run format
 ```
 
 ### Key Style Guidelines
@@ -202,7 +202,7 @@ feat: add pasture boundary editing
 
 1. Ensure all checks pass locally:
    ```bash
-   npm run lint && npm run test && npx tsc -b
+   pnpm run lint && pnpm run test && npx tsc -b
    ```
 2. Rebase your branch on latest `dev`
 3. Write a clear PR description

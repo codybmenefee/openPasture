@@ -23,8 +23,8 @@ Fixes #(issue number)
 ## Checklist
 
 - [ ] I have tested these changes locally
-- [ ] I have run `npm run build` and it completes successfully
-- [ ] I have run `npm run lint` and there are no errors
+- [ ] I have run `pnpm run build` and it completes successfully
+- [ ] I have run `pnpm run lint` and there are no errors
 - [ ] I have added/updated tests if applicable
 - [ ] I have updated documentation if applicable
 - [ ] My changes don't introduce new TypeScript `any` types

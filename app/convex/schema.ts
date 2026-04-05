@@ -111,21 +111,6 @@ const progressionContext = v.object({
   wasUngrazedAreaReturn: v.boolean(), // Returning to previously skipped area
 })
 
-// Daily brief decision type
-const briefDecision = v.union(
-  v.literal('MOVE'),
-  v.literal('STAY'),
-)
-
-// Daily brief status
-const briefStatus = v.union(
-  v.literal('pending'),
-  v.literal('approved'),
-  v.literal('rejected'),
-  v.literal('executed'),
-)
-
-
 // Forecasted section in a paddock forecast
 const forecastedSection = v.object({
   index: v.number(),              // 0, 1, 2, ... (order)
@@ -162,13 +147,6 @@ const grazingHistoryEntry = v.object({
   endedDate: v.string(),
   actualDays: v.number(),
 })
-
-// Daily plan status
-const dailyPlanStatus = v.union(
-  v.literal('pending'),
-  v.literal('approved'),
-  v.literal('rejected'),
-)
 
 // Paddock forecast status
 const forecastStatus = v.union(
@@ -392,6 +370,12 @@ export default defineSchema({
     paddockGrazedPercentage: v.optional(v.number()),
     // Progressive grazing context
     progressionContext: v.optional(progressionContext),
+    // Forecast linkage (set by agent when plan is generated from a paddock forecast)
+    forecastId: v.optional(v.id('paddockForecasts')),
+    decision: v.optional(v.union(v.literal('MOVE'), v.literal('STAY'))),
+    recommendedSectionIndex: v.optional(v.number()),
+    daysInSection: v.optional(v.number()),
+    estimatedForageRemaining: v.optional(v.number()),
     createdAt: v.string(),
     updatedAt: v.string(),
   })
@@ -692,8 +676,7 @@ export default defineSchema({
     farmExternalId: v.string(),
     paddockExternalId: v.string(),
     rotationId: v.id('paddockRotations'),
-    planId: v.optional(v.id('plans')),  // Optional for migration - links to legacy plans
-    dailyBriefId: v.optional(v.id('dailyBriefs')),  // Links to new daily briefs
+    planId: v.optional(v.id('plans')),
 
     date: v.string(),
     sequenceNumber: v.number(),  // 1, 2, 3... within rotation
@@ -759,70 +742,6 @@ export default defineSchema({
     .index('by_farm', ['farmExternalId'])
     .index('by_paddock', ['farmExternalId', 'paddockExternalId'])
     .index('by_active', ['farmExternalId', 'paddockExternalId', 'status']),
-
-  // ============================================================================
-  // DAILY PLANS
-  // Today's concrete grazing recommendation
-  // ============================================================================
-  dailyPlans: defineTable({
-    farmExternalId: v.string(),
-    date: v.string(),
-
-    // Link to forecast
-    forecastId: v.id('paddockForecasts'),
-    paddockExternalId: v.string(),
-
-    // Today's recommendation
-    recommendedSectionIndex: v.number(),   // Which forecast section
-    sectionGeometry: rawPolygon,           // May be adjusted from forecast
-    sectionAreaHa: v.number(),
-    sectionCentroid: v.array(v.number()),
-
-    // Context
-    daysInSection: v.number(),
-    estimatedForageRemaining: v.optional(v.number()),
-    currentNdvi: v.optional(v.number()),
-
-    // Justification
-    reasoning: v.array(v.string()),
-    confidence: v.number(),
-
-    // Status
-    status: dailyPlanStatus,
-
-    // Timestamps
-    createdAt: v.string(),
-    approvedAt: v.optional(v.string()),
-    approvedBy: v.optional(v.string()),
-  })
-    .index('by_farm_date', ['farmExternalId', 'date'])
-    .index('by_farm', ['farmExternalId']),
-
-  // ============================================================================
-  // LEGACY: DAILY BRIEFS (kept for backward compatibility during migration)
-  // ============================================================================
-  dailyBriefs: defineTable({
-    farmExternalId: v.string(),
-    date: v.string(),
-    decision: briefDecision,
-    paddockExternalId: v.string(),
-    sectionGeometry: v.optional(rawPolygon),
-    sectionAreaHa: v.optional(v.number()),
-    sectionCentroid: v.optional(v.array(v.number())),
-    daysInCurrentSection: v.number(),
-    estimatedForageRemaining: v.optional(v.number()),
-    currentNdvi: v.optional(v.number()),
-    reasoning: v.array(v.string()),
-    confidence: v.number(),
-    status: briefStatus,
-    forecastId: v.optional(v.id('paddockForecasts')),
-    grazingPlanId: v.optional(v.string()),  // DEPRECATED: Legacy field for backward compatibility
-    createdAt: v.string(),
-    approvedAt: v.optional(v.string()),
-    approvedBy: v.optional(v.string()),
-  })
-    .index('by_farm_date', ['farmExternalId', 'date'])
-    .index('by_farm', ['farmExternalId']),
 
   // ============================================================================
   // GRAZING PRINCIPLES

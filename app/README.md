@@ -4,11 +4,11 @@ Frontend for the Morning Farm Brief experience. Built with Vite, React, and Type
 
 ## Getting Started
 
-Prerequisites: Node.js 18+ and npm.
+Prerequisites: Node.js 18+ and pnpm.
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ## Environment
@@ -30,10 +30,10 @@ Server-side Convex variables (`ANTHROPIC_API_KEY`, `BRAINTRUST_API_KEY`, etc.) a
 
 ## Scripts
 
-- `npm run dev` - start the Vite dev server
-- `npm run build` - type-check and build for production
-- `npm run lint` - run ESLint
-- `npm run preview` - preview the production build
+- `pnpm run dev` - start the Vite dev server
+- `pnpm run build` - type-check and build for production
+- `pnpm run lint` - run ESLint
+- `pnpm run preview` - preview the production build
 
 ## Project Structure
 

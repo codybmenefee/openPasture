@@ -18,7 +18,7 @@ For the product thesis and philosophy, read [docs/vision.md](docs/vision.md) fir
 
 ### Data Flow
 ```
-Satellite Imagery (Sentinel-2)
+Satellite Imagery (Sentinel-2 / PlanetScope)
         |
         v
 STAC API Query (farm AOI + time window)
@@ -30,16 +30,13 @@ Cloud Masking + Index Computation (NDVI, EVI, NDWI)
 Zonal Statistics (per pasture polygon)
         |
         v
-Rules-Based Planner (pasture scoring)
+AI Agent (Anthropic Claude via Convex gateway)
         |
         v
-Morning Farm Brief + Recommendation
+Morning Farm Brief + Grazing Plan
         |
         v
 User Approval/Feedback Loop
-        |
-        v
-Exportable Plan Artifacts
 ```
 
 ### Key Entities
@@ -86,16 +83,26 @@ These rules are intentionally simple and explainable for farmer trust.
 
 ## Tech Stack Guidance
 
-### Required Libraries
+### Frontend
+| Purpose | Library |
+|---------|---------|
+| Framework | React 19 + TypeScript |
+| Routing | TanStack Router (file-based) |
+| Styling | Tailwind CSS v4, shadcn/Radix primitives |
+| Maps | MapLibre GL + Mapbox Draw |
+| Backend | Convex (serverless DB + functions) |
+| Auth | Clerk |
+| AI | Vercel AI SDK + Anthropic Claude |
+| Analytics | PostHog |
+| Observability | Braintrust + OpenTelemetry |
+
+### Python Pipeline (`src/ingestion/`)
 | Purpose | Library |
 |---------|---------|
 | Satellite catalog query | `pystac-client` |
 | Image loading | `odc-stac` or `stackstac` |
 | Raster operations | `rasterio`, `xarray`, `numpy` |
-| Map tile generation | `rio-tiler` |
-| Tile server | `TiTiler` (FastAPI) |
-| Geometry | GeoJSON format |
-| Optional DB | PostGIS |
+| Geometry | GeoJSON format, `geopandas`, `shapely` |
 
 ### Data Sources
 - **Primary:** Microsoft Planetary Computer (Sentinel-2)
@@ -106,17 +113,21 @@ These rules are intentionally simple and explainable for farmer trust.
 
 ```
 /
-├── agents.md              # This file - agent reference
+├── AGENTS.md              # This file - agent reference
 ├── README.md              # User-facing documentation
 ├── docs/
-│   ├── architecture.md    # Detailed technical architecture
+│   ├── vision.md          # Product thesis and philosophy
+│   ├── architecture.md    # Conceptual system architecture
 │   ├── domain.md          # Remote sensing domain knowledge
-│   └── phasing.md         # Development phasing plan
+│   └── environment.md     # Environment variable reference
+├── app/
+│   ├── src/
+│   │   ├── routes/        # TanStack Router file-based routes
+│   │   ├── components/    # React components by feature
+│   │   └── lib/           # Utilities, hooks, types
+│   └── convex/            # Serverless backend (queries, mutations, actions)
 ├── src/
-│   ├── ingestion/         # Satellite data fetching
-│   ├── processing/        # Index computation, cloud masking
-│   ├── intelligence/      # Pasture scoring, plan generation
-│   └── app/               # Web application
+│   └── ingestion/         # Python satellite data pipeline
 └── ...
 ```
 
@@ -126,18 +137,3 @@ These rules are intentionally simple and explainable for farmer trust.
 2. Is this within MVP scope (no hardware, no real-time, no collars)?
 3. Can a farmer understand the output in plain language?
 4. Are we using existing OSS tools where available?
-5. Which phase does this work belong to? (see [phasing.md](docs/phasing.md))
-
-## Development Phasing
-
-See [docs/phasing.md](docs/phasing.md) for the complete development plan. Key phases:| Phase | Focus |
-|-------|-------|
-| 0 | UX Design & Prototyping |
-| 1 | Farm Geometry Foundation |
-| 2 | Satellite Pipeline PoC |
-| 3 | Processing Pipeline |
-| 4 | Intelligence Layer |
-| 5 | Morning Brief & Approval |
-| 6 | Export & Polish |
-
-Each phase produces testable artifacts. Do not skip phases or build "finished" features before foundational work is validated.

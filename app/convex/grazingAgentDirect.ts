@@ -194,8 +194,6 @@ The paddock corners are labeled:
 
 interface PlanGenerationResult {
   success: boolean
-  dailyPlanId?: Id<"dailyPlans">
-  briefId?: Id<"dailyBriefs">
   planId?: Id<"plans">
   planCreated?: boolean
   error?: string
@@ -766,8 +764,6 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
 
   // 10. PROCESS TOOL CALLS
   let planCreated = false
-  let createdDailyPlanId: Id<'dailyPlans'> | undefined
-  let createdBriefId: Id<'dailyBriefs'> | undefined
   let createdPlanId: Id<'plans'> | undefined
   let finalDecision: 'MOVE' | 'STAY' | undefined
   let recommendedSectionIndex: number | undefined
@@ -867,65 +863,42 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           continue
         }
 
-        // Create daily plan
-        const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
+        const decisionPrefix = finalDecision === 'MOVE'
+          ? 'MOVE to new section: '
+          : 'STAY in current section: '
+        const justification = decisionPrefix + (reasoning[0] || 'Based on grazing forecast')
+
+        createdPlanId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, {
           farmExternalId,
-          date: today,
-          forecastId: currentForecast._id,
-          paddockExternalId: resolvedPaddockId,
-          recommendedSectionIndex: sectionIndex,
+          targetPaddockId: resolvedPaddockId,
           sectionGeometry: section.geometry,
-          sectionAreaHa: section.areaHa,
+          sectionAreaHectares: section.areaHa,
           sectionCentroid: section.centroid,
+          sectionJustification: justification,
+          paddockGrazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
+          confidence: confidenceNum,
+          reasoning: [`Decision: ${finalDecision}`, ...reasoning],
+          skipOverlapValidation: true,
+          forecastId: currentForecast._id,
+          decision: finalDecision,
+          recommendedSectionIndex: sectionIndex,
           daysInSection: sectionIndex === currentForecast.activeSectionIndex
             ? currentForecast.daysInActiveSection
             : 1,
           estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
-          currentNdvi: forecastContext.currentNdvi,
-          reasoning,
-          confidence: confidenceNum,
         })
 
-        createdDailyPlanId = dailyPlanId
+        await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
+          farmExternalId,
+        })
+
         planCreated = true
-
-        // Create legacy daily brief
-        createdBriefId = await ctx.runMutation(api.grazingAgentTools.createDailyBrief, {
-          farmExternalId,
-          date: today,
-          decision: finalDecision,
-          paddockExternalId: resolvedPaddockId,
-          sectionGeometry: section.geometry,
-          sectionAreaHa: section.areaHa,
-          sectionCentroid: section.centroid,
-          daysInCurrentSection: sectionIndex === currentForecast.activeSectionIndex
-            ? currentForecast.daysInActiveSection
-            : 1,
-          estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
-          currentNdvi: forecastContext.currentNdvi,
-          reasoning,
-          confidence: confidenceNum,
-          forecastId: currentForecast._id,
-        })
-
-        // Create legacy plan
-        createdPlanId = await createLegacyPlan(ctx, {
-          farmExternalId,
-          paddockExternalId: resolvedPaddockId,
-          decision: finalDecision,
-          reasoning,
-          confidence: confidenceNum / 100,
-          sectionGeometry: section.geometry,
-          sectionAreaHa: section.areaHa,
-          sectionCentroid: section.centroid,
-          grazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
-        })
 
         logToolCall({
           parentSpanId: llmSpanId,
           toolName: toolCall.toolName,
           input: args,
-          output: { dailyPlanId: dailyPlanId.toString(), decision: finalDecision },
+          output: { planId: createdPlanId.toString(), decision: finalDecision },
           durationMs: Date.now() - toolStartTime,
         })
         await recordRunStep(recorder, {
@@ -933,9 +906,7 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
           title: `Tool result: ${toolCall.toolName}`,
           toolName: toolCall.toolName,
           output: {
-            dailyPlanId: dailyPlanId.toString(),
-            briefId: createdBriefId?.toString(),
-            legacyPlanId: createdPlanId?.toString(),
+            planId: createdPlanId?.toString(),
             decision: finalDecision,
             sectionIndex,
             confidence: confidenceNum,
@@ -944,7 +915,7 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
         await recordRunStep(recorder, {
           stepType: 'decision',
           title: 'Model selected grazing action',
-          justification: 'createDailyPlan arguments were accepted and persisted into plan artifacts.',
+          justification: 'createDailyPlan arguments were accepted and persisted into plan.',
           output: {
             action: finalDecision,
             sectionIndex,
@@ -1011,36 +982,29 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
         confidence: 'low',
       }
     } else {
-      const dailyPlanId = await ctx.runMutation(api.grazingAgentTools.createDailyPlan, {
+      createdPlanId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, {
         farmExternalId,
-        date: today,
-        forecastId: currentForecast._id,
-        paddockExternalId: resolvedPaddockId,
-        recommendedSectionIndex: sectionIndex,
+        targetPaddockId: resolvedPaddockId,
         sectionGeometry: section.geometry,
-        sectionAreaHa: section.areaHa,
+        sectionAreaHectares: section.areaHa,
         sectionCentroid: section.centroid,
+        sectionJustification: 'STAY in current section: System fallback - agent did not provide recommendation',
+        paddockGrazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
+        confidence: 50,
+        reasoning: ['Decision: STAY', 'System fallback - agent did not provide recommendation'],
+        skipOverlapValidation: true,
+        forecastId: currentForecast._id,
+        decision: 'STAY',
+        recommendedSectionIndex: sectionIndex,
         daysInSection: currentForecast.daysInActiveSection,
         estimatedForageRemaining: forecastContext.estimatedForageRemainingPct,
-        currentNdvi: forecastContext.currentNdvi,
-        reasoning: ['System fallback - agent did not provide recommendation'],
-        confidence: 50,
       })
 
-      createdDailyPlanId = dailyPlanId
-      planCreated = true
-
-      createdPlanId = await createLegacyPlan(ctx, {
+      await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
         farmExternalId,
-        paddockExternalId: resolvedPaddockId,
-        decision: 'STAY',
-        reasoning: ['System fallback - agent did not provide recommendation'],
-        confidence: 0.5,
-        sectionGeometry: section.geometry,
-        sectionAreaHa: section.areaHa,
-        sectionCentroid: section.centroid,
-        grazedPercentage: Math.round((currentForecast.grazingHistory.length / currentForecast.forecastedSections.length) * 100),
       })
+
+      planCreated = true
     }
   }
 
@@ -1066,8 +1030,6 @@ Next section index: ${Math.min(currentForecast.activeSectionIndex + 1, currentFo
     success: true,
     decision: finalDecision,
     recommendedSectionIndex,
-    dailyPlanId: createdDailyPlanId,
-    briefId: createdBriefId,
     planId: createdPlanId,
     planCreated,
     toolCallCount: toolCalls.length,
@@ -1362,56 +1324,3 @@ IMPORTANT:
   }
 }
 
-/**
- * Create legacy plan for backward compatibility
- */
-async function createLegacyPlan(
-  ctx: ActionCtx,
-  params: {
-    farmExternalId: string
-    paddockExternalId: string
-    decision: 'MOVE' | 'STAY'
-    reasoning: string[]
-    confidence: number
-    sectionGeometry: unknown
-    sectionAreaHa?: number
-    sectionCentroid?: number[]
-    grazedPercentage: number
-  }
-): Promise<Id<'plans'>> {
-  const {
-    farmExternalId,
-    paddockExternalId,
-    decision,
-    reasoning,
-    confidence,
-    sectionGeometry,
-    sectionAreaHa,
-    sectionCentroid,
-    grazedPercentage,
-  } = params
-
-  const decisionPrefix = decision === 'MOVE'
-    ? 'MOVE to new section: '
-    : 'STAY in current section: '
-  const justification = decisionPrefix + (reasoning[0] || 'Based on grazing forecast')
-
-  const createdPlanId = await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, {
-    farmExternalId,
-    targetPaddockId: paddockExternalId,
-    sectionGeometry,
-    sectionAreaHectares: sectionAreaHa,
-    sectionCentroid,
-    sectionJustification: justification,
-    paddockGrazedPercentage: grazedPercentage,
-    confidence: Math.round(confidence * 100),
-    reasoning: [`Decision: ${decision}`, ...reasoning],
-    skipOverlapValidation: true,
-  })
-
-  await ctx.runMutation(api.grazingAgentTools.finalizePlan, {
-    farmExternalId,
-  })
-
-  return createdPlanId as Id<'plans'>
-}

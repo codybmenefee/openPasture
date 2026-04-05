@@ -186,31 +186,22 @@ export const approvePlan = mutation({
     }
 
     // Update the associated paddockForecasts record to progress sections
-    // This fixes the bug where the agent always recommends section 0
-    const dailyBrief = await ctx.db
-      .query('dailyBriefs')
-      .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', plan.farmExternalId))
-      .filter((q: any) => q.eq(q.field('date'), plan.date))
-      .first()
-
-    if (dailyBrief?.forecastId) {
-      const forecast = await ctx.db.get(dailyBrief.forecastId)
+    if (plan.forecastId) {
+      const forecast = await ctx.db.get(plan.forecastId)
       if (forecast && forecast.status === 'active') {
-        const isMove = dailyBrief.decision === 'MOVE'
+        const isMove = plan.decision === 'MOVE'
         const currentSection = forecast.forecastedSections[forecast.activeSectionIndex]
 
         if (isMove && currentSection) {
-          // Record section in history
           const grazingHistory = [...forecast.grazingHistory, {
             sectionIndex: forecast.activeSectionIndex,
             geometry: currentSection.geometry,
             areaHa: currentSection.areaHa,
-            startedDate: dailyBrief.date,
+            startedDate: plan.date,
             endedDate: today,
             actualDays: forecast.daysInActiveSection,
           }]
 
-          // Move to next section
           const nextIndex = Math.min(
             forecast.activeSectionIndex + 1,
             forecast.forecastedSections.length - 1
@@ -230,7 +221,6 @@ export const approvePlan = mutation({
             historyLength: grazingHistory.length,
           })
         } else {
-          // STAY - increment days in section
           await ctx.db.patch(forecast._id, {
             daysInActiveSection: forecast.daysInActiveSection + 1,
             updatedAt: now,

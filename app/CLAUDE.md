@@ -10,15 +10,15 @@ OpenPasture - an open-source adaptive grazing intelligence platform. See [docs/v
 
 ```bash
 # Development
-npm run dev          # Start Vite dev server (http://localhost:5173)
+pnpm run dev         # Start Vite dev server (http://localhost:5173)
 npx convex dev       # Start Convex backend (run in separate terminal)
 
 # Build & Lint
-npm run build        # TypeScript check + Vite production build
-npm run lint         # ESLint
+pnpm run build       # TypeScript check + Vite production build
+pnpm run lint        # ESLint
 ```
 
-**Important:** Do NOT run `npm run dev` yourself. The dev server is already running and managed by the user.
+**Important:** Do NOT run `pnpm run dev` yourself. The dev server is already running and managed by the user.
 
 ## Architecture
 

@@ -57,20 +57,20 @@ We use publicly available satellite imagery (primarily Sentinel-2) to compute ve
 
 ## Getting Started
 
-The web app lives in `app/`. Prerequisites: Node.js 18+ and npm.
+The web app lives in `app/`. Prerequisites: Node.js 18+ and pnpm.
 
 ```bash
 cd app
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Common scripts:
 
-- `npm run dev` - start the Vite dev server
-- `npm run build` - type-check and build for production
-- `npm run lint` - run ESLint
-- `npm run preview` - preview the production build
+- `pnpm run dev` - start the Vite dev server
+- `pnpm run build` - type-check and build for production
+- `pnpm run lint` - run ESLint
+- `pnpm run preview` - preview the production build
 
 ### Environment Variables
 
@@ -93,27 +93,30 @@ Set server-side keys (for Convex backend actions) in Convex Dashboard environmen
 
 ## Tech Stack
 
-- **Satellite Access:** pystac-client, odc-stac
-- **Raster Processing:** rasterio, xarray, numpy
-- **Tile Services:** rio-tiler, TiTiler
-- **Geometry:** GeoJSON, PostGIS (optional)
+- **Frontend:** React 19, TypeScript, TanStack Router, Tailwind CSS v4
+- **Backend:** Convex (serverless DB + functions)
+- **Auth:** Clerk
+- **AI:** Anthropic Claude via Vercel AI SDK
+- **Maps:** MapLibre GL + Mapbox Draw
+- **Satellite Access:** pystac-client, odc-stac, rasterio, xarray
 - **Data Source:** Microsoft Planetary Computer (Sentinel-2)
 
 ## Project Structure
 
 ```
 /
-├── agents.md              # AI agent reference
+├── AGENTS.md              # AI agent reference
 ├── README.md              # This file
-├── app/                   # Web application (Vite + React)
-│   ├── public/
-│   ├── src/
-│   └── ...
+├── app/                   # Web application (Vite + React + Convex)
+│   ├── src/               # Frontend source
+│   └── convex/            # Serverless backend
 ├── docs/
 │   ├── vision.md          # Thesis and product philosophy
-│   ├── architecture.md    # Technical architecture details
+│   ├── architecture.md    # Conceptual system architecture
 │   ├── domain.md          # Remote sensing domain knowledge
-│   └── phasing.md         # Development phases
+│   └── environment.md     # Environment variable reference
+├── src/
+│   └── ingestion/         # Python satellite data pipeline
 └── ...
 ```
 

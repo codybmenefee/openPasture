@@ -574,8 +574,14 @@ export const createPlanWithSection = mutation({
         ndviValue: v.number(),
       })
     ),
-    // Skip overlap validation (used when creating legacy plans from forecast system)
+    // Skip overlap validation (used when creating plans from forecast system)
     skipOverlapValidation: v.optional(v.boolean()),
+    // Forecast linkage fields (set when plan is generated from a paddock forecast)
+    forecastId: v.optional(v.id('paddockForecasts')),
+    decision: v.optional(v.union(v.literal('MOVE'), v.literal('STAY'))),
+    recommendedSectionIndex: v.optional(v.number()),
+    daysInSection: v.optional(v.number()),
+    estimatedForageRemaining: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const today = new Date().toISOString().split('T')[0]
@@ -1083,6 +1089,23 @@ export const createPlanWithSection = mutation({
         patchData.paddockGrazedPercentage = args.paddockGrazedPercentage
       }
 
+      // Forecast linkage fields
+      if (args.forecastId) {
+        patchData.forecastId = args.forecastId
+      }
+      if (args.decision) {
+        patchData.decision = args.decision
+      }
+      if (args.recommendedSectionIndex !== undefined) {
+        patchData.recommendedSectionIndex = args.recommendedSectionIndex
+      }
+      if (args.daysInSection !== undefined) {
+        patchData.daysInSection = args.daysInSection
+      }
+      if (args.estimatedForageRemaining !== undefined) {
+        patchData.estimatedForageRemaining = args.estimatedForageRemaining
+      }
+
       // Build progression context if we have an active rotation
       if (args.progressionQuadrant) {
         const activeRotation = await ctx.db
@@ -1105,7 +1128,7 @@ export const createPlanWithSection = mutation({
             rotationId: activeRotation._id,
             sequenceNumber: rotationSections.length + 1,
             progressionQuadrant: args.progressionQuadrant,
-            wasUngrazedAreaReturn: false, // TODO: detect if returning to ungrazed area
+            wasUngrazedAreaReturn: false,
           }
         }
       }
@@ -1187,6 +1210,23 @@ export const createPlanWithSection = mutation({
     }
     if (args.paddockGrazedPercentage !== undefined && args.paddockGrazedPercentage !== null) {
       insertData.paddockGrazedPercentage = args.paddockGrazedPercentage
+    }
+
+    // Forecast linkage fields
+    if (args.forecastId) {
+      insertData.forecastId = args.forecastId
+    }
+    if (args.decision) {
+      insertData.decision = args.decision
+    }
+    if (args.recommendedSectionIndex !== undefined) {
+      insertData.recommendedSectionIndex = args.recommendedSectionIndex
+    }
+    if (args.daysInSection !== undefined) {
+      insertData.daysInSection = args.daysInSection
+    }
+    if (args.estimatedForageRemaining !== undefined) {
+      insertData.estimatedForageRemaining = args.estimatedForageRemaining
     }
 
     // Build progression context if we have an active rotation
@@ -1908,190 +1948,9 @@ export const getGrazingPrinciples = query({
   },
 })
 
-/**
- * Create a daily brief with MOVE or STAY decision (legacy - use createDailyPlan instead)
- */
-export const createDailyBrief = mutation({
-  args: {
-    farmExternalId: v.string(),
-    date: v.string(),
-    decision: v.union(v.literal('MOVE'), v.literal('STAY')),
-    paddockExternalId: v.string(),
-    sectionGeometry: v.optional(v.any()),
-    sectionAreaHa: v.optional(v.number()),
-    sectionCentroid: v.optional(v.array(v.number())),
-    daysInCurrentSection: v.number(),
-    estimatedForageRemaining: v.optional(v.number()),
-    currentNdvi: v.optional(v.number()),
-    reasoning: v.array(v.string()),
-    confidence: v.number(),
-    forecastId: v.optional(v.id('paddockForecasts')),
-  },
-  handler: async (ctx, args) => {
-    const now = new Date().toISOString()
-
-    // Check for existing brief today
-    const existingBrief = await ctx.db
-      .query('dailyBriefs')
-      .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', args.farmExternalId))
-      .filter((q: any) => q.eq(q.field('date'), args.date))
-      .first()
-
-    if (existingBrief) {
-      // Update existing brief
-      await ctx.db.patch(existingBrief._id, {
-        decision: args.decision,
-        paddockExternalId: args.paddockExternalId,
-        sectionGeometry: args.sectionGeometry,
-        sectionAreaHa: args.sectionAreaHa,
-        sectionCentroid: args.sectionCentroid,
-        daysInCurrentSection: args.daysInCurrentSection,
-        estimatedForageRemaining: args.estimatedForageRemaining,
-        currentNdvi: args.currentNdvi,
-        reasoning: args.reasoning,
-        confidence: args.confidence,
-        forecastId: args.forecastId,
-      })
-
-      log.debug('Updated existing daily brief', {
-        briefId: existingBrief._id.toString(),
-        decision: args.decision,
-        daysInCurrentSection: args.daysInCurrentSection,
-      })
-
-      return existingBrief._id
-    }
-
-    // Create new brief
-    const briefId = await ctx.db.insert('dailyBriefs', {
-      farmExternalId: args.farmExternalId,
-      date: args.date,
-      decision: args.decision,
-      paddockExternalId: args.paddockExternalId,
-      sectionGeometry: args.sectionGeometry,
-      sectionAreaHa: args.sectionAreaHa,
-      sectionCentroid: args.sectionCentroid,
-      daysInCurrentSection: args.daysInCurrentSection,
-      estimatedForageRemaining: args.estimatedForageRemaining,
-      currentNdvi: args.currentNdvi,
-      reasoning: args.reasoning,
-      confidence: args.confidence,
-      status: 'pending',
-      forecastId: args.forecastId,
-      createdAt: now,
-    })
-
-    log.debug('Created daily brief', {
-      briefId: briefId.toString(),
-      decision: args.decision,
-      paddockExternalId: args.paddockExternalId,
-      daysInCurrentSection: args.daysInCurrentSection,
-    })
-
-    return briefId
-  },
-})
-
-/**
- * Approve a daily brief and execute the decision (legacy - use approveDailyPlan instead)
- */
-export const approveDailyBrief = mutation({
-  args: {
-    briefId: v.id('dailyBriefs'),
-    approvedBy: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const now = new Date().toISOString()
-    const today = now.split('T')[0]
-
-    const brief = await ctx.db.get(args.briefId)
-    if (!brief) {
-      throw new Error('Daily brief not found')
-    }
-
-    // Update brief status
-    await ctx.db.patch(args.briefId, {
-      status: 'approved',
-      approvedAt: now,
-      approvedBy: args.approvedBy,
-    })
-
-    // If linked to a forecast, update it
-    if (brief.forecastId) {
-      const forecast = await ctx.db.get(brief.forecastId)
-      if (forecast) {
-        const activeSection = forecast.forecastedSections[forecast.activeSectionIndex]
-
-        if (brief.decision === 'MOVE' && activeSection) {
-          // Record the completed section in history
-          const grazingHistory = [...forecast.grazingHistory]
-          grazingHistory.push({
-            sectionIndex: forecast.activeSectionIndex,
-            geometry: activeSection.geometry,
-            areaHa: activeSection.areaHa,
-            startedDate: forecast.updatedAt.split('T')[0],
-            endedDate: today,
-            actualDays: forecast.daysInActiveSection,
-          })
-
-          // Move to next section
-          const nextIndex = Math.min(
-            forecast.activeSectionIndex + 1,
-            forecast.forecastedSections.length - 1
-          )
-
-          await ctx.db.patch(forecast._id, {
-            activeSectionIndex: nextIndex,
-            daysInActiveSection: 1,
-            grazingHistory,
-            updatedAt: now,
-          })
-
-          log.debug('Approved MOVE - updated paddock forecast', {
-            forecastId: forecast._id.toString(),
-            previousSection: forecast.activeSectionIndex,
-            newSection: nextIndex,
-          })
-        } else if (brief.decision === 'STAY') {
-          // Just increment days in section
-          await ctx.db.patch(forecast._id, {
-            daysInActiveSection: forecast.daysInActiveSection + 1,
-            updatedAt: now,
-          })
-
-          log.debug('Approved STAY - incremented days in forecast section', {
-            forecastId: forecast._id.toString(),
-            daysInSection: forecast.daysInActiveSection + 1,
-          })
-        }
-      }
-    }
-
-    return args.briefId
-  },
-})
-
-/**
- * Get today's daily brief for a farm
- */
-export const getTodayBrief = query({
-  args: {
-    farmExternalId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const today = new Date().toISOString().split('T')[0]
-
-    return await ctx.db
-      .query('dailyBriefs')
-      .withIndex('by_farm_date', (q: any) => q.eq('farmExternalId', args.farmExternalId))
-      .filter((q: any) => q.eq(q.field('date'), today))
-      .first()
-  },
-})
-
 // ============================================================================
-// PADDOCK FORECAST + DAILY PLAN SYSTEM
-// New architecture: pre-generated forecasts with daily concrete recommendations
+// PADDOCK FORECAST SYSTEM
+// Pre-generated forecasts with daily concrete recommendations via plans table
 // ============================================================================
 
 /**
