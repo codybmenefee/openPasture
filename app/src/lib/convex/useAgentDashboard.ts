@@ -20,32 +20,32 @@ export function useAgentDashboard() {
   })
 
   const dashboardState = useQuery(
-    api.agentAdmin.getDashboardState,
+    api.harness.agent.agentAdmin.getDashboardState,
     activeFarmId && canAccess ? { farmExternalId: activeFarmId } : 'skip'
   )
 
   const listRunsQuery = useQuery(
-    api.agentAdmin.listAgentRuns,
+    api.harness.agent.agentAdmin.listAgentRuns,
     activeFarmId && canAccess ? { farmExternalId: activeFarmId, limit: 50 } : 'skip'
   )
 
   const listMemoriesQuery = useQuery(
-    api.agentAdmin.listMemories,
+    api.harness.agent.agentAdmin.listMemories,
     activeFarmId && canAccess ? { farmExternalId: activeFarmId, status: 'active', limit: 200 } : 'skip'
   )
   const listArchivedMemoriesQuery = useQuery(
-    api.agentAdmin.listMemories,
+    api.harness.agent.agentAdmin.listMemories,
     activeFarmId && canAccess ? { farmExternalId: activeFarmId, status: 'archived', limit: 200 } : 'skip'
   )
 
-  const updateAgentConfig = useMutation(api.agentAdmin.updateAgentConfig)
-  const updatePromptOverride = useMutation(api.agentAdmin.updatePromptOverride)
-  const upsertGrazingRules = useMutation(api.agentAdmin.upsertGrazingRules)
-  const createMemory = useMutation(api.agentAdmin.createMemory)
-  const updateMemoryMutation = useMutation(api.agentAdmin.updateMemory)
-  const archiveMemoryMutation = useMutation(api.agentAdmin.archiveMemory)
-  const promoteObservationToMemoryMutation = useMutation(api.agentAdmin.promoteObservationToMemory)
-  const simulateRun = useAction(api.agentAdmin.simulateRun)
+  const updateAgentConfig = useMutation(api.harness.agent.agentAdmin.updateAgentConfig)
+  const updatePromptOverride = useMutation(api.harness.agent.agentAdmin.updatePromptOverride)
+  const upsertGrazingRules = useMutation(api.harness.agent.agentAdmin.upsertGrazingRules)
+  const createMemory = useMutation(api.harness.agent.agentAdmin.createMemory)
+  const updateMemoryMutation = useMutation(api.harness.agent.agentAdmin.updateMemory)
+  const archiveMemoryMutation = useMutation(api.harness.agent.agentAdmin.archiveMemory)
+  const promoteObservationToMemoryMutation = useMutation(api.harness.agent.agentAdmin.promoteObservationToMemory)
+  const simulateRun = useAction(api.harness.agent.agentAdmin.simulateRun)
 
   const isLoading = farmLoading || (canAccess && activeFarmId !== null && dashboardState === undefined)
 
@@ -133,7 +133,7 @@ export function useAgentDashboard() {
 
 export function useAgentRunDeepDive(runId: Id<'agentRuns'> | null) {
   const deepDive = useQuery(
-    api.agentAdmin.getAgentRunDeepDive,
+    api.harness.agent.agentAdmin.getAgentRunDeepDive,
     runId ? { runId } : 'skip'
   )
 

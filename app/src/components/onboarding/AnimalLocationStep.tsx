@@ -33,7 +33,7 @@ export function AnimalLocationStep({
   onSkip,
 }: AnimalLocationStepProps) {
   const { pastures } = useGeometry()
-  const setInitialLocation = useMutation(api.onboarding.setInitialAnimalLocation)
+  const setInitialLocation = useMutation(api.workflows.onboarding.setInitialAnimalLocation)
 
   const [phase, setPhase] = useState<StepPhase>('select-pasture')
   const [selectedPasture, setSelectedPasture] = useState<Pasture | null>(null)

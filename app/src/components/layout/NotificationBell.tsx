@@ -47,16 +47,16 @@ export function NotificationBell() {
   const navigate = useNavigate()
 
   const notifications = useQuery(
-    api.notifications.getForFarm,
+    api.workflows.notifications.getForFarm,
     activeFarmId ? { farmExternalId: activeFarmId, limit: 10 } : 'skip'
   )
   const unreadCount = useQuery(
-    api.notifications.getUnreadCount,
+    api.workflows.notifications.getUnreadCount,
     activeFarmId ? { farmExternalId: activeFarmId } : 'skip'
   )
 
-  const markAsRead = useMutation(api.notifications.markAsRead)
-  const markAllAsRead = useMutation(api.notifications.markAllAsRead)
+  const markAsRead = useMutation(api.workflows.notifications.markAsRead)
+  const markAllAsRead = useMutation(api.workflows.notifications.markAllAsRead)
 
   const handleNotificationClick = async (notificationId: Id<'notifications'>, isRead: boolean) => {
     if (!isRead) {

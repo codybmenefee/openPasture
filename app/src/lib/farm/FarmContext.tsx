@@ -52,18 +52,18 @@ export function FarmProvider({ children }: { children: ReactNode }) {
   const orgIds = useMemo(() => organizationList.map(org => org.id), [organizationList])
 
   const farmsData = useQuery(
-    api.organizations.getFarmsByOrgIds,
+    api.data.organizations.getFarmsByOrgIds,
     orgIds.length > 0 ? { orgIds } : 'skip'
   ) as FarmDoc[] | undefined
 
   // Get the active farm based on organization context
   const activeFarmDoc = useQuery(
-    api.organizations.getFarmByIdOrLegacy,
+    api.data.organizations.getFarmByIdOrLegacy,
     organizationId ? { farmId: organizationId } : 'skip'
   ) as FarmDoc | null | undefined
 
-  const setActiveFarmMutation = useMutation(api.organizations.setActiveFarm)
-  const createFarmFromOrg = useMutation(api.organizations.createFarmFromOrg)
+  const setActiveFarmMutation = useMutation(api.data.organizations.setActiveFarm)
+  const createFarmFromOrg = useMutation(api.data.organizations.createFarmFromOrg)
 
   // Auto-create farm records for Clerk organizations that don't have one
   useEffect(() => {

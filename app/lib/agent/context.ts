@@ -71,20 +71,20 @@ export async function assembleFarmContext(
     recentFarmerObservations,
     recentPlans,
   ] = await Promise.all([
-    convex.query(api.farms.getByExternalId, { externalId: farmExternalId }),
-    convex.query(api.settings.getByFarmExternalId, {
+    convex.query(api.data.farms.getByExternalId, { externalId: farmExternalId }),
+    convex.query(api.data.settings.getByFarmExternalId, {
       farmExternalId,
     }),
-    convex.query(api.paddocks.listByFarm, { farmId }),
-    convex.query(api.observations.getObservations, {
+    convex.query(api.data.paddocks.listByFarm, { farmId }),
+    convex.query(api.data.observations.getObservations, {
       farmId: farmExternalId,
       days: 7,
     }),
-    convex.query(api.farmerObservations.listRecent, {
+    convex.query(api.data.farmerObservations.listRecent, {
       farmId,
       limit: 5,
     }),
-    convex.query(api.intelligence.getRecentPlans, {
+    convex.query(api.workflows.intelligence.getRecentPlans, {
       farmExternalId,
       limit: 5,
     }),

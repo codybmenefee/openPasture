@@ -41,9 +41,9 @@ function DevOnboarding({ organizationId }: { organizationId: string | null }) {
   const navigate = useNavigate()
   const { trackOnboardingCompleted } = useAnalytics()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
-  const setupFarm = useMutation(api.organizations.setupFarmFromOnboarding)
-  const upsertLivestock = useMutation(api.livestock.upsertLivestock)
-  const updateSettings = useMutation(api.settings.updateFarmSettings)
+  const setupFarm = useMutation(api.data.organizations.setupFarmFromOnboarding)
+  const upsertLivestock = useMutation(api.data.livestock.upsertLivestock)
+  const updateSettings = useMutation(api.data.settings.updateFarmSettings)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [farmData, setFarmData] = useState<FarmData>({
@@ -279,9 +279,9 @@ function ClerkOnboarding() {
   const navigate = useNavigate()
   const { trackOnboardingCompleted } = useAnalytics()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
-  const createFarmFromOrg = useMutation(api.organizations.createFarmFromOrg)
-  const upsertLivestock = useMutation(api.livestock.upsertLivestock)
-  const updateSettings = useMutation(api.settings.updateFarmSettings)
+  const createFarmFromOrg = useMutation(api.data.organizations.createFarmFromOrg)
+  const upsertLivestock = useMutation(api.data.livestock.upsertLivestock)
+  const updateSettings = useMutation(api.data.settings.updateFarmSettings)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [farmData, setFarmData] = useState<FarmData>({

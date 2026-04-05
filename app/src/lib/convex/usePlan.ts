@@ -7,7 +7,7 @@ export function useTodayPlan(farmExternalId: string) {
   const { userId } = useAppAuth()
   const shouldSkip = !farmExternalId
   const plan = useQuery(
-    api.intelligence.getTodayPlan,
+    api.workflows.intelligence.getTodayPlan,
     shouldSkip
       ? 'skip'
       : {
@@ -15,10 +15,10 @@ export function useTodayPlan(farmExternalId: string) {
         }
   )
 
-  const generatePlan = useAction(api.intelligenceActions.generateDailyPlan)
-  const approvePlan = useMutation(api.intelligence.approvePlan)
-  const submitFeedback = useMutation(api.intelligence.submitFeedback)
-  const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
+  const generatePlan = useAction(api.workflows.intelligenceActions.generateDailyPlan)
+  const approvePlan = useMutation(api.workflows.intelligence.approvePlan)
+  const submitFeedback = useMutation(api.workflows.intelligence.submitFeedback)
+  const deleteTodayPlan = useMutation(api.workflows.intelligence.deleteTodayPlan)
 
   const isLoading = shouldSkip || plan === undefined
   const isError = !shouldSkip && plan === null
@@ -47,7 +47,7 @@ export function useTodayPlan(farmExternalId: string) {
 
 
 export function usePlanHistory(farmExternalId: string, days: number = 30) {
-  const history = useQuery(api.intelligence.getPlanHistory, {
+  const history = useQuery(api.workflows.intelligence.getPlanHistory, {
     farmExternalId,
     days,
   })
@@ -60,7 +60,7 @@ export function usePlanHistory(farmExternalId: string, days: number = 30) {
 
 
 export function usePlan(planId: string) {
-  const plan = useQuery(api.intelligence.getPlanById, { planId } as { planId: string & { __tableName: 'plans' } })
+  const plan = useQuery(api.workflows.intelligence.getPlanById, { planId } as { planId: string & { __tableName: 'plans' } })
 
   return {
     plan,

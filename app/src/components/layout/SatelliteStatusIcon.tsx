@@ -21,7 +21,7 @@ export function SatelliteStatusIcon() {
   }, [registerTargetRef])
 
   const activeJob = useQuery(
-    api.satelliteFetchJobs.getActiveJob,
+    api.workflows.satelliteFetchJobs.getActiveJob,
     activeFarmId ? { farmExternalId: activeFarmId } : 'skip'
   )
 

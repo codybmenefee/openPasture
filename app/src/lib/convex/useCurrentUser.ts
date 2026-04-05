@@ -17,17 +17,17 @@ export function useCurrentUser(): UseCurrentUserResult {
   const { userId, isLoaded, isSignedIn, isDevAuth, organizationId } = useAppAuth()
   const authReady = isDevAuth || (isLoaded && isSignedIn)
   const effectiveUserId = isDevAuth ? DEV_USER_EXTERNAL_ID : userId
-  const seedSampleFarm = useMutation(api.farms.seedSampleFarm)
+  const seedSampleFarm = useMutation(api.data.farms.seedSampleFarm)
   const seedRequestedRef = useRef(false)
   const [isSeeding, setIsSeeding] = useState(false)
 
   const userDoc = useQuery(
-    api.users.getUserByExternalId,
+    api.data.users.getUserByExternalId,
     authReady && effectiveUserId ? { externalId: effectiveUserId } : 'skip'
   ) as UserDoc | null | undefined
 
   // Create user mutation for Clerk users (without demo data)
-  const createUser = useMutation(api.users.createUser)
+  const createUser = useMutation(api.data.users.createUser)
 
   useEffect(() => {
     if (!authReady || !effectiveUserId) return

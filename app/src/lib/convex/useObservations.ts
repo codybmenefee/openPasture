@@ -50,7 +50,7 @@ export function useObservations(
   options?: { paddockId?: string; days?: number }
 ): UseObservationsResult {
   const observations = useQuery(
-    api.observations.getObservations,
+    api.data.observations.getObservations,
     farmId
       ? { farmId, pastureId: options?.paddockId, days: options?.days }
       : 'skip'
@@ -71,7 +71,7 @@ export function useLatestObservation(
   paddockId: string
 ): UseLatestObservationResult {
   const observation = useQuery(
-    api.observations.getLatestObservation,
+    api.data.observations.getLatestObservation,
     farmId && paddockId
       ? { farmId, pastureId: paddockId }
       : 'skip'
@@ -91,7 +91,7 @@ export function useObservationsByDate(
   date: string
 ): UseObservationsResult {
   const observations = useQuery(
-    api.observations.getObservationsByDate,
+    api.data.observations.getObservationsByDate,
     farmId && date
       ? { farmId, date }
       : 'skip'
@@ -111,7 +111,7 @@ export function useObservationsTrend(
   days: number = 21
 ): UseObservationsTrendResult {
   const trend = useQuery(
-    api.observations.getObservationsTrend,
+    api.data.observations.getObservationsTrend,
     paddockId
       ? { pastureId: paddockId, days }
       : 'skip'
@@ -127,15 +127,15 @@ export function useObservationsTrend(
 }
 
 export function useRefreshObservations() {
-  return useMutation(api.observations.refreshObservations)
+  return useMutation(api.data.observations.refreshObservations)
 }
 
 export function useDeleteObservations() {
-  return useMutation(api.observations.deleteObservations)
+  return useMutation(api.data.observations.deleteObservations)
 }
 
 export function useRefreshFarmObservations() {
-  const refreshObservations = useMutation(api.observations.refreshObservations)
+  const refreshObservations = useMutation(api.data.observations.refreshObservations)
 
   return async (farmId: string, observations: Omit<Observation, '_id'>[]) => {
     return refreshObservations({

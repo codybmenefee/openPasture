@@ -80,7 +80,7 @@ Quick start:
 
 ```bash
 cp app/.env.example app/.env.local
-cp src/ingestion/.env.example src/ingestion/.env.local
+cp ingestion/satellite/.env.example ingestion/satellite/.env.local
 ```
 
 Set server-side keys (for Convex backend actions) in Convex Dashboard environment variables:
@@ -115,8 +115,8 @@ Set server-side keys (for Convex backend actions) in Convex Dashboard environmen
 │   ├── architecture.md    # Conceptual system architecture
 │   ├── domain.md          # Remote sensing domain knowledge
 │   └── environment.md     # Environment variable reference
-├── src/
-│   └── ingestion/         # Python satellite data pipeline
+├── ingestion/
+│   └── satellite/         # Python satellite data pipeline
 └── ...
 ```
 

@@ -132,7 +132,8 @@ function AgentRunDeepDiveRoute() {
   }
 
   const { run, steps, hasDeepDive } = deepDive
-  const initialPromptStep = steps.find((step) => step.stepType === 'prompt')
+  const typedSteps = steps as AgentRunStep[]
+  const initialPromptStep = typedSteps.find((step) => step.stepType === 'prompt')
   const initialPromptInput = asRecord(initialPromptStep?.input)
   const systemPrompt = typeof initialPromptInput?.systemPrompt === 'string'
     ? initialPromptInput.systemPrompt
@@ -142,8 +143,8 @@ function AgentRunDeepDiveRoute() {
     : null
 
   const filteredSteps = stepFilter === 'all'
-    ? steps
-    : steps.filter((step) => step.stepType === stepFilter)
+    ? typedSteps
+    : typedSteps.filter((step) => step.stepType === stepFilter)
 
   const selectedStep = filteredSteps.find((step) => step._id === selectedStepId) ?? filteredSteps[0] ?? null
 
@@ -155,7 +156,7 @@ function AgentRunDeepDiveRoute() {
     error: 0,
     info: 0,
   }
-  for (const step of steps) stepCounts[step.stepType] += 1
+  for (const step of typedSteps) stepCounts[step.stepType] += 1
 
   return (
     <div className="h-full overflow-auto bg-gradient-to-b from-background to-olive-light">

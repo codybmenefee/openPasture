@@ -69,6 +69,46 @@ const animalType = v.union(
   v.literal('sheep'),
 )
 
+const observationSourceType = v.union(
+  v.literal('sentinel2'),
+  v.literal('planetscope'),
+  v.literal('drone'),
+  v.literal('photo'),
+  v.literal('fieldcam'),
+  v.literal('note'),
+  v.literal('weather'),
+  v.literal('manual'),
+)
+
+const observationGisCapability = v.union(
+  v.literal('spectral_raster'),
+  v.literal('point_visual'),
+  v.literal('none'),
+)
+
+const observationDensity = v.union(
+  v.literal('sparse'),
+  v.literal('moderate'),
+  v.literal('dense'),
+  v.literal('lush'),
+)
+
+const observationGrowthStage = v.union(
+  v.literal('dormant'),
+  v.literal('emerging'),
+  v.literal('vegetative'),
+  v.literal('reproductive'),
+  v.literal('senescent'),
+)
+
+const visualState = v.object({
+  greenness: v.number(),
+  estimatedHeightCm: v.optional(v.number()),
+  density: v.optional(observationDensity),
+  growthStage: v.optional(observationGrowthStage),
+  condition: v.optional(v.string()),
+})
+
 const livestockSettings = v.object({
   // Animal Unit factors (defaults: cow=1.0, calf=0.5, sheep=0.2, lamb=0.1)
   cowAU: v.number(),
@@ -317,24 +357,46 @@ export default defineSchema({
     .index('by_farm_type', ['farmId', 'animalType']),
   observations: defineTable({
     farmExternalId: v.string(),
-    paddockExternalId: v.string(),
+    paddockExternalId: v.optional(v.string()),
     date: v.string(),
-    ndviMean: v.number(),
-    ndviMin: v.number(),
-    ndviMax: v.number(),
-    ndviStd: v.number(),
-    eviMean: v.number(),
-    ndwiMean: v.number(),
-    cloudFreePct: v.number(),
-    pixelCount: v.number(),
-    isValid: v.boolean(),
-    sourceProvider: v.string(),
-    resolutionMeters: v.number(),
+
+    // Source classification
+    sourceType: v.optional(observationSourceType),
+    gisCapability: v.optional(observationGisCapability),
+
+    // Normalized visual state (source-agnostic decision input)
+    visualState: v.optional(visualState),
+    confidence: v.optional(v.number()),
+
+    // Satellite-specific metrics (populated for spectral_raster sources)
+    ndviMean: v.optional(v.number()),
+    ndviMin: v.optional(v.number()),
+    ndviMax: v.optional(v.number()),
+    ndviStd: v.optional(v.number()),
+    eviMean: v.optional(v.number()),
+    ndwiMean: v.optional(v.number()),
+    cloudFreePct: v.optional(v.number()),
+    pixelCount: v.optional(v.number()),
+    isValid: v.optional(v.boolean()),
+    sourceProvider: v.optional(v.string()),
+    resolutionMeters: v.optional(v.number()),
+
+    // Photo/visual media (for photo, fieldcam, drone sources)
+    mediaStorageId: v.optional(v.string()),
+    mediaLocation: v.optional(pointFeature),
+    mediaAnalysis: v.optional(v.string()),
+
+    // Text observations (for note, manual sources)
+    noteContent: v.optional(v.string()),
+    noteAuthor: v.optional(v.string()),
+    noteTags: v.optional(v.array(v.string())),
+
     createdAt: v.string(),
   })
     .index('by_paddock_date', ['paddockExternalId', 'date'])
     .index('by_farm_date', ['farmExternalId', 'date'])
-    .index('by_farm', ['farmExternalId']),
+    .index('by_farm', ['farmExternalId'])
+    .index('by_farm_source', ['farmExternalId', 'sourceType']),
   grazingEvents: defineTable({
     farmExternalId: v.string(),
     paddockExternalId: v.string(),

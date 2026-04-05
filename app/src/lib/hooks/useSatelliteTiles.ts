@@ -70,7 +70,7 @@ export function useSatelliteTiles(
   options: UseSatelliteTilesOptions
 ): UseSatelliteTilesResult {
   const tiles = useQuery(
-    api.satelliteTiles.getTilesForFarmByExternalId,
+    api.data.satelliteTiles.getTilesForFarmByExternalId,
     options.farmId
       ? {
           farmExternalId: options.farmId,
@@ -99,7 +99,7 @@ export function useAvailableDates(
   isLoading: boolean
 } {
   const rawDates = useQuery(
-    api.observations.getAvailableDates,
+    api.data.observations.getAvailableDates,
     farmId ? { farmExternalId: farmId } : 'skip'
   )
 
@@ -135,7 +135,7 @@ export function useAvailableTileDates(
   isLoading: boolean
 } {
   const rawDates = useQuery(
-    api.satelliteTiles.getAvailableDatesByExternalId,
+    api.data.satelliteTiles.getAvailableDatesByExternalId,
     farmId ? { farmExternalId: farmId, tileType } : 'skip'
   )
 
@@ -158,7 +158,7 @@ export function useSatelliteTile(
   isLoading: boolean
 } {
   const rawTile = useQuery(
-    api.satelliteTiles.getTileByExternalId,
+    api.data.satelliteTiles.getTileByExternalId,
     farmId && captureDate
       ? {
           farmExternalId: farmId,
@@ -228,7 +228,7 @@ export function useObservationsByDate(
   isLoading: boolean
 } {
   const observations = useQuery(
-    api.observations.getObservationsByDate,
+    api.data.observations.getObservationsByDate,
     farmId && date ? { farmId, date } : 'skip'
   )
 

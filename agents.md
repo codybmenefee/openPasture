@@ -96,7 +96,9 @@ These rules are intentionally simple and explainable for farmer trust.
 | Analytics | PostHog |
 | Observability | Braintrust + OpenTelemetry |
 
-### Python Pipeline (`src/ingestion/`)
+### Python satellite pipeline (`ingestion/satellite/`)
+
+Other ingestion-related code may live under `ingestion/`; the Sentinel-2 / PlanetScope pipeline is in `ingestion/satellite/`.
 | Purpose | Library |
 |---------|---------|
 | Satellite catalog query | `pystac-client` |
@@ -113,22 +115,31 @@ These rules are intentionally simple and explainable for farmer trust.
 
 ```
 /
-├── AGENTS.md              # This file - agent reference
-├── README.md              # User-facing documentation
-├── docs/
-│   ├── vision.md          # Product thesis and philosophy
-│   ├── architecture.md    # Conceptual system architecture
-│   ├── domain.md          # Remote sensing domain knowledge
-│   └── environment.md     # Environment variable reference
-├── app/
-│   ├── src/
-│   │   ├── routes/        # TanStack Router file-based routes
-│   │   ├── components/    # React components by feature
-│   │   └── lib/           # Utilities, hooks, types
-│   └── convex/            # Serverless backend (queries, mutations, actions)
-├── src/
-│   └── ingestion/         # Python satellite data pipeline
-└── ...
+├── AGENTS.md                    # This file - agent reference
+├── README.md                    # User-facing documentation
+├── docs/                        # Documentation
+├── marketing/                   # Marketing site (separate deploy)
+│   ├── src/routes/              # Landing, technology, research, investors, docs
+│   └── src/components/          # Marketing components
+├── app/                         # The Application
+│   ├── src/                     # UI Layer
+│   │   ├── routes/app/          # Authenticated app routes
+│   │   ├── components/          # React components by feature
+│   │   └── lib/                 # Hooks, types, utilities
+│   └── convex/                  # Backend (layered)
+│       ├── data/                # Data layer: farm model CRUD
+│       ├── harness/tools/       # Tool primitives (canonical API surface)
+│       ├── harness/agent/       # Agent infrastructure (gateway, memory, profiles)
+│       └── workflows/           # App layer: briefs, plans, notifications
+├── ingestion/                   # Data ingestion pipelines
+│   ├── satellite/               # Python satellite pipeline (active)
+│   ├── photos/                  # Photo processing (planned)
+│   ├── fieldcam/                # Field camera integration (planned)
+│   └── weather/                 # Weather feed (planned)
+├── cli/                         # CLI for agents and developers
+│   └── src/commands/            # op paddock|farm|plan|observe
+└── mcp/                         # MCP server for external AI agents
+    └── src/                     # Tool primitives exposed via MCP
 ```
 
 ## Questions to Ask Before Building
@@ -137,3 +148,11 @@ These rules are intentionally simple and explainable for farmer trust.
 2. Is this within MVP scope (no hardware, no real-time, no collars)?
 3. Can a farmer understand the output in plain language?
 4. Are we using existing OSS tools where available?
+
+<!-- convex-ai-start -->
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read `convex/_generated/ai/guidelines.md` first** for important guidelines on how to correctly use Convex APIs and patterns. The file contains rules that override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
+<!-- convex-ai-end -->

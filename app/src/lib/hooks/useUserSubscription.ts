@@ -32,7 +32,7 @@ export function useUserSubscription(
   userId: string | null | undefined
 ): UseUserSubscriptionResult {
   const subscription = useQuery(
-    api.users.getUserSubscription,
+    api.data.users.getUserSubscription,
     userId ? { externalId: userId } : 'skip'
   )
 

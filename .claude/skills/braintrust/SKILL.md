@@ -195,7 +195,7 @@ await logger.traced(async (span) => {
   try {
     // Execute tool
     const planId = await ctx.runMutation(
-      api.grazingAgentTools.createPlanWithSection,
+      api.harness.tools.grazingAgentTools.createPlanWithSection,
       args
     )
 
@@ -239,14 +239,14 @@ await logger.traced(async (rootSpan) => {
   // Tool call 1
   await rootSpan.traced(async (toolSpan) => {
     toolSpan.log({ name: 'createPlanWithSection', input: { ... } })
-    await ctx.runMutation(api.grazingAgentTools.createPlanWithSection, args)
+    await ctx.runMutation(api.harness.tools.grazingAgentTools.createPlanWithSection, args)
     toolSpan.log({ output: { planId } })
   })
 
   // Tool call 2
   await rootSpan.traced(async (toolSpan) => {
     toolSpan.log({ name: 'finalizePlan', input: { farmExternalId } })
-    await ctx.runMutation(api.grazingAgentTools.finalizePlan, args)
+    await ctx.runMutation(api.harness.tools.grazingAgentTools.finalizePlan, args)
     toolSpan.log({ output: { success: true } })
   })
 })

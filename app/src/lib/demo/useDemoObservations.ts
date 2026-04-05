@@ -28,7 +28,7 @@ export function useDemoFarmerObservations(farmId: Id<'farms'>) {
   const [localStorageVersion, setLocalStorageVersion] = useState(0)
 
   // Convex query for base observations
-  const convexObservations = useQuery(api.farmerObservations.listByFarm, { farmId })
+  const convexObservations = useQuery(api.data.farmerObservations.listByFarm, { farmId })
 
   // Merge with localStorage observations for public demo mode
   const observations = useMemo(() => {
@@ -55,7 +55,7 @@ export function useDemoRecentFarmerObservations(farmId: Id<'farms'>, limit?: num
   const [localStorageVersion, setLocalStorageVersion] = useState(0)
 
   // Convex query for base observations
-  const convexObservations = useQuery(api.farmerObservations.listRecent, { farmId, limit })
+  const convexObservations = useQuery(api.data.farmerObservations.listRecent, { farmId, limit })
 
   // Merge with localStorage observations for public demo mode
   const observations = useMemo(() => {
@@ -82,7 +82,7 @@ export function useDemoCreateFarmerObservation() {
   const [, setLocalStorageVersion] = useState(0)
 
   // Convex mutation (only used in dev mode)
-  const createObservation = useMutation(api.farmerObservations.create)
+  const createObservation = useMutation(api.data.farmerObservations.create)
 
   const triggerLocalStorageUpdate = useCallback(() => {
     setLocalStorageVersion((v) => v + 1)

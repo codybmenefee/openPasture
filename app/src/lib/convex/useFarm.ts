@@ -15,7 +15,7 @@ export function useFarm(): UseFarmResult {
 
   // Use the new organization-aware query that handles both Clerk org IDs and legacy IDs
   const farmDoc = useQuery(
-    api.organizations.getFarmByIdOrLegacy,
+    api.data.organizations.getFarmByIdOrLegacy,
     farmId ? { farmId } : 'skip'
   ) as FarmDoc | null | undefined
 

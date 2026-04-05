@@ -21,7 +21,7 @@ interface BoundarySavedDialogProps {
 export function BoundarySavedDialog({ open, onOpenChange }: BoundarySavedDialogProps) {
   const { activeFarmId } = useFarmContext()
   const { triggerCollapseAnimation } = useSatelliteAnimation()
-  const createJob = useMutation(api.satelliteFetchJobs.createForBoundaryUpdate)
+  const createJob = useMutation(api.workflows.satelliteFetchJobs.createForBoundaryUpdate)
 
   const handleRefresh = async () => {
     if (activeFarmId) {

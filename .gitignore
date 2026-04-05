@@ -20,10 +20,23 @@ Thumbs.db
 *.swp
 *.swo
 
+# Build output
+dist/
+
+# Generated files
+**/routeTree.gen.ts
+
+# Convex AI generated files (installed by `npx convex ai-files`)
+/convex/
+/CLAUDE.md
+.agents/
+skills-lock.json
+.claude/skills/convex-*
+
 # Cache directories
 /tmp/
 *.log
-src/ingestion/output/
+ingestion/satellite/output/
 
 # Playwright MCP screenshots
 .playwright-mcp/

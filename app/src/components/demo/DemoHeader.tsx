@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Terminal, BookOpen, ArrowRight } from 'lucide-react'
+
 import { DemoFarmSelector } from './DemoFarmSelector'
 import { DemoDailyPlanButton } from './DemoDailyPlanButton'
 import { DemoDevToolsDropdown } from './DemoDevToolsDropdown'
@@ -28,9 +29,9 @@ export function DemoHeader() {
       {/* Right side */}
       <div className="flex-1" />
       <div className="flex items-center gap-2">
-        <Link to="/docs" className="flex h-5 w-5 items-center justify-center hover:bg-olive-light transition-colors" title="Documentation">
+        <a href={import.meta.env.VITE_MARKETING_URL ? `${import.meta.env.VITE_MARKETING_URL}/docs` : '/docs'} className="flex h-5 w-5 items-center justify-center hover:bg-olive-light transition-colors" title="Documentation">
           <BookOpen className="h-3 w-3" />
-        </Link>
+        </a>
 
         <DemoDevToolsDropdown />
 

@@ -13,11 +13,11 @@ export function LivestockSettings() {
   const { activeFarmId } = useFarmContext()
 
   const settingsData = useQuery(
-    api.settings.getLivestockSettings,
+    api.data.settings.getLivestockSettings,
     activeFarmId ? { farmId: activeFarmId } : 'skip'
   )
 
-  const updateSettings = useMutation(api.settings.updateLivestockSettings)
+  const updateSettings = useMutation(api.data.settings.updateLivestockSettings)
 
   const [settings, setSettings] = useState<LivestockSettingsType>(DEFAULT_LIVESTOCK_SETTINGS)
   const [hasChanges, setHasChanges] = useState(false)

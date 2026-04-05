@@ -6,7 +6,6 @@ import { DailyPlanButton } from './DailyPlanButton'
 import { NotificationBell } from './NotificationBell'
 import { DevToolsDropdown } from './DevToolsDropdown'
 import { SatelliteStatusIcon } from './SatelliteStatusIcon'
-import { Link } from '@tanstack/react-router'
 import { useAppAuth } from '@/lib/auth'
 import { useTutorial } from '@/components/onboarding/tutorial'
 import { BugReportModal } from './BugReportModal'
@@ -138,9 +137,9 @@ export function Header() {
           <Bug className="h-3 w-3" />
         </button>
 
-        <Link to="/docs" className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Documentation">
+        <a href={import.meta.env.VITE_MARKETING_URL ? `${import.meta.env.VITE_MARKETING_URL}/docs` : '/docs'} className="flex h-5 w-5 items-center justify-center rounded hover:bg-accent" title="Documentation">
           <BookOpen className="h-3 w-3" />
-        </Link>
+        </a>
 
         <NotificationBell />
 

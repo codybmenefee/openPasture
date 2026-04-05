@@ -63,7 +63,7 @@ export function useFarmBoundary(): UseFarmBoundaryResult {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const updateBoundary = useMutation(api.farms.updateFarmBoundary)
+  const updateBoundary = useMutation(api.data.farms.updateFarmBoundary)
 
   const hasBoundary = isValidBoundary(farm?.geometry)
   const boundaryArea = hasBoundary && farm?.geometry

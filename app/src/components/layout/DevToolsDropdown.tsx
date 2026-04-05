@@ -31,15 +31,15 @@ export function DevToolsDropdown() {
   const { startTutorial, resetTutorial } = useTutorial()
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
-  const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
-  const clearGrazingEvents = useMutation(api.intelligence.clearGrazingEvents)
-  const resetSettings = useMutation(api.settings.resetSettings)
-  const setupTutorialDemo = useMutation(api.farms.setupTutorialDemo)
-  const backdatePaddocks = useMutation(api.intelligence.backdatePaddocks)
+  const deleteTodayPlan = useMutation(api.workflows.intelligence.deleteTodayPlan)
+  const clearGrazingEvents = useMutation(api.workflows.intelligence.clearGrazingEvents)
+  const resetSettings = useMutation(api.data.settings.resetSettings)
+  const setupTutorialDemo = useMutation(api.data.farms.setupTutorialDemo)
+  const backdatePaddocks = useMutation(api.workflows.intelligence.backdatePaddocks)
   const regenerateDemoHistory = useMutation(api.demo.regenerateDemoHistory)
-  const shiftPlanDatesBack = useMutation(api.intelligence.shiftPlanDatesBack)
-  const deleteForecast = useMutation(api.grazingAgentTools.deleteForecast)
-  const resetAllPaddockGrazingData = useMutation(api.intelligence.resetAllPaddockGrazingData)
+  const shiftPlanDatesBack = useMutation(api.workflows.intelligence.shiftPlanDatesBack)
+  const deleteForecast = useMutation(api.harness.tools.grazingAgentTools.deleteForecast)
+  const resetAllPaddockGrazingData = useMutation(api.workflows.intelligence.resetAllPaddockGrazingData)
 
   // Only render in dev mode
   if (!isDevAuth) return null

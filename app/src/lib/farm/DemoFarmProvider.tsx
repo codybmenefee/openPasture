@@ -18,7 +18,7 @@ export function DemoFarmProvider({ children }: { children: ReactNode }) {
   // In dev mode, query farm-1 directly (not a demo farm copy)
   // This ensures mutations and queries target the same farm
   const demoFarmDoc = useQuery(
-    isDemoDevMode ? api.farms.getFarm : api.demo.getDemoFarm,
+    isDemoDevMode ? api.data.farms.getFarm : api.demo.getDemoFarm,
     isDemoDevMode
       ? { farmId: 'farm-1' }
       : (demoSessionId ? { sessionId: demoSessionId } : 'skip')

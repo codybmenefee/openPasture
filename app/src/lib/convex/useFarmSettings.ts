@@ -17,12 +17,12 @@ interface UseFarmSettingsResult {
 export function useFarmSettings(): UseFarmSettingsResult {
   const { activeFarmId: farmId, isLoading: isFarmLoading } = useFarmContext()
   const settingsDoc = useQuery(
-    api.settings.getSettings,
+    api.data.settings.getSettings,
     farmId ? { farmId } : 'skip'
   ) as FarmSettingsDoc | null | undefined
-  const updateSettings = useMutation(api.settings.updateSettings)
-  const updateMapPref = useMutation(api.settings.updateMapPreference)
-  const resetSettingsMutation = useMutation(api.settings.resetSettings)
+  const updateSettings = useMutation(api.data.settings.updateSettings)
+  const updateMapPref = useMutation(api.data.settings.updateMapPreference)
+  const resetSettingsMutation = useMutation(api.data.settings.resetSettings)
 
   const isLoading = isFarmLoading || (!!farmId && settingsDoc === undefined)
   const settings = settingsDoc ? mapFarmSettingsDoc(settingsDoc) : defaultSettings

@@ -30,13 +30,13 @@ function HistoryPage() {
 
   // Fetch plans from Convex
   const plans = useQuery(
-    api.intelligence.getPlanHistory,
+    api.workflows.intelligence.getPlanHistory,
     activeFarmId ? { farmExternalId: activeFarmId, days } : 'skip'
   )
 
   // Fetch pastures for name lookup
   const pastures = useQuery(
-    api.intelligence.getPasturesForFarm,
+    api.workflows.intelligence.getPasturesForFarm,
     activeFarmId ? { farmExternalId: activeFarmId } : 'skip'
   )
 
@@ -54,7 +54,7 @@ function HistoryPage() {
 
   // Fetch paddock modifications for all plans
   const modifications = useQuery(
-    api.intelligence.getPaddockModificationsByPlanIds,
+    api.workflows.intelligence.getPaddockModificationsByPlanIds,
     planIds.length > 0 ? { planIds } : 'skip'
   )
 

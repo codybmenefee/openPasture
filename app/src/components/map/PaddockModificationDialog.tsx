@@ -62,7 +62,7 @@ export function PaddockModificationDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { format } = useAreaUnit()
-  const recordModification = useMutation(api.intelligence.recordPaddockModification)
+  const recordModification = useMutation(api.workflows.intelligence.recordPaddockModification)
 
   const areaChange = modifiedAreaHectares - originalAreaHectares
   const areaChangePercent = originalAreaHectares > 0

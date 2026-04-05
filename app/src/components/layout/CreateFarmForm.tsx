@@ -21,7 +21,7 @@ export function CreateFarmForm({ onSuccess, onCancel }: CreateFarmFormProps) {
 
   const { createOrganization, setActive } = useOrganizationList()
   const geocodeAddress = useAction(api.geocoding.geocodeAddress)
-  const createFarmFromOrg = useMutation(api.organizations.createFarmFromOrg)
+  const createFarmFromOrg = useMutation(api.data.organizations.createFarmFromOrg)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

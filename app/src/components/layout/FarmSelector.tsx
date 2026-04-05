@@ -52,7 +52,7 @@ interface FarmSelectorInnerProps {
 function FarmSelectorInner({ organization }: FarmSelectorInnerProps) {
   const { activeFarm, activeFarmId, availableFarms, isLoading, switchFarm } = useFarmContext()
   const { isDevAuth } = useAppAuth()
-  const deleteFarmMutation = useMutation(api.organizations.deleteFarm)
+  const deleteFarmMutation = useMutation(api.data.organizations.deleteFarm)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)

@@ -20,7 +20,7 @@ export function useDemoSeeding(): UseDemoSeedingResult {
   // In dev mode, query farm-1 directly (no seeding needed)
   // In public demo mode, check if demo farm already exists
   const demoFarm = useQuery(
-    isDemoDevMode ? api.farms.getFarm : api.demo.getDemoFarm,
+    isDemoDevMode ? api.data.farms.getFarm : api.demo.getDemoFarm,
     isDemoDevMode
       ? { farmId: 'farm-1' }
       : (demoSessionId ? { sessionId: demoSessionId } : 'skip')

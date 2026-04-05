@@ -290,7 +290,7 @@ async function handleUserSubscriptionUpdate(
   // Only sync if there's an active plan (early_access)
   // This handles the case where user has multiple items (free ended, early_access active)
   if (normalized.hasActivePlan) {
-    await ctx.runMutation(api.users.syncUserSubscription, {
+    await ctx.runMutation(api.data.users.syncUserSubscription, {
       userExternalId: normalized.userId,
       subscriptionId: normalized.id,
       planId: normalized.planId,
@@ -306,7 +306,7 @@ async function handleUserSubscriptionUpdate(
   } else {
     // No active plan - cancel subscription
     log(`No active plan found for ${normalized.userId}, marking as canceled`)
-    await ctx.runMutation(api.users.cancelUserSubscription, {
+    await ctx.runMutation(api.data.users.cancelUserSubscription, {
       userExternalId: normalized.userId,
     })
   }
@@ -326,7 +326,7 @@ async function handleUserSubscriptionDeleted(
     throw new Error('User subscription delete missing userId')
   }
 
-  await ctx.runMutation(api.users.cancelUserSubscription, {
+  await ctx.runMutation(api.data.users.cancelUserSubscription, {
     userExternalId: normalized.userId,
   })
 
@@ -454,7 +454,7 @@ http.route({
       // Look up tile by ID
       let tile
       try {
-        tile = await ctx.runQuery(internal.satelliteTiles.getTileById, {
+        tile = await ctx.runQuery(internal.data.satelliteTiles.getTileById, {
           id: tileId as Id<'satelliteImageTiles'>,
         })
       } catch {
@@ -668,7 +668,7 @@ http.route({
 
     try {
       // Complete the job and create notification (for Sentinel-2 only)
-      await ctx.runMutation(api.satelliteFetchJobs.completeJobByFarm, {
+      await ctx.runMutation(api.workflows.satelliteFetchJobs.completeJobByFarm, {
         farmExternalId: payload.farmExternalId,
         provider: payload.provider,
         success: payload.success,
@@ -752,20 +752,20 @@ http.route({
       // Create job based on trigger type
       switch (triggeredBy) {
         case 'boundary_update':
-          jobId = await ctx.runMutation(api.satelliteFetchJobs.createForBoundaryUpdate, {
+          jobId = await ctx.runMutation(api.workflows.satelliteFetchJobs.createForBoundaryUpdate, {
             farmExternalId: payload.farmExternalId,
             provider,
           })
           break
         case 'scheduled':
-          jobId = await ctx.runMutation(api.satelliteFetchJobs.createForScheduledCheck, {
+          jobId = await ctx.runMutation(api.workflows.satelliteFetchJobs.createForScheduledCheck, {
             farmExternalId: payload.farmExternalId,
             provider,
           })
           break
         case 'manual':
         default:
-          jobId = await ctx.runMutation(api.satelliteFetchJobs.createForManualRefresh, {
+          jobId = await ctx.runMutation(api.workflows.satelliteFetchJobs.createForManualRefresh, {
             farmExternalId: payload.farmExternalId,
             provider,
           })

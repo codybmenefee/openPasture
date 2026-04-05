@@ -42,7 +42,7 @@ pnpm run lint        # ESLint
 - `mutation` - Database writes
 - `action` - Async server operations (AI calls, external APIs)
 
-**Agent entry point:** Always use `api.grazingAgentGateway.agentGateway` - never call `grazingAgentDirect` directly.
+**Agent entry point:** Always use `api.harness.agent.grazingAgentGateway.agentGateway` - never call `grazingAgentDirect` directly.
 
 ## Convex Bundler + Native Node Modules
 

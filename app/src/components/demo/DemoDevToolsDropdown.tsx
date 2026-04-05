@@ -21,11 +21,11 @@ export function DemoDevToolsDropdown() {
   const { startTutorial, resetTutorial } = useTutorial()
   const { demoSessionId } = useDemoAuth()
 
-  const deleteTodayPlan = useMutation(api.intelligence.deleteTodayPlan)
-  const clearGrazingEvents = useMutation(api.intelligence.clearGrazingEvents)
-  const resetSettings = useMutation(api.settings.resetSettings)
-  const setupTutorialDemo = useMutation(api.farms.setupTutorialDemo)
-  const backdatePaddocks = useMutation(api.intelligence.backdatePaddocks)
+  const deleteTodayPlan = useMutation(api.workflows.intelligence.deleteTodayPlan)
+  const clearGrazingEvents = useMutation(api.workflows.intelligence.clearGrazingEvents)
+  const resetSettings = useMutation(api.data.settings.resetSettings)
+  const setupTutorialDemo = useMutation(api.data.farms.setupTutorialDemo)
+  const backdatePaddocks = useMutation(api.workflows.intelligence.backdatePaddocks)
   const regenerateDemoHistory = useMutation(api.demo.regenerateDemoHistory)
 
   // In dev mode, operate on source farm (farm-1) to edit demo source data

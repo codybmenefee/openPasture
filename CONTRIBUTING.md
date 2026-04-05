@@ -62,10 +62,10 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
 VITE_DEV_AUTH=true
 ```
 
-If you work on ingestion/pipeline code, also copy:
+If you work on the ingestion layer (the satellite pipeline lives in `ingestion/satellite/`), also copy:
 
 ```bash
-cp src/ingestion/.env.example src/ingestion/.env.local
+cp ingestion/satellite/.env.example ingestion/satellite/.env.local
 ```
 
 For the complete env matrix (including Convex Dashboard server-side vars like `ANTHROPIC_API_KEY`), see [docs/environment.md](docs/environment.md).

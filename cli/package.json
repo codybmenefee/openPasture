@@ -1,0 +1,24 @@
+{
+  "name": "@openpasture/cli",
+  "version": "0.1.0",
+  "description": "OpenPasture CLI - tool primitives for agents and developers",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "op": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "commander": "^13.0.0",
+    "convex": "^1.31.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.3"
+  }
+}

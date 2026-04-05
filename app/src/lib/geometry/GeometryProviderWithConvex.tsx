@@ -27,30 +27,30 @@ interface GeometryProviderWithConvexProps {
 
 export function GeometryProviderWithConvex({ children }: GeometryProviderWithConvexProps) {
   const { activeFarmId: farmId, isLoading: isFarmLoading } = useFarmContext()
-  const farmDoc = useQuery(api.farms.getFarm, farmId ? { farmId } : 'skip') as FarmDoc | null | undefined
-  const pastureDocs = useQuery(api.paddocks.listPasturesByFarm, farmId ? { farmId } : 'skip') as
+  const farmDoc = useQuery(api.data.farms.getFarm, farmId ? { farmId } : 'skip') as FarmDoc | null | undefined
+  const pastureDocs = useQuery(api.data.paddocks.listPasturesByFarm, farmId ? { farmId } : 'skip') as
     | PastureDoc[]
     | undefined
-  const paddockDocs = useQuery(api.intelligence.getAllPaddocks, farmId ? { farmExternalId: farmId } : 'skip') as
+  const paddockDocs = useQuery(api.workflows.intelligence.getAllPaddocks, farmId ? { farmExternalId: farmId } : 'skip') as
     | PaddockDoc[]
     | undefined
-  const noGrazeZoneDocs = useQuery(api.noGrazeZones.listByFarm, farmId ? { farmId } : 'skip') as
+  const noGrazeZoneDocs = useQuery(api.data.noGrazeZones.listByFarm, farmId ? { farmId } : 'skip') as
     | NoGrazeZoneDoc[]
     | undefined
-  const waterSourceDocs = useQuery(api.waterSources.listByFarm, farmId ? { farmId } : 'skip') as
+  const waterSourceDocs = useQuery(api.data.waterSources.listByFarm, farmId ? { farmId } : 'skip') as
     | WaterSourceDoc[]
     | undefined
 
-  const applyPastureChanges = useMutation(api.paddocks.applyPastureChanges)
-  const updatePastureMetadataMutation = useMutation(api.paddocks.updatePastureMetadata)
-  const updatePlanPaddockGeometry = useMutation(api.intelligence.updatePlanPaddockGeometry)
-  const deletePlan = useMutation(api.intelligence.forceDeleteTodayPlan)
-  const createNoGrazeZone = useMutation(api.noGrazeZones.create)
-  const updateNoGrazeZone = useMutation(api.noGrazeZones.update)
-  const removeNoGrazeZone = useMutation(api.noGrazeZones.remove)
-  const createWaterSource = useMutation(api.waterSources.create)
-  const updateWaterSource = useMutation(api.waterSources.update)
-  const removeWaterSource = useMutation(api.waterSources.remove)
+  const applyPastureChanges = useMutation(api.data.paddocks.applyPastureChanges)
+  const updatePastureMetadataMutation = useMutation(api.data.paddocks.updatePastureMetadata)
+  const updatePlanPaddockGeometry = useMutation(api.workflows.intelligence.updatePlanPaddockGeometry)
+  const deletePlan = useMutation(api.workflows.intelligence.forceDeleteTodayPlan)
+  const createNoGrazeZone = useMutation(api.data.noGrazeZones.create)
+  const updateNoGrazeZone = useMutation(api.data.noGrazeZones.update)
+  const removeNoGrazeZone = useMutation(api.data.noGrazeZones.remove)
+  const createWaterSource = useMutation(api.data.waterSources.create)
+  const updateWaterSource = useMutation(api.data.waterSources.update)
+  const removeWaterSource = useMutation(api.data.waterSources.remove)
 
   const pastures = useMemo(() => (pastureDocs ?? []).map(mapPastureDoc), [pastureDocs])
   const farm = farmDoc ? mapFarmDoc(farmDoc) : null

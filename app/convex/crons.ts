@@ -17,7 +17,7 @@ crons.daily(
 crons.daily(
   'ensure-demo-farm-satellite-job',
   { hourUTC: 5, minuteUTC: 0 },
-  api.satelliteFetchJobs.createForScheduledCheck,
+  api.workflows.satelliteFetchJobs.createForScheduledCheck,
   { farmExternalId: 'farm-1' }
 )
 

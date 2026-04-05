@@ -34,14 +34,14 @@ export function useDemoFarmSettings(): UseDemoFarmSettingsResult {
 
   // Convex query for base settings
   const settingsDoc = useQuery(
-    api.settings.getSettings,
+    api.data.settings.getSettings,
     farmId ? { farmId } : 'skip'
   ) as FarmSettingsDoc | null | undefined
 
   // Convex mutations (only used in dev mode)
-  const updateSettings = useMutation(api.settings.updateSettings)
-  const updateMapPref = useMutation(api.settings.updateMapPreference)
-  const resetSettingsMutation = useMutation(api.settings.resetSettings)
+  const updateSettings = useMutation(api.data.settings.updateSettings)
+  const updateMapPref = useMutation(api.data.settings.updateMapPreference)
+  const resetSettingsMutation = useMutation(api.data.settings.resetSettings)
 
   const isLoading = isFarmLoading || (!!farmId && settingsDoc === undefined)
 

@@ -53,8 +53,8 @@ echo ""
 [ -f "app/convex/zones.ts" ] && check "CRUD: zones.ts exists" || warn "CRUD: zones.ts missing"
 
 # Check pipeline integration
-[ -f "src/ingestion/writer.py" ] && check "Pipeline: writer.py exists" || warn "Pipeline: writer.py missing"
-[ -f "src/ingestion/pipeline.py" ] && grep -q "write-convex" src/ingestion/pipeline.py && check "Pipeline: --write-convex flag integrated" || warn "Pipeline: --write-convex flag missing"
+[ -f "ingestion/satellite/writer.py" ] && check "Pipeline: writer.py exists" || warn "Pipeline: writer.py missing"
+[ -f "ingestion/satellite/pipeline.py" ] && grep -q "write-convex" ingestion/satellite/pipeline.py && check "Pipeline: --write-convex flag integrated" || warn "Pipeline: --write-convex flag missing"
 
 # Check agent gateway
 [ -f "app/lib/agent/context.ts" ] && check "Agent: context.ts exists" || warn "Agent: context.ts missing"
@@ -137,8 +137,8 @@ echo "4. Testing pipeline (dry run)..."
 echo ""
 
 # Check if Python pipeline can be imported (syntax check)
-if [ -f "src/ingestion/pipeline.py" ]; then
-    cd src/ingestion
+if [ -f "ingestion/satellite/pipeline.py" ]; then
+    cd ingestion/satellite
     if python3 -m py_compile pipeline.py 2>/dev/null; then
         check "Pipeline: Python syntax valid"
     else
@@ -164,7 +164,7 @@ if [ $FAILED -eq 0 ]; then
     echo ""
     echo "Next steps:"
     echo "1. Run full verification: See docs/PHASE_1_VERIFICATION_PLAN.md"
-    echo "2. Test pipeline locally: cd src/ingestion && python pipeline.py --dev --write-convex"
+    echo "2. Test pipeline locally: cd ingestion/satellite && python pipeline.py --dev --write-convex"
     echo "3. Test frontend: cd app && npm run dev"
     echo "4. Check Railway logs: railway logs --service pipeline"
     exit 0

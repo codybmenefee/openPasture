@@ -34,22 +34,22 @@ function AnalyticsPage() {
 
   // All queries use activeFarmId (Clerk org ID) with 'skip' pattern
   const recoveryData = useQuery(
-    api.observations.getRecoveryTracker,
+    api.data.observations.getRecoveryTracker,
     activeFarmId ? { farmExternalId: activeFarmId } : 'skip'
   )
 
   const restPeriodData = useQuery(
-    api.intelligence.getRestPeriodDistribution,
+    api.workflows.intelligence.getRestPeriodDistribution,
     activeFarmId ? { farmExternalId: activeFarmId, days } : 'skip'
   )
 
   const ndviTrend = useQuery(
-    api.observations.getFarmNDVITrend,
+    api.data.observations.getFarmNDVITrend,
     activeFarmId ? { farmExternalId: activeFarmId, days } : 'skip'
   )
 
   const planStats = useQuery(
-    api.intelligence.getPlanApprovalStats,
+    api.workflows.intelligence.getPlanApprovalStats,
     activeFarmId ? { farmExternalId: activeFarmId, days } : 'skip'
   )
 

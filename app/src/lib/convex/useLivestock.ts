@@ -18,11 +18,11 @@ export function useLivestock(): UseLivestockResult {
   const { activeFarmId } = useFarmContext()
 
   const summaryData = useQuery(
-    api.livestock.getLivestockSummary,
+    api.data.livestock.getLivestockSummary,
     activeFarmId ? { farmId: activeFarmId } : 'skip'
   )
 
-  const upsertMutation = useMutation(api.livestock.upsertLivestock)
+  const upsertMutation = useMutation(api.data.livestock.upsertLivestock)
 
   const isLoading = activeFarmId ? summaryData === undefined : false
 
