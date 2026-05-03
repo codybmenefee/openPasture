@@ -188,20 +188,27 @@ export function useMapDraw({
   useEffect(() => {
     if (!map || !editable) return
 
-    const draw = new MapboxDraw({
-      displayControlsDefault: false,
-      controls: {
-        polygon: false,
-        point: false,
-        trash: false,
-      },
-      styles: drawStyles,
-      defaultMode: 'simple_select',
-    })
+    let draw: MapboxDraw
+    try {
+      draw = new MapboxDraw({
+        displayControlsDefault: false,
+        controls: {
+          polygon: false,
+          point: false,
+          trash: false,
+        },
+        styles: drawStyles,
+        defaultMode: 'simple_select',
+      })
 
-    // MapLibre compatibility: MapboxDraw works with MapLibre but we need to cast
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    map.addControl(draw as any)
+      // MapLibre compatibility: MapboxDraw works with MapLibre but we need to cast
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.addControl(draw as any)
+    } catch (err) {
+      console.error('[useMapDraw] MapboxDraw initialization failed:', err)
+      console.error('[useMapDraw] This may indicate a mapbox-gl-draw / maplibre-gl v5 incompatibility')
+      return
+    }
     drawRef.current = draw
     setDraw(draw)
 

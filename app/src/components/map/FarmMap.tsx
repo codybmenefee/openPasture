@@ -620,6 +620,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
   }, [farmGeometry])
 
   const isEditActive = editable && editMode
+  const [nativeLayersReady, setNativeLayersReady] = useState(false)
 
   const isMapReady = useCallback(() => {
     if (!mapInstance || !isMapLoaded) return false
@@ -685,7 +686,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     cancelDrawing,
     isDrawing,
   } = useMapDraw({
-    map: isEditActive ? mapInstance : null,
+    map: isEditActive && nativeLayersReady ? mapInstance : null,
     editable: isEditActive,
     onFeatureSelected: handleFeatureSelected,
     drawingEntityType: entityType,
@@ -1151,6 +1152,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       mapRef.current = null
       setMapInstance(null)
       setIsMapLoaded(false)
+      setNativeLayersReady(false)
     }
     // Note: pastures/farmGeometry are accessed via refs to avoid map recreation on every change
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1176,6 +1178,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
     }
 
     log('[Pastures] Creating/updating pasture layers, count:', pastures.length)
+    console.error('[FarmMap] Pasture layer effect running — pasture count:', pastures.length)
 
     // Create GeoJSON feature collection for pastures
     const pasturesGeojson: GeoJSON.FeatureCollection = {
@@ -1189,6 +1192,20 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           ndvi: p.ndvi,
         },
       })),
+    }
+
+    // Validate GeoJSON features have coordinates
+    const validFeatures = pasturesGeojson.features.filter(
+      f => f.geometry?.type === 'Polygon' && (f.geometry as GeoJSON.Polygon).coordinates?.[0]?.length >= 4
+    )
+    if (validFeatures.length !== pasturesGeojson.features.length) {
+      console.error('[FarmMap] Some pasture features have invalid geometry:', {
+        total: pasturesGeojson.features.length,
+        valid: validFeatures.length,
+        invalid: pasturesGeojson.features.filter(
+          f => !(f.geometry?.type === 'Polygon' && (f.geometry as GeoJSON.Polygon).coordinates?.[0]?.length >= 4)
+        ).map(f => ({ id: f.properties?.id, geomType: f.geometry?.type })),
+      })
     }
 
     // Log detailed pasture info for debugging
@@ -1225,7 +1242,7 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           data: pasturesGeojson,
         })
 
-      // Add fill layer
+      // Add fill layer — using bright magenta with high opacity for debugging
       map.addLayer({
         id: 'pastures-fill',
         type: 'fill',
@@ -1234,20 +1251,35 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
           visibility: 'visible',
         },
         paint: {
-          'fill-color': [
-            'match',
-            ['get', 'status'],
-            'ready', statusColors.ready,
-            'almost_ready', statusColors.almost_ready,
-            'recovering', statusColors.recovering,
-            'grazed', statusColors.grazed,
-            '#6b7280',
-          ],
-          'fill-opacity': 0,
+          'fill-color': '#ff00ff',
+          'fill-opacity': 0.4,
         },
       })
 
-      // Add outline layer
+      // Diagnostic: check if MapLibre rendered features after a short delay
+      setTimeout(() => {
+        try {
+          const allLayers = map.getStyle().layers
+          console.error('[FarmMap] All map layers:', allLayers?.map(l => ({ id: l.id, type: l.type, visibility: (l as Record<string, unknown>).layout?.visibility ?? 'default' })))
+          const source = map.getSource('pastures') as maplibregl.GeoJSONSource
+          console.error('[FarmMap] Pastures source type:', source?.type)
+          const rendered = map.queryRenderedFeatures(undefined, { layers: ['pastures-fill'] })
+          console.error('[FarmMap] queryRenderedFeatures for pastures-fill:', rendered.length, 'features')
+          if (rendered.length === 0) {
+            const allRendered = map.queryRenderedFeatures()
+            console.error('[FarmMap] Total rendered features across all layers:', allRendered.length)
+            console.error('[FarmMap] Rendered layer IDs:', [...new Set(allRendered.map(f => f.layer?.id))])
+          }
+          const center = map.getCenter()
+          const zoom = map.getZoom()
+          const bounds = map.getBounds()
+          console.error('[FarmMap] Map viewport:', { center: [center.lng, center.lat], zoom, bounds: bounds ? [[bounds.getWest(), bounds.getSouth()], [bounds.getEast(), bounds.getNorth()]] : null })
+        } catch (e) {
+          console.error('[FarmMap] Diagnostic failed:', e)
+        }
+      }, 2000)
+
+      // Add outline layer with thicker border for visibility
       map.addLayer({
         id: 'pastures-outline',
         type: 'line',
@@ -1265,8 +1297,18 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
             'grazed', statusColors.grazed,
             '#6b7280',
           ],
-          'line-width': 2,
+          'line-width': 3,
         },
+      })
+
+      console.error('[FarmMap] Pasture layers created:', {
+        fillLayer: !!map.getLayer('pastures-fill'),
+        outlineLayer: !!map.getLayer('pastures-outline'),
+        source: !!map.getSource('pastures'),
+        featureCount: pasturesGeojson.features.length,
+        sampleCoord: pasturesGeojson.features[0]?.geometry?.type === 'Polygon'
+          ? (pasturesGeojson.features[0].geometry as GeoJSON.Polygon).coordinates[0]?.[0]
+          : null,
       })
 
       // Add labels
@@ -1295,9 +1337,13 @@ export const FarmMap = forwardRef<FarmMapHandle, FarmMapProps>(function FarmMap(
       // Add no-graze zone and water source layers
       ensureNoGrazeZoneLayers(map)
       ensureWaterSourceLayers(map)
+
+      // Signal that native layers are ready so MapboxDraw can safely initialize
+      setNativeLayersReady(true)
+      console.error('[FarmMap] Native layers created successfully — MapboxDraw can now initialize')
     }
     } catch (err) {
-      // Map may have been destroyed during component unmount - ignore
+      console.error('[FarmMap] Map layer creation failed:', err)
       log('[Pastures] Map operation failed (likely unmounting):', err)
       return
     }
